@@ -19,5 +19,6 @@ serde = "1.0"
 serde_json = "1.0"
 sha2 = "0.10.7"
 stacks-core = { path = "stacks-core" }
+stacks-rs = "0.1.10"
 strum = "0.25.0"
 thiserror = "1.0.43"

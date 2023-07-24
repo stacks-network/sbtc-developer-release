@@ -6,7 +6,11 @@ Deposit is a transaction with the output structure as below:
 
 The data output should contain data in the following format:
 
+<<<<<<< HEAD
 ```text
+=======
+```
+>>>>>>> 9c0ad37 (feat: add wireformat and parser for deposits)
 0      2  3                  24                            64       80
 |------|--|------------------|-----------------------------|--------|
  magic  op   Stacks address      Contract name (optional)     memo
