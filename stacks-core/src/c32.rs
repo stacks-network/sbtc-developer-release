@@ -1,4 +1,4 @@
-use crate::crypto::SHA256Hash;
+use crate::crypto::hash::SHA256Hash;
 
 const C32_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const C32_BYTE_MAP: [Option<u8>; 128] = [
@@ -137,7 +137,7 @@ fn encode_overhead(len: usize) -> usize {
 }
 
 fn decode_underhead(len: usize) -> usize {
-    len / (8 / 5)
+    len / (8f64 / 5f64).ceil() as usize
 }
 
 #[derive(thiserror::Error, Clone, Debug, Eq, PartialEq)]
@@ -173,7 +173,7 @@ pub fn encode(data: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
     let mut bits = 0;
 
     for byte in data.iter().rev() {
-        buffer |= (u32::from(*byte as u32)) << bits;
+        buffer |= (*byte as u32) << bits;
         bits += 8;
 
         while bits >= 5 {
@@ -244,7 +244,7 @@ pub fn decode(input: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
     }
 
     for byte in input.iter() {
-        if *byte == '0' as u8 {
+        if *byte == b'0' {
             decoded.push(0);
         } else {
             break;

@@ -14,10 +14,9 @@ The data output should contain data in the following format:
 */
 use std::str::from_utf8;
 
-use stacks_core::contract_name::ContractName;
-use stacks_core::{PrincipalData, StandardPrincipalData};
-use stacks_rs::crypto::Hash160;
-use stacks_rs::StacksAddress;
+use stacks_core::prelude::{
+    hash::Hash160, ContractName, PrincipalData, StacksAddress, StandardPrincipalData,
+};
 
 use crate::wireformat::ParseError;
 
@@ -44,15 +43,18 @@ pub fn parse(data: &[u8]) -> Result<ParsedDeposit, ParseError> {
     }
 
     let standard_principal_data = {
-        let version = *data.get(0).expect("No version byte in data");
+        let version = data.first().expect("No version byte in data");
         let address_data: [u8; 20] = data
             .get(1..21)
             .ok_or(ParseError::MalformedData("Could not get address data"))?
-            .try_into()?;
+            .try_into()
+            .map_err(|_| {
+                ParseError::MalformedData("Byte data is larger than 20 bytes for the address")
+            })?;
 
         StandardPrincipalData::new(
-            version,
-            StacksAddress::new(Hash160::from_slice(&address_data)),
+            *version,
+            StacksAddress::new(*version, Hash160::new(address_data)),
         )
     };
 

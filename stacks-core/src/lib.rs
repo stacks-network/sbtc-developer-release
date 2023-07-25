@@ -1,27 +1,26 @@
-use crate::contract_name::ContractName;
+use thiserror::Error;
 
+pub mod address;
 pub mod c32;
-pub mod contract_name;
 pub mod crypto;
+pub mod utils;
 
-pub type Hash160 = [u8; 20];
-
-#[derive(Debug, Clone)]
-pub struct StacksAddress {
-    version: u8,
-    hash: Hash160,
+#[derive(Error, Debug, Clone)]
+pub enum StacksError {
+    #[error("Invalid arguments: {0}")]
+    InvalidArguments(&'static str),
+    #[error("Could not crackford32 encode or decode: {0}")]
+    C32Error(#[from] c32::C32Error),
 }
 
-#[derive(Debug, Clone)]
-pub struct StandardPrincipalData(u8, StacksAddress);
+pub type StacksResult<T> = Result<T, StacksError>;
 
-impl StandardPrincipalData {
-    pub fn new(version: u8, address: StacksAddress) -> Self {
-        Self(version, address)
-    }
-}
+pub mod prelude {
+    pub use super::StacksError;
+    pub use super::StacksResult;
 
-pub enum PrincipalData {
-    Standard(StandardPrincipalData),
-    Contract(StandardPrincipalData, ContractName),
+    pub use crate::address::*;
+    pub use crate::c32::*;
+    pub use crate::crypto::*;
+    pub use crate::utils::*;
 }

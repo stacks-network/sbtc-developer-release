@@ -9,12 +9,12 @@ const SHA256_LENGTH: usize = 32;
 pub struct SHA256Hash([u8; SHA256_LENGTH]);
 
 impl SHA256Hash {
-    pub fn new(value: &[u8]) -> Self {
+    pub fn new(value: impl AsRef<[u8]>) -> Self {
         let bytes = {
             let mut buff = [0u8; SHA256_LENGTH];
 
             let mut ctx = Context::new(&SHA256);
-            ctx.update(value);
+            ctx.update(value.as_ref());
 
             let digest = ctx.finish();
             buff.copy_from_slice(digest.as_ref());
@@ -51,7 +51,7 @@ const HASH160_LENGTH: usize = 20;
 pub struct Hash160(pub [u8; HASH160_LENGTH]);
 
 impl Hash160 {
-    pub fn new(value: &[u8]) -> Self {
+    pub fn new(value: impl AsRef<[u8]>) -> Self {
         let mut buff = [0u8; HASH160_LENGTH];
 
         let ripemd = Ripemd160::digest(SHA256Hash::new(value).as_ref());

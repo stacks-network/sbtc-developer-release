@@ -8,6 +8,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use thiserror::Error;
 
+use crate::address::StacksAddress;
+
 pub const CONTRACT_MIN_NAME_LENGTH: usize = 1;
 pub const CONTRACT_MAX_NAME_LENGTH: usize = 40;
 
@@ -43,8 +45,8 @@ impl ContractName {
         if contract_name.len() < CONTRACT_MIN_NAME_LENGTH
             && contract_name.len() > CONTRACT_MAX_NAME_LENGTH
         {
-            return Err(ContractNameError::InvalidLength);
-        } else if CONTRACT_NAME_REGEX.is_match(&contract_name) {
+            Err(ContractNameError::InvalidLength)
+        } else if CONTRACT_NAME_REGEX.is_match(contract_name) {
             Ok(Self(contract_name.to_string()))
         } else {
             Err(ContractNameError::InvalidFormat)
@@ -79,6 +81,7 @@ impl Borrow<str> for ContractName {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<String> for ContractName {
     fn into(self) -> String {
         self.0
@@ -89,4 +92,18 @@ impl Display for ContractName {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         self.0.fmt(f)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct StandardPrincipalData(u8, StacksAddress);
+
+impl StandardPrincipalData {
+    pub fn new(version: u8, address: StacksAddress) -> Self {
+        Self(version, address)
+    }
+}
+
+pub enum PrincipalData {
+    Standard(StandardPrincipalData),
+    Contract(StandardPrincipalData, ContractName),
 }
