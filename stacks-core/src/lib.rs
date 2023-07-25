@@ -10,8 +10,6 @@ pub mod crypto;
 pub mod uint;
 pub mod utils;
 
-use crate::contract_name::ContractName;
-
 #[derive(Error, Debug, Clone)]
 pub enum StacksError {
     #[error("Invalid arguments: {0}")]
@@ -34,18 +32,4 @@ pub type StacksResult<T> = Result<T, StacksError>;
 pub struct StacksAddress {
     version: u8,
     hash: Hash160Hasher,
-}
-
-#[derive(Debug, Clone)]
-pub struct StandardPrincipalData(u8, StacksAddress);
-
-impl StandardPrincipalData {
-    pub fn new(version: u8, address: StacksAddress) -> Self {
-        Self(version, address)
-    }
-}
-
-pub enum PrincipalData {
-    Standard(StandardPrincipalData),
-    Contract(StandardPrincipalData, ContractName),
 }
