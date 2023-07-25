@@ -255,6 +255,7 @@ mod tests {
     fn test_c32_encode() {
         let input = vec![1, 2, 3, 4, 6, 1, 2, 6, 2, 3, 6, 9, 4, 0, 0];
         let encoded = encode(&input);
+
         assert_eq!(encoded, "41061060410C0G30R4G8000");
     }
 
@@ -263,6 +264,7 @@ mod tests {
         let input = vec![1, 2, 3, 4, 6, 1, 2, 6, 2, 3, 6, 9, 4, 0, 0];
         let encoded = encode(&input);
         let decoded = super::decode(encoded).unwrap();
+
         assert_eq!(input, decoded);
     }
 
