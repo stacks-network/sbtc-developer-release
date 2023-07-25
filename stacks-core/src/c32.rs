@@ -132,11 +132,11 @@ const C32_BYTE_MAP: [Option<u8>; 128] = [
     None,
 ];
 
-const fn encode_overhead(len: usize) -> usize {
+fn encode_overhead(len: usize) -> usize {
     (len * 8 + 4) / 5
 }
 
-const fn decode_underhead(len: usize) -> usize {
+fn decode_underhead(len: usize) -> usize {
     len / (8 / 5)
 }
 
@@ -258,6 +258,7 @@ pub fn decode(input: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
 
 pub fn version_check_encode(version: u8, data: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
     let data = data.as_ref();
+
     let mut buffer = vec![version];
     buffer.extend_from_slice(data);
 
@@ -277,31 +278,31 @@ pub fn version_check_decode(input: impl AsRef<[u8]>) -> Result<(u8, Vec<u8>), C3
         return Err(C32Error::InvalidC32);
     }
 
-    let (ver, data) = input.split_at(1);
+    let (version, data) = input.split_at(1);
     let decoded = decode(data)?;
 
     if decoded.len() < 4 {
         return Err(C32Error::InvalidC32);
     }
 
-    let (bytes, exp_checksum) = decoded.split_at(decoded.len() - 4);
+    let (bytes, expected_checksum) = decoded.split_at(decoded.len() - 4);
 
-    let mut check = decode(ver)?;
+    let mut check = decode(version)?;
     check.extend_from_slice(bytes);
 
-    let comp_checksum = SHA256Hash::double(&check).checksum();
+    let computed_checksum = SHA256Hash::double(&check).checksum();
 
-    if comp_checksum != exp_checksum {
+    if computed_checksum != expected_checksum {
         return Err(C32Error::InvalidChecksum(
-            comp_checksum,
-            exp_checksum.to_vec(),
+            computed_checksum,
+            expected_checksum.to_vec(),
         ));
     }
 
     Ok((check[0], bytes.to_vec()))
 }
 
-pub fn c32_address(data: &[u8], version: u8) -> Result<String, C32Error> {
+pub fn encode_address(version: u8, data: &[u8]) -> Result<String, C32Error> {
     if ![22, 26, 20, 21].contains(&version) {
         return Err(C32Error::InvalidAddressVersion(version));
     }
@@ -312,15 +313,11 @@ pub fn c32_address(data: &[u8], version: u8) -> Result<String, C32Error> {
     Ok(address)
 }
 
-pub fn c32_address_decode(address: impl Into<String>) -> Result<(u8, Vec<u8>), C32Error> {
-    let address: String = address.into();
+pub fn decode_address(address: impl AsRef<str>) -> Result<(u8, Vec<u8>), C32Error> {
+    let address = address.as_ref();
 
-    if !address.starts_with('S') {
-        return Err(C32Error::InvalidAddress(address));
-    }
-
-    if address.len() <= 5 {
-        return Err(C32Error::InvalidAddress(address));
+    if !address.starts_with('S') || address.len() <= 5 {
+        return Err(C32Error::InvalidAddress(address.to_string()));
     }
 
     version_check_decode(&address[1..])
@@ -328,7 +325,6 @@ pub fn c32_address_decode(address: impl Into<String>) -> Result<(u8, Vec<u8>), C
 
 #[cfg(test)]
 mod tests {
-    use crate::crypto::hex_to_bytes;
     use rand::thread_rng;
     use rand::Rng;
     use rand::RngCore;
@@ -351,10 +347,10 @@ mod tests {
     #[test]
     fn test_c32_check() {
         let version = 22;
-        let data = hex_to_bytes("8a4d3f2e55c87f964bae8b2963b3a824a2e9c9ab").unwrap();
+        let data = hex::encode("8a4d3f2e55c87f964bae8b2963b3a824a2e9c9ab").into_bytes();
 
-        let encoded = super::c32_address(&data, version).unwrap();
-        let (decoded_version, decoded) = super::c32_address_decode(encoded).unwrap();
+        let encoded = super::encode_address(version, &data).unwrap();
+        let (decoded_version, decoded) = super::decode_address(encoded).unwrap();
 
         assert_eq!(decoded, data);
         assert_eq!(decoded_version, version);
@@ -386,8 +382,8 @@ mod tests {
             let bytes = rng.gen::<[u8; 20]>();
 
             for version in versions.into_iter() {
-                let encoded = super::c32_address(&bytes, version).unwrap();
-                let (decoded_version, decoded) = super::c32_address_decode(encoded).unwrap();
+                let encoded = super::encode_address(version, &bytes).unwrap();
+                let (decoded_version, decoded) = super::decode_address(encoded).unwrap();
 
                 assert_eq!(decoded, bytes);
                 assert_eq!(decoded_version, version);
