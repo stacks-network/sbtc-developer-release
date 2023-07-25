@@ -1,0 +1,16 @@
+[package]
+name = "stacks-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+once_cell.workspace = true
+regex.workspace = true
+ring.workspace = true
+ripemd.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

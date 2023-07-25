@@ -1,8 +1,14 @@
-use stacks_rs::StacksAddress;
-
-use crate::utils::contract_name::ContractName;
+use crate::contract_name::ContractName;
 
 pub mod contract_name;
+
+pub type Hash160 = [u8; 20];
+
+#[derive(Debug, Clone)]
+pub struct StacksAddress {
+    version: u8,
+    hash: Hash160,
+}
 
 #[derive(Debug, Clone)]
 pub struct StandardPrincipalData(u8, StacksAddress);

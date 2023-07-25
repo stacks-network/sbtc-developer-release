@@ -14,11 +14,11 @@ The data output should contain data in the following format:
 */
 use std::str::from_utf8;
 
+use stacks_core::contract_name::ContractName;
+use stacks_core::{PrincipalData, StandardPrincipalData};
 use stacks_rs::crypto::Hash160;
 use stacks_rs::StacksAddress;
 
-use crate::utils::contract_name::ContractName;
-use crate::utils::{PrincipalData, StandardPrincipalData};
 use crate::wireformat::ParseError;
 
 fn find_leading_non_zero_bytes(data: &[u8]) -> Option<&[u8]> {
