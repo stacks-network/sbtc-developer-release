@@ -1,6 +1,8 @@
 use crate::contract_name::ContractName;
 
+pub mod c32;
 pub mod contract_name;
+pub mod crypto;
 
 pub type Hash160 = [u8; 20];
 
