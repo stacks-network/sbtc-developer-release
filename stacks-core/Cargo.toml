@@ -18,5 +18,4 @@ strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 
 [dev-dependencies]
-hex.workspace = true
 rand.workspace = true

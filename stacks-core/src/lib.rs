@@ -1,12 +1,16 @@
 use std::array::TryFromSliceError;
 
+use crypto::hash160::Hash160Hasher;
 use thiserror::Error;
 
 pub mod address;
 pub mod c32;
+pub mod contract_name;
 pub mod crypto;
 pub mod uint;
 pub mod utils;
+
+use crate::contract_name::ContractName;
 
 #[derive(Error, Debug, Clone)]
 pub enum StacksError {
@@ -25,3 +29,23 @@ pub enum StacksError {
 }
 
 pub type StacksResult<T> = Result<T, StacksError>;
+
+#[derive(Debug, Clone)]
+pub struct StacksAddress {
+    version: u8,
+    hash: Hash160Hasher,
+}
+
+#[derive(Debug, Clone)]
+pub struct StandardPrincipalData(u8, StacksAddress);
+
+impl StandardPrincipalData {
+    pub fn new(version: u8, address: StacksAddress) -> Self {
+        Self(version, address)
+    }
+}
+
+pub enum PrincipalData {
+    Standard(StandardPrincipalData),
+    Contract(StandardPrincipalData, ContractName),
+}
