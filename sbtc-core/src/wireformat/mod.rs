@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 pub mod deposit;
+pub mod withdrawal_request;
 
 #[derive(Error, Debug)]
 pub enum ParseError {
