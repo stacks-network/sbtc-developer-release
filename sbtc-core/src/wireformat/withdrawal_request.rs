@@ -1,9 +1,9 @@
 /*!
 Withdrawal request is a transaction with the output structure as below:
 
-- output 0: data output (see PegOutRequestOp::parse_data())
-- output 1: Bitcoin address to send the BTC to
-- output 2: Bitcoin fee payment to the peg wallet (which the peg wallet will spend on fulfillment)
+1. data output
+2. Bitcoin address to send the BTC to
+3. Bitcoin fee payment to the peg wallet (which the peg wallet will spend on fulfillment)
 
 The data output should contain data in the following format:
 
@@ -37,9 +37,7 @@ pub struct ParsedWithdrawalRequest {
     pub memo: Vec<u8>,
 }
 
-/**
-Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-*/
+/// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
 pub fn parse(data: &[u8]) -> Result<ParsedWithdrawalRequest, ParseError> {
     if data.len() < 73 {
         return Err(ParseError::MalformedData(

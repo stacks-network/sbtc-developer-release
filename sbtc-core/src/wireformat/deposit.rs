@@ -33,9 +33,7 @@ pub struct ParsedDepositData {
     pub memo: Vec<u8>,
 }
 
-/**
-Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-*/
+/// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
 pub fn parse(data: &[u8]) -> Result<ParsedDepositData, ParseError> {
     if data.len() < 21 {
         return Err(ParseError::MalformedData(
