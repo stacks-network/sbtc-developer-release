@@ -95,10 +95,9 @@ impl TryFrom<&str> for StacksAddress {
             ));
         }
 
-        let mut buffer = [0; HASH160_LENGTH];
-        buffer.copy_from_slice(&hash_bytes);
+        let hash: [u8; HASH160_LENGTH] = hash_bytes.try_into().unwrap();
 
-        Ok(Self::new(version, buffer.into()))
+        Ok(Self::new(version, hash.into()))
     }
 }
 
