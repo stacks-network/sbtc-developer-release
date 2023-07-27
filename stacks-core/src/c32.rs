@@ -252,7 +252,6 @@ mod tests {
 
     use super::encode;
     use super::encode_address;
-    use super::C32_BYTE_MAP;
 
     #[test]
     fn test_c32_encode() {
