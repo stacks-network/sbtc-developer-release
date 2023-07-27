@@ -14,9 +14,10 @@ The data output should contain data in the following format:
 */
 use std::str::from_utf8;
 
-use stacks_core::prelude::{
-    hash::Hash160, AddressVersion, ContractName, PrincipalData, StacksAddress,
-    StandardPrincipalData,
+use stacks_core::{
+    address::{AddressVersion, StacksAddress},
+    crypto::hash::Hash160,
+    utils::{ContractName, PrincipalData, StandardPrincipalData},
 };
 
 use crate::wireformat::ParseError;

@@ -16,13 +16,3 @@ pub enum StacksError {
 }
 
 pub type StacksResult<T> = Result<T, StacksError>;
-
-pub mod prelude {
-    pub use super::StacksError;
-    pub use super::StacksResult;
-
-    pub use crate::address::*;
-    pub use crate::c32::*;
-    pub use crate::crypto::*;
-    pub use crate::utils::*;
-}
