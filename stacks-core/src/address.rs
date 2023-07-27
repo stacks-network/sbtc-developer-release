@@ -57,45 +57,28 @@ impl StacksAddress {
         &self.hash
     }
 
-    pub fn from_public_keys(
+    pub fn p2pkh(version: AddressVersion, key: &PublicKey) -> Self {
+        Self::new(version, hash_p2pkh(key))
+    }
+
+    pub fn p2sh<'a>(
         version: AddressVersion,
-        public_keys: &[PublicKey],
-        signatures: usize,
-        hash_mode: AddressHashMode,
-    ) -> StacksResult<Self> {
-        let public_key_count = public_keys.len();
+        keys: impl IntoIterator<Item = &'a PublicKey>,
+        signature_threshold: usize,
+    ) -> Self {
+        Self::new(version, hash_p2sh(keys, signature_threshold))
+    }
 
-        if public_key_count < signatures {
-            return Err(StacksError::InvalidArguments(
-                "Cannot require more signatures than public keys",
-            ));
-        }
+    pub fn p2wpkh(version: AddressVersion, key: &PublicKey) -> Self {
+        Self::new(version, hash_p2wpkh(key))
+    }
 
-        if matches!(
-            hash_mode,
-            AddressHashMode::SerializeP2PKH | AddressHashMode::SerializeP2WPKH
-        ) {
-            if public_key_count != 1 {
-                return Err(StacksError::InvalidArguments(
-                    "Cannot use more than one public key for this hash mode",
-                ));
-            }
-
-            if signatures != 1 {
-                return Err(StacksError::InvalidArguments(
-                    "Cannot require more than one signature for this hash mode",
-                ));
-            }
-        }
-
-        let hash = match hash_mode {
-            AddressHashMode::SerializeP2PKH => hash_p2pkh(&public_keys[0]),
-            AddressHashMode::SerializeP2SH => hash_p2sh(signatures, public_keys),
-            AddressHashMode::SerializeP2WPKH => hash_p2wpkh(&public_keys[0]),
-            AddressHashMode::SerializeP2WSH => hash_p2wsh(signatures, public_keys),
-        };
-
-        Ok(Self::new(version, hash))
+    pub fn p2wsh<'a>(
+        version: AddressVersion,
+        keys: impl IntoIterator<Item = &'a PublicKey>,
+        signature_threshold: usize,
+    ) -> Self {
+        Self::new(version, hash_p2wsh(keys, signature_threshold))
     }
 }
 
@@ -137,16 +120,21 @@ fn hash_p2pkh(key: &PublicKey) -> Hash160 {
     Hash160::new(key.serialize())
 }
 
-fn hash_p2sh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
+fn hash_p2sh<'a>(
+    pub_keys: impl IntoIterator<Item = &'a PublicKey>,
+    signature_threshold: usize,
+) -> Hash160 {
     let mut builder = Builder::new();
+    let mut key_counter = 0;
 
-    builder = builder.push_int(num_sigs as i64);
+    builder = builder.push_int(signature_threshold as i64);
 
     for key in pub_keys {
         builder = builder.push_slice(&key.serialize());
+        key_counter += 1;
     }
 
-    builder = builder.push_int(pub_keys.len() as i64);
+    builder = builder.push_int(key_counter);
     builder = builder.push_opcode(OP_CHECKMULTISIG);
 
     let script = builder.into_script();
@@ -168,18 +156,24 @@ fn hash_p2wpkh(key: &PublicKey) -> Hash160 {
     Hash160::new(&buff)
 }
 
-fn hash_p2wsh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
+fn hash_p2wsh<'a>(
+    pub_keys: impl IntoIterator<Item = &'a PublicKey>,
+    signature_threshold: usize,
+) -> Hash160 {
     let mut script = vec![];
-    script.push(num_sigs as u8 + 80);
+    let mut key_count = 0;
+
+    script.push(signature_threshold as u8 + 80);
 
     for pub_key in pub_keys {
         let bytes = pub_key.serialize();
 
         script.push(bytes.len() as u8);
         script.extend_from_slice(&bytes);
+        key_count += 1;
     }
 
-    script.push(pub_keys.len() as u8 + 80);
+    script.push(key_count + 80);
     script.push(174);
 
     let digest = SHA256Hash::new(&script);
@@ -234,7 +228,7 @@ mod tests {
             .try_into()
             .unwrap();
 
-        assert_eq!(hash_p2sh(1, &[pk]).as_ref(), expected_hash.as_ref());
+        assert_eq!(hash_p2sh(&[pk], 1).as_ref(), expected_hash.as_ref());
     }
 
     /// Data obtained from from blockstack_lib throwaway code
@@ -252,7 +246,7 @@ mod tests {
             .try_into()
             .unwrap();
 
-        assert_eq!(hash_p2sh(2, &[pk1, pk2]).as_ref(), expected_hash.as_ref());
+        assert_eq!(hash_p2sh(&[pk1, pk2], 2).as_ref(), expected_hash.as_ref());
     }
 
     /// Data obtained from from blockstack_lib throwaway code
@@ -268,7 +262,7 @@ mod tests {
             .try_into()
             .unwrap();
 
-        assert_eq!(hash_p2wsh(1, &[pk]).as_ref(), expected_hash.as_ref());
+        assert_eq!(hash_p2wsh(&[pk], 1).as_ref(), expected_hash.as_ref());
     }
 
     /// Data obtained from from blockstack_lib throwaway code
@@ -286,7 +280,7 @@ mod tests {
             .try_into()
             .unwrap();
 
-        assert_eq!(hash_p2wsh(2, &[pk1, pk2]).as_ref(), expected_hash.as_ref());
+        assert_eq!(hash_p2wsh(&[pk1, pk2], 2).as_ref(), expected_hash.as_ref());
     }
 
     /// Data obtained from from blockstack_lib throwaway code
@@ -311,13 +305,10 @@ mod tests {
         let public_key = "02e2ce887c1f1654936fbb7d4036749da5e7b9b64af406e1f3535c8f4336de1c6e";
         let expected_address = "SPR4FMGJCD78NF4FRGPM621CW1KHNFEG0HSRDSPK";
 
-        let addr = StacksAddress::from_public_keys(
+        let addr = StacksAddress::p2pkh(
             AddressVersion::MainnetSingleSig,
-            &[PublicKey::from_slice(&hex::decode(public_key).unwrap()).unwrap()],
-            1,
-            AddressHashMode::SerializeP2PKH,
-        )
-        .unwrap();
+            &PublicKey::from_slice(&hex::decode(public_key).unwrap()).unwrap(),
+        );
 
         assert_eq!(String::try_from(&addr).unwrap(), expected_address);
     }
