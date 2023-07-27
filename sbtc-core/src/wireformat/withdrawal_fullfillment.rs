@@ -8,7 +8,7 @@ It also uses an the third input from the withdrawal request transaction to pay t
 
 The data output should contain data in the following format:
 
-```
+```text
 0      2  3                     35                       80
 |------|--|---------------------|------------------------|
  magic  op       Chain tip                  Memo
@@ -32,13 +32,13 @@ impl StacksBlockId {
     }
 }
 
-pub struct ParsedWithdrawalFulfillment {
+pub struct ParsedWithdrawalFulfillmentData {
     pub chain_tip: StacksBlockId,
     pub memo: Vec<u8>,
 }
 
 /// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-pub fn parse_data(data: &[u8]) -> Result<ParsedWithdrawalFulfillment, ParseError> {
+pub fn parse_data(data: &[u8]) -> Result<ParsedWithdrawalFulfillmentData, ParseError> {
     if data.len() < 32 {
         return Err(ParseError::MalformedData(
             "Withdrawal fulfillment data should be at least 32 bytes long",
@@ -49,5 +49,5 @@ pub fn parse_data(data: &[u8]) -> Result<ParsedWithdrawalFulfillment, ParseError
         .expect("Withdrawalfulfillment chain tip data failed to convert to block ID");
     let memo = data.get(32..).unwrap_or(&[]).to_vec();
 
-    Ok(ParsedWithdrawalFulfillment { chain_tip, memo })
+    Ok(ParsedWithdrawalFulfillmentData { chain_tip, memo })
 }

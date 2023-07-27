@@ -1,8 +1,8 @@
 /*!
 Deposit is a transaction with the output structure as below:
 
-- output 0, data output
-- output 1, payment to peg wallet address
+1. data output
+2. payment to peg wallet address
 
 The data output should contain data in the following format:
 

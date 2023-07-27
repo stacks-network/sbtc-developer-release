@@ -7,7 +7,7 @@ Withdrawal request is a transaction with the output structure as below:
 
 The data output should contain data in the following format:
 
-```
+```text
 0      2  3         11                76   80
 |------|--|---------|-----------------|----|
  magic  op   amount      signature     memo
@@ -31,14 +31,14 @@ impl MessageSignature {
     }
 }
 
-pub struct ParsedWithdrawalRequest {
+pub struct ParsedWithdrawalRequestData {
     pub amount: u64,
     pub signature: MessageSignature,
     pub memo: Vec<u8>,
 }
 
 /// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-pub fn parse(data: &[u8]) -> Result<ParsedWithdrawalRequest, ParseError> {
+pub fn parse(data: &[u8]) -> Result<ParsedWithdrawalRequestData, ParseError> {
     if data.len() < 73 {
         return Err(ParseError::MalformedData(
             "Withdrawal request data should contain at least 73 bytes",
@@ -49,7 +49,7 @@ pub fn parse(data: &[u8]) -> Result<ParsedWithdrawalRequest, ParseError> {
     let signature = MessageSignature::new(&data[8..73]).unwrap();
     let memo = data.get(73..).unwrap_or(&[]).to_vec();
 
-    Ok(ParsedWithdrawalRequest {
+    Ok(ParsedWithdrawalRequestData {
         amount,
         signature,
         memo,
