@@ -3,6 +3,8 @@ use ring::digest::SHA256;
 use ripemd::Digest;
 use ripemd::Ripemd160;
 
+use crate::StacksError;
+
 const SHA256_LENGTH: usize = 32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -45,7 +47,7 @@ impl AsRef<[u8]> for SHA256Hash {
     }
 }
 
-const HASH160_LENGTH: usize = 20;
+pub const HASH160_LENGTH: usize = 20;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Hash160(pub [u8; HASH160_LENGTH]);
@@ -73,5 +75,28 @@ impl Hash160 {
 impl AsRef<[u8]> for Hash160 {
     fn as_ref(&self) -> &[u8] {
         &self.0
+    }
+}
+
+impl From<[u8; HASH160_LENGTH]> for Hash160 {
+    fn from(value: [u8; HASH160_LENGTH]) -> Self {
+        Hash160(value)
+    }
+}
+
+impl TryFrom<&[u8]> for Hash160 {
+    type Error = StacksError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        if value.len() != HASH160_LENGTH {
+            return Err(StacksError::InvalidArguments(
+                "Hash160 must be constructed from exactly 20 bytes",
+            ));
+        }
+
+        let mut buff = [0u8; HASH160_LENGTH];
+        buff.copy_from_slice(&value);
+
+        Ok(Hash160(buff))
     }
 }
