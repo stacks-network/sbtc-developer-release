@@ -15,7 +15,8 @@ The data output should contain data in the following format:
 use std::str::from_utf8;
 
 use stacks_core::prelude::{
-    hash::Hash160, ContractName, PrincipalData, StacksAddress, StandardPrincipalData,
+    hash::Hash160, AddressVersion, ContractName, PrincipalData, StacksAddress,
+    StandardPrincipalData,
 };
 
 use crate::wireformat::ParseError;
@@ -43,7 +44,8 @@ pub fn parse(data: &[u8]) -> Result<ParsedDeposit, ParseError> {
     }
 
     let standard_principal_data = {
-        let version = data.first().expect("No version byte in data");
+        let version = AddressVersion::from_repr(*data.first().expect("No version byte in data"))
+            .ok_or(ParseError::MalformedData("Address version is invalid"))?;
         let address_data: [u8; 20] = data
             .get(1..21)
             .ok_or(ParseError::MalformedData("Could not get address data"))?
@@ -53,8 +55,8 @@ pub fn parse(data: &[u8]) -> Result<ParsedDeposit, ParseError> {
             })?;
 
         StandardPrincipalData::new(
-            *version,
-            StacksAddress::new(*version, Hash160::new(address_data)),
+            version,
+            StacksAddress::new(version, Hash160::new(address_data)),
         )
     };
 

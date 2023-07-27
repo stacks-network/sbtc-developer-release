@@ -1,6 +1,7 @@
 use std::fmt;
 
 use bitcoin::blockdata::{opcodes::all::OP_CHECKMULTISIG, script::Builder};
+use strum::{EnumIter, FromRepr};
 
 use crate::{
     c32::{decode_address, encode_address},
@@ -10,6 +11,24 @@ use crate::{
     },
     StacksError, StacksResult,
 };
+
+/// Supported stacks address versions
+#[repr(u8)]
+#[derive(FromRepr, EnumIter, PartialEq, Eq, Copy, Clone, Debug)]
+pub enum AddressVersion {
+    MainnetSingleSig = 22,
+    MainnetMultiSig = 20,
+    TestnetSingleSig = 26,
+    TestnetMultiSig = 21,
+}
+
+impl TryFrom<u8> for AddressVersion {
+    type Error = StacksError;
+
+    fn try_from(value: u8) -> StacksResult<Self> {
+        AddressVersion::from_repr(value).ok_or(StacksError::InvalidAddressVersion(value))
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AddressHashMode {
@@ -21,16 +40,16 @@ pub enum AddressHashMode {
 
 #[derive(Debug, Clone)]
 pub struct StacksAddress {
-    version: u8,
+    version: AddressVersion,
     hash: Hash160,
 }
 
 impl StacksAddress {
-    pub fn new(version: u8, hash: Hash160) -> Self {
+    pub fn new(version: AddressVersion, hash: Hash160) -> Self {
         Self { version, hash }
     }
 
-    pub fn version(&self) -> u8 {
+    pub fn version(&self) -> AddressVersion {
         self.version
     }
 
@@ -39,7 +58,7 @@ impl StacksAddress {
     }
 
     pub fn from_public_keys(
-        version: u8,
+        version: AddressVersion,
         public_keys: &[PublicKey],
         signatures: usize,
         hash_mode: AddressHashMode,
@@ -131,7 +150,7 @@ fn hash_p2sh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
     builder = builder.push_opcode(OP_CHECKMULTISIG);
 
     let script = builder.into_script();
-    let script_hash = Hash160::new(&script.as_bytes());
+    let script_hash = Hash160::new(script.as_bytes());
 
     script_hash
 }
@@ -293,7 +312,7 @@ mod tests {
         let expected_address = "SPR4FMGJCD78NF4FRGPM621CW1KHNFEG0HSRDSPK";
 
         let addr = StacksAddress::from_public_keys(
-            22,
+            AddressVersion::MainnetSingleSig,
             &[PublicKey::from_slice(&hex::decode(public_key).unwrap()).unwrap()],
             1,
             AddressHashMode::SerializeP2PKH,

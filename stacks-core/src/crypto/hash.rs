@@ -95,7 +95,7 @@ impl TryFrom<&[u8]> for Hash160 {
         }
 
         let mut buff = [0u8; HASH160_LENGTH];
-        buff.copy_from_slice(&value);
+        buff.copy_from_slice(value);
 
         Ok(Hash160(buff))
     }

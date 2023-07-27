@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use thiserror::Error;
 
-use crate::address::StacksAddress;
+use crate::address::{AddressVersion, StacksAddress};
 
 pub const CONTRACT_MIN_NAME_LENGTH: usize = 1;
 pub const CONTRACT_MAX_NAME_LENGTH: usize = 40;
@@ -95,10 +95,10 @@ impl Display for ContractName {
 }
 
 #[derive(Debug, Clone)]
-pub struct StandardPrincipalData(u8, StacksAddress);
+pub struct StandardPrincipalData(AddressVersion, StacksAddress);
 
 impl StandardPrincipalData {
-    pub fn new(version: u8, address: StacksAddress) -> Self {
+    pub fn new(version: AddressVersion, address: StacksAddress) -> Self {
         Self(version, address)
     }
 }
