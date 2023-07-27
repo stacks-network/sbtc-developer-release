@@ -1,25 +1,47 @@
+use once_cell::sync::Lazy;
+
 use crate::{address::AddressVersion, crypto::hash::SHA256Hash};
 
 const C32_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-#[rustfmt::skip]
-const C32_BYTE_MAP: [Option<u8>; 128] = [
-    None,       None,       None,       None,       None,       None,       None,       None,
-    None,       None,       None,       None,       None,       None,       None,       None,
-    None,       None,       None,       None,       None,       None,       None,       None,
-    None,       None,       None,       None,       None,       None,       None,       None,
-    None,       None,       None,       None,       None,       None,       None,       None,
-    None,       None,       None,       None,       None,       None,       None,       None,
-    Some(0),    Some(1),    Some(2),    Some(3),    Some(4),    Some(5),    Some(6),    Some(7),
-    Some(8),    Some(9),    None,       None,       None,       None,       None,       None,
-    None,       Some(10),   Some(11),   Some(12),   Some(13),   Some(14),   Some(15),   Some(16),
-    Some(17),   Some(1),    Some(18),   Some(19),   Some(1),    Some(20),   Some(21),   Some(0),
-    Some(22),   Some(23),   Some(24),   Some(25),   Some(26),   None,       Some(27),   Some(28),
-    Some(29),   Some(30),   Some(31),   None,       None,       None,       None,       None,
-    None,       Some(10),   Some(11),   Some(12),   Some(13),   Some(14),   Some(15),   Some(16),
-    Some(17),   Some(1),    Some(18),   Some(19),   Some(1),    Some(20),   Some(21),   Some(0),
-    Some(22),   Some(23),   Some(24),   Some(25),   Some(26),   None,       Some(27),   Some(28),
-    Some(29),   Some(30),   Some(31),   None,       None,       None,       None,       None,
-];
+
+static C32_BYTE_MAP: Lazy<[Option<u8>; 128]> = Lazy::new(|| {
+    let mut table: [Option<u8>; 128] = [None; 128];
+
+    let alphabet: [char; 32] = C32_ALPHABET
+        .iter()
+        .map(|byte| *byte as char)
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    alphabet.iter().enumerate().for_each(|(i, x)| {
+        table[*x as usize] = Some(i as u8);
+    });
+
+    alphabet
+        .iter()
+        .map(|c| c.to_ascii_lowercase())
+        .enumerate()
+        .for_each(|(i, x)| {
+            table[x as usize] = Some(i as u8);
+        });
+
+    [('O', '0'), ('L', '1'), ('I', '1')]
+        .into_iter()
+        .for_each(|special_pair| {
+            let i = alphabet
+                .iter()
+                .enumerate()
+                .find(|(_, a)| **a == special_pair.1)
+                .unwrap()
+                .0;
+
+            table[special_pair.0 as usize] = Some(i as u8);
+            table[special_pair.0.to_ascii_lowercase() as usize] = Some(i as u8);
+        });
+
+    table
+});
 
 fn encode_overhead(len: usize) -> usize {
     (len * 8 + 4) / 5
@@ -230,6 +252,7 @@ mod tests {
 
     use super::encode;
     use super::encode_address;
+    use super::C32_BYTE_MAP;
 
     #[test]
     fn test_c32_encode() {
