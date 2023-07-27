@@ -12,6 +12,7 @@ The data output should contain data in the following format:
  magic  op   Stacks address      Contract name (optional)     memo
 ```
 */
+
 use std::str::from_utf8;
 
 use stacks_core::prelude::{
@@ -19,7 +20,7 @@ use stacks_core::prelude::{
     StandardPrincipalData,
 };
 
-use crate::wireformat::ParseError;
+use crate::SBTCError;
 
 fn find_leading_non_zero_bytes(data: &[u8]) -> Option<&[u8]> {
     match data.iter().rev().position(|&b| b != 0) {
@@ -34,22 +35,20 @@ pub struct ParsedDepositData {
 }
 
 /// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-pub fn parse(data: &[u8]) -> Result<ParsedDepositData, ParseError> {
+pub fn parse(data: &[u8]) -> Result<ParsedDepositData, SBTCError> {
     if data.len() < 21 {
-        return Err(ParseError::MalformedData(
-            "Should contain at least 21 bytes",
-        ));
+        return Err(SBTCError::MalformedData("Should contain at least 21 bytes"));
     }
 
     let standard_principal_data = {
         let version = AddressVersion::from_repr(*data.first().expect("No version byte in data"))
-            .ok_or(ParseError::MalformedData("Address version is invalid"))?;
+            .ok_or(SBTCError::MalformedData("Address version is invalid"))?;
         let address_data: [u8; 20] = data
             .get(1..21)
-            .ok_or(ParseError::MalformedData("Could not get address data"))?
+            .ok_or(SBTCError::MalformedData("Could not get address data"))?
             .try_into()
             .map_err(|_| {
-                ParseError::MalformedData("Byte data is larger than 20 bytes for the address")
+                SBTCError::MalformedData("Byte data is larger than 20 bytes for the address")
             })?;
 
         StandardPrincipalData::new(
@@ -61,12 +60,12 @@ pub fn parse(data: &[u8]) -> Result<ParsedDepositData, ParseError> {
     let recipient = find_leading_non_zero_bytes(&data[21..=61])
         .map(|contract_bytes| {
             let contract_name_string: String = from_utf8(contract_bytes)
-                .map_err(|_| ParseError::MalformedData("Could not parse contract name bytes"))?
+                .map_err(|_| SBTCError::MalformedData("Could not parse contract name bytes"))?
                 .to_owned();
             let contract_name = ContractName::new(&contract_name_string)
-                .map_err(|_| ParseError::MalformedData("Could not parse contract name"))?;
+                .map_err(|_| SBTCError::MalformedData("Could not parse contract name"))?;
 
-            Result::<_, ParseError>::Ok(PrincipalData::Contract(
+            Result::<_, SBTCError>::Ok(PrincipalData::Contract(
                 standard_principal_data.clone(),
                 contract_name,
             ))

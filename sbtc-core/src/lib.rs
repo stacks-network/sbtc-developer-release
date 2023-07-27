@@ -2,7 +2,6 @@ use bdk::electrum_client::Error as ElectrumError;
 use thiserror::Error;
 
 pub mod operations;
-pub mod wireformat;
 
 #[derive(Error, Debug)]
 pub enum SBTCError {

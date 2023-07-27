@@ -1,5 +1,5 @@
 /*!
-Withdrawal fullfilment is a transaction with the output structure as below:
+Withdrawal fulfilment is a transaction with the output structure as below:
 
 1. data output
 2. Bitcoin address to send the BTC to
@@ -15,7 +15,7 @@ The data output should contain data in the following format:
 ```
 */
 
-use crate::wireformat::ParseError;
+use crate::SBTCError;
 
 pub struct StacksBlockId(pub [u8; 32]);
 
@@ -38,9 +38,9 @@ pub struct ParsedWithdrawalFulfillmentData {
 }
 
 /// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-pub fn parse_data(data: &[u8]) -> Result<ParsedWithdrawalFulfillmentData, ParseError> {
+pub fn parse_data(data: &[u8]) -> Result<ParsedWithdrawalFulfillmentData, SBTCError> {
     if data.len() < 32 {
-        return Err(ParseError::MalformedData(
+        return Err(SBTCError::MalformedData(
             "Withdrawal fulfillment data should be at least 32 bytes long",
         ));
     }
