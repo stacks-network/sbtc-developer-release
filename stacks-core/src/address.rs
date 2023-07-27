@@ -99,14 +99,6 @@ impl StacksAddress {
     }
 }
 
-impl TryFrom<&StacksAddress> for String {
-    type Error = StacksError;
-
-    fn try_from(address: &StacksAddress) -> Result<Self, Self::Error> {
-        encode_address(address.version, address.hash.as_ref()).map_err(|err| err.into())
-    }
-}
-
 impl TryFrom<&str> for StacksAddress {
     type Error = StacksError;
 
@@ -129,7 +121,7 @@ impl TryFrom<&str> for StacksAddress {
 
 impl fmt::Display for StacksAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", String::try_from(self).unwrap())
+        write!(f, "{}", encode_address(self.version, self.hash.as_ref()))
     }
 }
 
@@ -319,7 +311,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(String::try_from(&addr).unwrap(), expected_address);
+        assert_eq!(addr.to_string(), expected_address);
     }
 
     /// Data generated with `stx make_keychain`

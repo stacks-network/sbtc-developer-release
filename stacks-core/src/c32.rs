@@ -54,7 +54,7 @@ pub enum C32Error {
     IntConversionError(#[from] std::num::TryFromIntError),
 }
 
-pub fn encode(data: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
+pub fn encode(data: impl AsRef<[u8]>) -> Vec<u8> {
     let data = data.as_ref();
 
     let mut encoded = Vec::with_capacity(encode_overhead(data.len()));
@@ -92,7 +92,8 @@ pub fn encode(data: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
     }
 
     encoded.reverse();
-    Ok(encoded)
+
+    encoded
 }
 
 pub fn decode(input: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
@@ -145,10 +146,7 @@ pub fn decode(input: impl AsRef<[u8]>) -> Result<Vec<u8>, C32Error> {
     Ok(decoded)
 }
 
-pub fn version_check_encode(
-    version: AddressVersion,
-    data: impl AsRef<[u8]>,
-) -> Result<Vec<u8>, C32Error> {
+pub fn version_check_encode(version: AddressVersion, data: impl AsRef<[u8]>) -> Vec<u8> {
     let data = data.as_ref();
 
     let mut buffer = vec![version as u8];
@@ -157,10 +155,10 @@ pub fn version_check_encode(
     let checksum = SHA256Hash::double(&buffer).checksum();
     buffer.extend_from_slice(&checksum);
 
-    let mut encoded = encode(&buffer[1..])?;
+    let mut encoded = encode(&buffer[1..]);
     encoded.insert(0, C32_ALPHABET[version as usize]);
 
-    Ok(encoded)
+    encoded
 }
 
 pub fn version_check_decode(
@@ -204,11 +202,11 @@ pub fn version_check_decode(
     ))
 }
 
-pub fn encode_address(version: AddressVersion, data: &[u8]) -> Result<String, C32Error> {
-    let encoded = String::from_utf8(version_check_encode(version, data)?)?;
+pub fn encode_address(version: AddressVersion, data: &[u8]) -> String {
+    let encoded = String::from_utf8(version_check_encode(version, data)).unwrap();
     let address = format!("S{}", encoded);
 
-    Ok(address)
+    address
 }
 
 pub fn decode_address(address: impl AsRef<str>) -> Result<(AddressVersion, Vec<u8>), C32Error> {
@@ -236,14 +234,14 @@ mod tests {
     #[test]
     fn test_c32_encode() {
         let input = vec![1, 2, 3, 4, 6, 1, 2, 6, 2, 3, 6, 9, 4, 0, 0];
-        let encoded = String::from_utf8(encode(&input).unwrap()).unwrap();
+        let encoded = String::from_utf8(encode(&input)).unwrap();
         assert_eq!(encoded, "41061060410C0G30R4G8000");
     }
 
     #[test]
     fn test_c32_decode() {
         let input = vec![1, 2, 3, 4, 6, 1, 2, 6, 2, 3, 6, 9, 4, 0, 0];
-        let encoded = String::from_utf8(encode(&input).unwrap()).unwrap();
+        let encoded = String::from_utf8(encode(&input)).unwrap();
         let decoded = super::decode(encoded).unwrap();
         assert_eq!(input, decoded);
     }
@@ -253,7 +251,7 @@ mod tests {
         let version = AddressVersion::MainnetSingleSig;
         let data = hex::encode("8a4d3f2e55c87f964bae8b2963b3a824a2e9c9ab").into_bytes();
 
-        let encoded = encode_address(version, &data).unwrap();
+        let encoded = encode_address(version, &data);
         let (decoded_version, decoded) = super::decode_address(encoded).unwrap();
 
         assert_eq!(decoded, data);
@@ -269,7 +267,7 @@ mod tests {
             let mut input = vec![0u8; len];
             rng.fill_bytes(&mut input);
 
-            let encoded_bytes = encode(&input).unwrap();
+            let encoded_bytes = encode(&input);
             let encoded = String::from_utf8(encoded_bytes.clone()).unwrap();
             let decoded = super::decode(encoded.clone()).unwrap();
 
@@ -285,7 +283,7 @@ mod tests {
             let bytes = rng.gen::<[u8; 20]>();
 
             for version in AddressVersion::iter() {
-                let encoded = encode_address(version, &bytes).unwrap();
+                let encoded = encode_address(version, &bytes);
                 let (decoded_version, decoded) = super::decode_address(encoded).unwrap();
 
                 assert_eq!(decoded, bytes);
