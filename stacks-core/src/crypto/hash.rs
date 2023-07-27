@@ -6,22 +6,20 @@ use ripemd::Ripemd160;
 use crate::StacksError;
 
 const SHA256_LENGTH: usize = 32;
+const CHECKSUM_LENGTH: usize = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SHA256Hash([u8; SHA256_LENGTH]);
 
 impl SHA256Hash {
+    pub const CHECKSUM_LENGTH: usize = 4;
+
     pub fn new(value: impl AsRef<[u8]>) -> Self {
         let bytes = {
-            let mut buff = [0u8; SHA256_LENGTH];
-
             let mut ctx = Context::new(&SHA256);
             ctx.update(value.as_ref());
 
-            let digest = ctx.finish();
-            buff.copy_from_slice(digest.as_ref());
-
-            buff
+            ctx.finish().as_ref().try_into().unwrap()
         };
 
         SHA256Hash(bytes)
@@ -31,13 +29,8 @@ impl SHA256Hash {
         Self::new(Self::new(value).as_ref())
     }
 
-    pub fn checksum(&self) -> [u8; 4] {
-        let mut buff = [0u8; 4];
-
-        let bytes = self.as_ref();
-        buff.copy_from_slice(&bytes[0..4]);
-
-        buff
+    pub fn checksum(&self) -> [u8; CHECKSUM_LENGTH] {
+        self.as_ref()[0..CHECKSUM_LENGTH].try_into().unwrap()
     }
 }
 
@@ -54,21 +47,13 @@ pub struct Hash160(pub [u8; HASH160_LENGTH]);
 
 impl Hash160 {
     pub fn new(value: impl AsRef<[u8]>) -> Self {
-        let mut buff = [0u8; HASH160_LENGTH];
-
         let ripemd = Ripemd160::digest(SHA256Hash::new(value).as_ref());
-        buff.copy_from_slice(ripemd.as_slice());
 
-        Hash160(buff)
+        Hash160(ripemd.as_slice().try_into().unwrap())
     }
 
-    pub fn checksum(&self) -> [u8; 4] {
-        let mut buff = [0u8; 4];
-
-        let bytes = self.as_ref();
-        buff.copy_from_slice(&bytes[0..4]);
-
-        buff
+    pub fn checksum(&self) -> [u8; CHECKSUM_LENGTH] {
+        self.as_ref()[0..CHECKSUM_LENGTH].try_into().unwrap()
     }
 }
 
@@ -94,9 +79,6 @@ impl TryFrom<&[u8]> for Hash160 {
             ));
         }
 
-        let mut buff = [0u8; HASH160_LENGTH];
-        buff.copy_from_slice(value);
-
-        Ok(Hash160(buff))
+        Ok(Hash160(value.try_into().unwrap()))
     }
 }

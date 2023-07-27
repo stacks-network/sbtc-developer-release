@@ -28,7 +28,7 @@ fn find_leading_non_zero_bytes(data: &[u8]) -> Option<&[u8]> {
     }
 }
 
-pub struct ParsedDeposit {
+pub struct ParsedDepositData {
     pub recipient: PrincipalData,
     pub memo: Vec<u8>,
 }
@@ -36,7 +36,7 @@ pub struct ParsedDeposit {
 /**
 Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
 */
-pub fn parse(data: &[u8]) -> Result<ParsedDeposit, ParseError> {
+pub fn parse(data: &[u8]) -> Result<ParsedDepositData, ParseError> {
     if data.len() < 21 {
         return Err(ParseError::MalformedData(
             "Should contain at least 21 bytes",
@@ -77,5 +77,5 @@ pub fn parse(data: &[u8]) -> Result<ParsedDeposit, ParseError> {
 
     let memo = data.get(61..).unwrap_or(&[]).to_vec();
 
-    Ok(ParsedDeposit { recipient, memo })
+    Ok(ParsedDepositData { recipient, memo })
 }
