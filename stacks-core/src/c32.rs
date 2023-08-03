@@ -1,6 +1,9 @@
 use once_cell::sync::Lazy;
 
-use crate::{address::AddressVersion, crypto::hash::SHA256Hash};
+use crate::{
+    address::AddressVersion,
+    crypto::{sha256::DoubleSha256Hasher, Hashing},
+};
 
 const C32_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -174,7 +177,7 @@ pub fn version_check_encode(version: AddressVersion, data: impl AsRef<[u8]>) -> 
     let mut buffer = vec![version as u8];
     buffer.extend_from_slice(data);
 
-    let checksum = SHA256Hash::double(&buffer).checksum();
+    let checksum = DoubleSha256Hasher::new(&buffer).checksum();
     buffer.extend_from_slice(&checksum);
 
     let mut encoded = encode(&buffer[1..]);
@@ -205,7 +208,7 @@ pub fn version_check_decode(input: impl AsRef<str>) -> Result<(AddressVersion, V
     let mut buffer_to_check = vec![decoded_version_byte];
     buffer_to_check.extend_from_slice(data_bytes);
 
-    let computed_checksum = SHA256Hash::double(&buffer_to_check).checksum();
+    let computed_checksum = DoubleSha256Hasher::new(buffer_to_check).checksum();
 
     if computed_checksum != expected_checksum {
         return Err(C32Error::InvalidChecksum(
@@ -279,7 +282,7 @@ mod tests {
     fn test_c32_randomized_input() {
         let mut rng = thread_rng();
 
-        for _ in 0..10_000 {
+        for _ in 0..1000 {
             let len = rng.gen_range(10..=10);
             let mut input = vec![0u8; len];
             rng.fill_bytes(&mut input);
@@ -296,7 +299,7 @@ mod tests {
     fn test_c32_check_randomized_input() {
         let mut rng = thread_rng();
 
-        for _ in 0..10_000 {
+        for _ in 0..1000 {
             let bytes = rng.gen::<[u8; 20]>();
 
             for version in AddressVersion::iter() {

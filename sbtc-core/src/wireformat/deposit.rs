@@ -16,7 +16,7 @@ use std::str::from_utf8;
 
 use stacks_core::{
     address::{AddressVersion, StacksAddress},
-    crypto::hash::Hash160,
+    crypto::{hash160::Hash160Hasher, Hashing},
     utils::{ContractName, PrincipalData, StandardPrincipalData},
 };
 
@@ -57,7 +57,7 @@ pub fn parse(data: &[u8]) -> Result<ParsedDepositData, ParseError> {
 
         StandardPrincipalData::new(
             version,
-            StacksAddress::new(version, Hash160::new(address_data)),
+            StacksAddress::new(version, Hash160Hasher::new(address_data)),
         )
     };
 

@@ -6,8 +6,9 @@ use strum::{EnumIter, FromRepr};
 use crate::{
     c32::{decode_address, encode_address},
     crypto::{
-        hash::{Hash160, SHA256Hash, HASH160_LENGTH},
-        PublicKey,
+        hash160::{Hash160Hasher, HASH160_LENGTH},
+        sha256::Sha256Hasher,
+        Hashing, PublicKey,
     },
     StacksError, StacksResult,
 };
@@ -41,11 +42,11 @@ pub enum AddressHashMode {
 #[derive(Debug, Clone)]
 pub struct StacksAddress {
     version: AddressVersion,
-    hash: Hash160,
+    hash: Hash160Hasher,
 }
 
 impl StacksAddress {
-    pub fn new(version: AddressVersion, hash: Hash160) -> Self {
+    pub fn new(version: AddressVersion, hash: Hash160Hasher) -> Self {
         Self { version, hash }
     }
 
@@ -53,7 +54,7 @@ impl StacksAddress {
         self.version
     }
 
-    pub fn hash(&self) -> &Hash160 {
+    pub fn hash(&self) -> &Hash160Hasher {
         &self.hash
     }
 
@@ -125,11 +126,11 @@ impl fmt::Display for StacksAddress {
     }
 }
 
-fn hash_p2pkh(key: &PublicKey) -> Hash160 {
-    Hash160::new(key.serialize())
+fn hash_p2pkh(key: &PublicKey) -> Hash160Hasher {
+    Hash160Hasher::new(key.serialize())
 }
 
-fn hash_p2sh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
+fn hash_p2sh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160Hasher {
     let mut builder = Builder::new();
 
     builder = builder.push_int(num_sigs as i64);
@@ -142,13 +143,13 @@ fn hash_p2sh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
     builder = builder.push_opcode(OP_CHECKMULTISIG);
 
     let script = builder.into_script();
-    let script_hash = Hash160::new(script.as_bytes());
+    let script_hash = Hash160Hasher::new(script.as_bytes());
 
     script_hash
 }
 
-fn hash_p2wpkh(key: &PublicKey) -> Hash160 {
-    let key_hash_hasher = Hash160::new(key.serialize());
+fn hash_p2wpkh(key: &PublicKey) -> Hash160Hasher {
+    let key_hash_hasher = Hash160Hasher::new(key.serialize());
     let key_hash = key_hash_hasher.as_ref();
     let key_hash_len = key_hash.len();
 
@@ -157,10 +158,10 @@ fn hash_p2wpkh(key: &PublicKey) -> Hash160 {
     buff.push(key_hash_len as u8);
     buff.extend_from_slice(key_hash);
 
-    Hash160::new(&buff)
+    Hash160Hasher::new(&buff)
 }
 
-fn hash_p2wsh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
+fn hash_p2wsh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160Hasher {
     let mut script = vec![];
     script.push(num_sigs as u8 + 80);
 
@@ -174,7 +175,7 @@ fn hash_p2wsh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
     script.push(pub_keys.len() as u8 + 80);
     script.push(174);
 
-    let digest = SHA256Hash::new(&script);
+    let digest = Sha256Hasher::new(script);
     let digest_bytes = digest.as_ref();
 
     let mut buff = vec![];
@@ -182,11 +183,13 @@ fn hash_p2wsh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160 {
     buff.push(digest_bytes.len() as u8);
     buff.extend_from_slice(digest_bytes);
 
-    Hash160::new(&buff)
+    Hash160Hasher::new(&buff)
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::crypto::hash160::Hash160Hasher;
+
     use super::*;
 
     /**
@@ -220,7 +223,7 @@ mod tests {
         let addr_hash = "fc1058076c56333d7d2d9fbb936aefa632c0e7a8";
 
         let pk = PublicKey::from_slice(&hex::decode(pk_hex).unwrap()).unwrap();
-        let expected_hash: Hash160 = hex::decode(addr_hash)
+        let expected_hash: Hash160Hasher = hex::decode(addr_hash)
             .unwrap()
             .as_slice()
             .try_into()
@@ -238,7 +241,7 @@ mod tests {
 
         let pk1 = PublicKey::from_slice(&hex::decode(pk1_hex).unwrap()).unwrap();
         let pk2 = PublicKey::from_slice(&hex::decode(pk2_hex).unwrap()).unwrap();
-        let expected_hash: Hash160 = hex::decode(addr_hash)
+        let expected_hash: Hash160Hasher = hex::decode(addr_hash)
             .unwrap()
             .as_slice()
             .try_into()
@@ -254,7 +257,7 @@ mod tests {
         let addr_hash = "599623097df78a0e962108bfb0f1f78ef1d15f57";
 
         let pk = PublicKey::from_slice(&hex::decode(pk_hex).unwrap()).unwrap();
-        let expected_hash: Hash160 = hex::decode(addr_hash)
+        let expected_hash: Hash160Hasher = hex::decode(addr_hash)
             .unwrap()
             .as_slice()
             .try_into()
@@ -272,7 +275,7 @@ mod tests {
 
         let pk1 = PublicKey::from_slice(&hex::decode(pk1_hex).unwrap()).unwrap();
         let pk2 = PublicKey::from_slice(&hex::decode(pk2_hex).unwrap()).unwrap();
-        let expected_hash: Hash160 = hex::decode(addr_hash)
+        let expected_hash: Hash160Hasher = hex::decode(addr_hash)
             .unwrap()
             .as_slice()
             .try_into()
@@ -288,7 +291,7 @@ mod tests {
         let addr_hash = "3bb7c80b72757b4bc94bd3cb09171500fb72b4ac";
 
         let pk = PublicKey::from_slice(&hex::decode(pk_hex).unwrap()).unwrap();
-        let expected_hash: Hash160 = hex::decode(addr_hash)
+        let expected_hash: Hash160Hasher = hex::decode(addr_hash)
             .unwrap()
             .as_slice()
             .try_into()
