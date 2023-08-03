@@ -31,14 +31,6 @@ impl TryFrom<u8> for AddressVersion {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum AddressHashMode {
-    SerializeP2PKH,
-    SerializeP2SH,
-    SerializeP2WPKH,
-    SerializeP2WSH,
-}
-
 #[derive(Debug, Clone)]
 pub struct StacksAddress {
     version: AddressVersion,
