@@ -7,5 +7,5 @@ edition = "2021"
 log.workspace = true
 once_cell.workspace = true
 regex.workspace = true
-stacks-core.workspace = true
+stacks-core.path = "../stacks-core"
 thiserror.workspace = true

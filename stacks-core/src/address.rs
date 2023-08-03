@@ -100,6 +100,12 @@ impl StacksAddress {
     }
 }
 
+impl From<&StacksAddress> for String {
+    fn from(address: &StacksAddress) -> Self {
+        encode_address(address.version, address.hash.as_ref())
+    }
+}
+
 impl TryFrom<&str> for StacksAddress {
     type Error = StacksError;
 
@@ -150,6 +156,7 @@ fn hash_p2sh(num_sigs: usize, pub_keys: &[PublicKey]) -> Hash160Hasher {
 
 fn hash_p2wpkh(key: &PublicKey) -> Hash160Hasher {
     let key_hash_hasher = Hash160Hasher::new(key.serialize());
+
     let key_hash = key_hash_hasher.as_ref();
     let key_hash_len = key_hash.len();
 

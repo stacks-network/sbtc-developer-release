@@ -1,12 +1,11 @@
 /*!
 Deposit is a transaction with the output structure as below:
 
-- output 0, data output
-- output 1, payment to peg wallet address
+1. data output
+2. payment to peg wallet address
 
 The data output should contain data in the following format:
 
-```text
 0      2  3                  24                            64       80
 |------|--|------------------|-----------------------------|--------|
  magic  op   Stacks address      Contract name (optional)     memo
@@ -34,9 +33,7 @@ pub struct ParsedDepositData {
     pub memo: Vec<u8>,
 }
 
-/**
-Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-*/
+/// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
 pub fn parse(data: &[u8]) -> Result<ParsedDepositData, ParseError> {
     if data.len() < 21 {
         return Err(ParseError::MalformedData(
