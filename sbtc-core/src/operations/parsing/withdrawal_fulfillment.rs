@@ -15,7 +15,7 @@ The data output should contain data in the following format:
 ```
 */
 
-use crate::wireformat::ParseError;
+use crate::{SBTCError, SBTCResult};
 
 pub struct StacksBlockId(pub [u8; 32]);
 
@@ -38,9 +38,9 @@ pub struct ParsedWithdrawalFulfillmentData {
 }
 
 /// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-pub fn parse_data(data: &[u8]) -> Result<ParsedWithdrawalFulfillmentData, ParseError> {
+pub fn parse_data(data: &[u8]) -> SBTCResult<ParsedWithdrawalFulfillmentData> {
     if data.len() < 32 {
-        return Err(ParseError::MalformedData(
+        return Err(SBTCError::MalformedData(
             "Withdrawal fulfillment data should be at least 32 bytes long",
         ));
     }
