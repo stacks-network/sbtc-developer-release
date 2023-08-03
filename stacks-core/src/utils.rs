@@ -81,6 +81,7 @@ impl Borrow<str> for ContractName {
     }
 }
 
+// From conversion is fallible for this type
 #[allow(clippy::from_over_into)]
 impl Into<String> for ContractName {
     fn into(self) -> String {

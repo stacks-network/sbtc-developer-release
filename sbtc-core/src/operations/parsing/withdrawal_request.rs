@@ -16,7 +16,7 @@ The data output should contain data in the following format:
 
 use stacks_core::StacksError;
 
-use crate::wireformat::ParseError;
+use crate::SBTCResult;
 
 pub struct MessageSignature(pub [u8; 65]);
 
@@ -41,9 +41,9 @@ pub struct ParsedWithdrawalRequestData {
 }
 
 /// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
-pub fn parse(data: &[u8]) -> Result<ParsedWithdrawalRequestData, ParseError> {
+pub fn parse(data: &[u8]) -> SBTCResult<ParsedWithdrawalRequestData> {
     if data.len() < 73 {
-        return Err(ParseError::MalformedData(
+        return Err(crate::SBTCError::MalformedData(
             "Withdrawal request data should contain at least 73 bytes",
         ));
     }
