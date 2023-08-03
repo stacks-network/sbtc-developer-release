@@ -43,8 +43,8 @@ impl ContractName {
         if contract_name.len() < CONTRACT_MIN_NAME_LENGTH
             && contract_name.len() > CONTRACT_MAX_NAME_LENGTH
         {
-            return Err(ContractNameError::InvalidLength);
-        } else if CONTRACT_NAME_REGEX.is_match(&contract_name) {
+            Err(ContractNameError::InvalidLength)
+        } else if CONTRACT_NAME_REGEX.is_match(contract_name) {
             Ok(Self(contract_name.to_string()))
         } else {
             Err(ContractNameError::InvalidFormat)
@@ -79,6 +79,8 @@ impl Borrow<str> for ContractName {
     }
 }
 
+// From conversion is fallible for this type
+#[allow(clippy::from_over_into)]
 impl Into<String> for ContractName {
     fn into(self) -> String {
         self.0

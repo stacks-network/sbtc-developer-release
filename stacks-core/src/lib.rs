@@ -1,6 +1,5 @@
 use std::array::TryFromSliceError;
 
-use crypto::hash160::Hash160Hasher;
 use thiserror::Error;
 
 pub mod address;
@@ -27,9 +26,3 @@ pub enum StacksError {
 }
 
 pub type StacksResult<T> = Result<T, StacksError>;
-
-#[derive(Debug, Clone)]
-pub struct StacksAddress {
-    version: u8,
-    hash: Hash160Hasher,
-}
