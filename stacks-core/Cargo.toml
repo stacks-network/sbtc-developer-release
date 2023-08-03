@@ -10,7 +10,6 @@ bitcoin.workspace = true
 hex.workspace = true
 once_cell.workspace = true
 regex.workspace = true
-ring.workspace = true
 ripemd.workspace = true
 secp256k1.workspace = true
 serde = { workspace = true, features = ["derive"] }
