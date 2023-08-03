@@ -6,6 +6,8 @@ license = "MIT"
 description = "Package that exposes primitives for working with the Stacks sBTC token"
 homepage = "https://github.com/stacks-network/sbtc"
 readme = "README.md"
+keywords = ["stacks", "bitcoin", "sbtc", "sdk", "blockchain"]
+categories = ["cryptography::cryptocurrencies", "data-structures", "development-tools", "finance"]
 
 [dependencies]
 bdk.workspace = true
