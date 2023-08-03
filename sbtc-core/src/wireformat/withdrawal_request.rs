@@ -14,20 +14,23 @@ The data output should contain data in the following format:
 ```
 */
 
+use stacks_core::StacksError;
+
 use crate::wireformat::ParseError;
 
 pub struct MessageSignature(pub [u8; 65]);
 
 impl MessageSignature {
-    pub fn new(bytes: &[u8]) -> Option<Self> {
-        if bytes.len() == 65 {
-            let mut buffer = [0; 65];
-            buffer.copy_from_slice(bytes);
+    pub fn new(bytes: [u8; 65]) -> Self {
+        Self(bytes)
+    }
+}
 
-            Some(Self(buffer))
-        } else {
-            None
-        }
+impl TryFrom<&[u8]> for MessageSignature {
+    type Error = StacksError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(value.try_into()?))
     }
 }
 
@@ -46,7 +49,7 @@ pub fn parse(data: &[u8]) -> Result<ParsedWithdrawalRequestData, ParseError> {
     }
 
     let amount = u64::from_be_bytes(data[0..8].try_into().unwrap());
-    let signature = MessageSignature::new(&data[8..73]).unwrap();
+    let signature: MessageSignature = data[8..73].try_into().unwrap();
     let memo = data.get(73..).unwrap_or(&[]).to_vec();
 
     Ok(ParsedWithdrawalRequestData {
