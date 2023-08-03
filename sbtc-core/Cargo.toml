@@ -2,6 +2,10 @@
 name = "sbtc-core"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Package that exposes primitives for working with the Stacks sBTC token"
+homepage = "https://github.com/stacks-network/sbtc"
+readme = "README.md"
 
 [dependencies]
 bdk.workspace = true
