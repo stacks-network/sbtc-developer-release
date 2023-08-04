@@ -1,9 +1,15 @@
 [package]
-name = "stacks-core"
-version = "0.1.0"
+authors = ["Stacks Foundation <admin@stacks.co>"]
+categories = ["cryptography::cryptocurrencies", "data-structures", "development-tools", "finance"]
+description = "Package that exposes primitives for working with the Stacks blockchain"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+keywords = ["blockchain", "stacks", "bitcoin", "blockstack", "sdk"]
+license = "MIT"
+name = "stacks-core"
+readme = "README.md"
+repository = "https://github.com/stacks-network/sbtc"
+version = "0.1.0"
+website = "https://www.stacks.co"
 
 [dependencies]
 bitcoin.workspace = true
