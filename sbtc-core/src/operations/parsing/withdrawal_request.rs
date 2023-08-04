@@ -18,9 +18,11 @@ use stacks_core::StacksError;
 
 use crate::SBTCResult;
 
+/// A message signature
 pub struct MessageSignature(pub [u8; 65]);
 
 impl MessageSignature {
+    /// Creates a new message signature from a slice of bytes
     pub fn new(bytes: [u8; 65]) -> Self {
         Self(bytes)
     }
@@ -34,9 +36,13 @@ impl TryFrom<&[u8]> for MessageSignature {
     }
 }
 
+/// The parsed data from a withdrawal request transaction
 pub struct ParsedWithdrawalRequestData {
+    /// The amount to withdraw
     pub amount: u64,
+    /// The signature
     pub signature: MessageSignature,
+    /// The memo
     pub memo: Vec<u8>,
 }
 

@@ -15,6 +15,7 @@ use crate::{
     SBTCError, SBTCResult,
 };
 
+/// Construct a BTC transaction containing the provided sBTC withdrawal data
 pub fn build_withdrawal_tx(
     withdrawer_bitcoin_private_key: PrivateKey,
     withdrawer_stacks_private_key: PrivateKey,

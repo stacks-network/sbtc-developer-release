@@ -28,8 +28,11 @@ fn find_leading_non_zero_bytes(data: &[u8]) -> Option<&[u8]> {
     }
 }
 
+/// Parsed data output from a deposit transaction
 pub struct ParsedDepositData {
+    /// The recipient of the deposit
     pub recipient: PrincipalData,
+    /// The memo
     pub memo: Vec<u8>,
 }
 
