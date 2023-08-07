@@ -10,18 +10,22 @@ use p256k1::ecdsa;
 use url::Url;
 use wsts::{bip340::SchnorrProof, common::Signature};
 
+/// A Stacks transaction
+/// TODO: replace with the core library's StacksTransaction
+pub struct StacksTransaction {}
+
 #[derive(Default, Clone, Debug)]
-/// Signers' data required for weighted distributed signing
-pub struct Signers {
-    /// Signer id to public key mapping
+/// Signers' public keys required for weighted distributed signing
+pub struct PublicKeys {
+    /// Signer ids to public key mapping
     pub signer_ids: HashMap<u32, ecdsa::PublicKey>,
-    /// Vote share to public key mapping
-    pub vote_shares: HashMap<u32, ecdsa::PublicKey>,
+    /// Vote ids to public key mapping
+    pub vote_ids: HashMap<u32, ecdsa::PublicKey>,
 }
 
 /// sBTC Signer trait
-pub trait SBTCSigner {
-    fn signers(&self) -> SBTCResult<Signers>;
+pub trait Keys {
+    fn public_keys(&self) -> SBTCResult<PublicKeys>;
     fn coordinator_public_key(&self, _tx: BitcoinTransaction) -> SBTCResult<PublicKey>;
 }
 
@@ -47,6 +51,8 @@ pub struct Signer<S: Sign + Coordinate> {
     pub network: Network,
     /// The stacks node RPC URL
     pub stacks_node_rpc_url: Url,
+    /// The bitcoin node RPC URL
+    pub bitcoin_node_rpc_url: Url,
     /// The signer
     pub signer: S,
 }
@@ -58,6 +64,7 @@ impl<S: Sign + Coordinate> Signer<S> {
         private_key: PrivateKey,
         network: Network,
         stacks_node_rpc_url: Url,
+        bitcoin_node_rpc_url: Url,
         signer: S,
     ) -> Self {
         Self {
@@ -65,6 +72,7 @@ impl<S: Sign + Coordinate> Signer<S> {
             private_key,
             network,
             stacks_node_rpc_url,
+            bitcoin_node_rpc_url,
             signer,
         }
     }
@@ -78,11 +86,21 @@ impl<S: Sign + Coordinate> Signer<S> {
     pub fn deny(&self, _tx: BitcoinTransaction) -> Result<(), SBTCError> {
         todo!()
     }
+
+    /// Broadcast the transaction to the bitcoin network
+    fn _broadcast_transaction_bitcoin(&self, _tx: BitcoinTransaction) -> SBTCResult<()> {
+        todo!()
+    }
+
+    /// Broadcast the transaction to the stacks network
+    fn _broadcast_transaction_stacks(&self, _tx: StacksTransaction) -> SBTCResult<()> {
+        todo!()
+    }
 }
 
-impl<S: Sign + Coordinate> SBTCSigner for Signer<S> {
-    /// Retrieve the current signers
-    fn signers(&self) -> SBTCResult<Signers> {
+impl<S: Sign + Coordinate> Keys for Signer<S> {
+    /// Retrieve the current public keys for the signers and their vote ids
+    fn public_keys(&self) -> SBTCResult<PublicKeys> {
         todo!()
     }
 
