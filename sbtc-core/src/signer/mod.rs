@@ -32,13 +32,13 @@ pub trait Coordinate {
 }
 
 /// Sign trait
-pub trait Sign: Coordinate {
+pub trait Sign {
     fn sign_message(&self, message: &[u8]) -> SBTCResult<Vec<u8>>;
     fn verify_message(&self, public_key: &ecdsa::PublicKey, message: &[u8]) -> SBTCResult<bool>;
 }
 
 /// sBTC compliant Signer
-pub struct Signer<S: Sign> {
+pub struct Signer<S: Sign + Coordinate> {
     /// Signer configuration
     pub config: Config,
     /// Signer private key
@@ -51,7 +51,7 @@ pub struct Signer<S: Sign> {
     pub signer: S,
 }
 
-impl<S: Sign> Signer<S> {
+impl<S: Sign + Coordinate> Signer<S> {
     /// Create a new signer
     pub fn new(
         config: Config,
@@ -80,7 +80,7 @@ impl<S: Sign> Signer<S> {
     }
 }
 
-impl<S: Sign> SBTCSigner for Signer<S> {
+impl<S: Sign + Coordinate> SBTCSigner for Signer<S> {
     /// Retrieve the current signers
     fn signers(&self) -> SBTCResult<Signers> {
         todo!()
@@ -92,7 +92,7 @@ impl<S: Sign> SBTCSigner for Signer<S> {
     }
 }
 
-impl<S: Sign> Coordinate for Signer<S> {
+impl<S: Sign + Coordinate> Coordinate for Signer<S> {
     /// Generate the sBTC wallet public key
     fn generate_sbtc_wallet_public_key(&self) -> SBTCResult<PublicKey> {
         todo!()
@@ -104,7 +104,7 @@ impl<S: Sign> Coordinate for Signer<S> {
     }
 }
 
-impl<S: Sign> Sign for Signer<S> {
+impl<S: Sign + Coordinate> Sign for Signer<S> {
     /// Sign the given message
     fn sign_message(&self, _message: &[u8]) -> SBTCResult<Vec<u8>> {
         todo!()
