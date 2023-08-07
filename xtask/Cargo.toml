@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "xtask"
+version = "0.1.0"
+
+[dependencies]
+clap = { version="4.3", features = ["derive"]}
+clap-verbosity-flag = "2.0.1"
+anyhow = "1.0"
+duct = "0.13"
+colored = "2"

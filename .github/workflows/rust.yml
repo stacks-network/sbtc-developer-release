@@ -1,0 +1,44 @@
+name: Rust
+
+on:
+
+  pull_request:
+    branches: [ "master", "20-introduce-ci" ] # We should make this main or mainline.
+    paths-ignore: ['**.md']
+
+env:
+  CARGO_TERM_COLOR: always
+
+
+# ----------------------------------------------------------
+# This is part of a PR that's in progress and may not work.
+# ----------------------------------------------------------
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo generate-lockfile -v
+    - uses: actions/upload-artifact@v3
+      with:
+        name: Cargo.lock
+        path: Cargo.lock
+
+  pr-validation:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
+      with:
+        name: Cargo.lock
+    - name: Check Format
+      run: cargo xtask --lazy-install -s check-format
+    - name: Build and Test With Coverage
+      run: cargo xtask --lazy-install -s test-with-coverage
+    - name: Verify Coverage Percent
+      run: cargo xtask --lazy-install --min-coverage 70 -s verify-coverage-percent
+    - name: Release
+      run: cargo xtask --lazy-install -s release

@@ -1,5 +1,10 @@
 [workspace]
-members = ["sbtc-core", "stacks-core"]
+members = [
+    "sbtc-core",
+    "stacks-core",
+    "xtask",
+]
+resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"

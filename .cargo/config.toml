@@ -1,0 +1,4 @@
+# Details on conventions around xtask can be found here: https://github.com/matklad/cargo-xtask
+
+[alias]
+xtask = "run --package xtask --"
