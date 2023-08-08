@@ -31,13 +31,17 @@ pub struct PublicKeys {
 
 /// sBTC Keys trait for retrieving signer IDs, vote IDs, and public keys
 trait Keys {
+    /// Retrieve the current public keys for the signers and their vote ids
     fn public_keys(&self) -> SBTCResult<PublicKeys>;
-    fn coordinator_public_key(&self, tx: &BitcoinTransaction) -> SBTCResult<PublicKey>;
+    /// Get the ordered list of coordinator public keys for the given transaction
+    fn coordinator_public_keys(&self, tx: &BitcoinTransaction) -> SBTCResult<Vec<PublicKey>>;
 }
 
 /// Coordinator trait for generating the sBTC wallet public key and running a signing round
 pub trait Coordinate {
+    /// Generate the sBTC wallet public key
     fn generate_sbtc_wallet_public_key(&self, public_keys: &PublicKeys) -> SBTCResult<PublicKey>;
+    /// Run the signing round for the transaction
     fn run_signing_round(
         &self,
         public_keys: &PublicKeys,
@@ -47,7 +51,9 @@ pub trait Coordinate {
 
 /// Sign trait for signing and verifying messages
 pub trait Sign {
+    /// Sign the given message
     fn sign_message(&self, message: &[u8]) -> SBTCResult<Vec<u8>>;
+    /// Verify the message was signed by the given public key
     fn verify_message(&self, public_key: &ecdsa::PublicKey, message: &[u8]) -> SBTCResult<bool>;
 }
 
@@ -132,10 +138,8 @@ impl<S: Sign + Coordinate> Keys for Signer<S> {
         todo!()
     }
 
-    /// Get the current coordinator public key for the given transaction
-    /// TODO: this may have to be per reward cycle since the coordinator public key changes between reward cycles
-    /// and the DKG round must be triggered by a coordinator without a specific BitcoinTransaction
-    fn coordinator_public_key(&self, _tx: &BitcoinTransaction) -> SBTCResult<PublicKey> {
+    /// Get the ordered list of coordinator public keys for the given transaction
+    fn coordinator_public_keys(&self, _tx: &BitcoinTransaction) -> SBTCResult<Vec<PublicKey>> {
         todo!()
     }
 }
