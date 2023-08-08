@@ -1,0 +1,56 @@
+name: Rust
+
+on:
+  pull_request:
+    branches: [ "master", "20-introduce-ci", "20-temporary-ci"] # We should make this main or mainline.
+    paths-ignore: ['**.md']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  generate-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo generate-lockfile -v
+    - uses: actions/upload-artifact@v3
+      with:
+        name: Cargo.lock
+        path: Cargo.lock
+
+  pr-validation:
+    needs: generate-lockfile
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
+      with:
+        name: Cargo.lock
+
+    # TODO: These steps are not at all idiomatic and are made to be temporary.
+    # They will be replaced with calls to a locally runnable task runner script
+    #
+    # Task-Runner Script conversation link:
+    # https://github.com/stacks-network/stacks-blockchain/issues/3844
+
+    - name: Install Build Dependencies
+      run: >
+        cargo install cargo-llvm-cov &&
+        rustup component add clippy-preview &&
+        rustup component add rustfmt
+
+    - name: Lint
+      run: >
+        cargo fmt --check --verbose &&
+        cargo clippy -- -D warnings -W clippy::all
+
+    - name: Test with Coverage
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: lcov.info
+        fail_ci_if_error: true
