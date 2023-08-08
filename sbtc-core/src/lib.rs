@@ -3,6 +3,9 @@ use thiserror::Error;
 
 pub mod operations;
 
+/// Module for an sBTC signer
+pub mod signer;
+
 #[derive(Error, Debug)]
 pub enum SBTCError {
     #[error("Bad contract name: {0}")]
