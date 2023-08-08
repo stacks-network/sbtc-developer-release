@@ -12,6 +12,7 @@ pub(crate) const SHA256_LENGTH: usize = 32;
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(try_from = "Hex")]
 #[serde(into = "Hex")]
+/// The Sha256 hashing type
 pub struct Sha256Hashing([u8; SHA256_LENGTH]);
 
 impl Hashing<SHA256_LENGTH> for Sha256Hashing {
@@ -45,6 +46,7 @@ impl TryFrom<Hex> for Sha256Hashing {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// The DoubleSha256 hashing type
 pub struct DoubleSha256Hashing(Sha256Hashing);
 
 impl Hashing<SHA256_LENGTH> for DoubleSha256Hashing {
@@ -77,7 +79,9 @@ impl TryFrom<Hex> for DoubleSha256Hashing {
     }
 }
 
+/// The Sha256 hasher type
 pub type Sha256Hasher = Hasher<Sha256Hashing, SHA256_LENGTH>;
+/// The DoubleSha256 hasher type
 pub type DoubleSha256Hasher = Hasher<DoubleSha256Hashing, SHA256_LENGTH>;
 
 #[cfg(test)]
