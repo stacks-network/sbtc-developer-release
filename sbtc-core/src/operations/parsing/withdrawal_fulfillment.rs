@@ -17,9 +17,11 @@ The data output should contain data in the following format:
 
 use crate::{SBTCError, SBTCResult};
 
+/// A stacks block ID
 pub struct StacksBlockId(pub [u8; 32]);
 
 impl StacksBlockId {
+    /// Creates a new StacksBlockId from a slice of bytes
     pub fn new(bytes: &[u8]) -> Option<Self> {
         if bytes.len() == 32 {
             let mut buffer = [0; 32];
@@ -32,8 +34,11 @@ impl StacksBlockId {
     }
 }
 
+/// The parsed data output from a withdrawal fulfillment transaction
 pub struct ParsedWithdrawalFulfillmentData {
+    /// The chain tip block ID
     pub chain_tip: StacksBlockId,
+    /// The memo
     pub memo: Vec<u8>,
 }
 

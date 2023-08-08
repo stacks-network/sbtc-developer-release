@@ -13,6 +13,7 @@ use crate::{
     SBTCError, SBTCResult,
 };
 
+/// Construct a BTC transaction containing the provided sBTC deposit data
 pub fn deposit(
     depositor_private_key: PrivateKey,
     recipient_address: &StacksAddress,
