@@ -29,12 +29,12 @@ jobs:
       with:
         name: Cargo.lock
 
-    # TODO: These steps are not at all idiomatic and are made to be temporary.
-    # They will be replaced with calls to a locally runnable task runner script
+    # TODO: All steps following this one are made to be temporary. They will be
+    # replaced with calls to a locally runnable task runner script so that local
+    # testing and github actions are one-to-one.
     #
-    # Task-Runner Script conversation link:
+    # Task-Runner Script conversation:
     # https://github.com/stacks-network/stacks-blockchain/issues/3844
-
     - name: Install Build Dependencies
       run: >
         cargo install cargo-llvm-cov &&
@@ -46,11 +46,21 @@ jobs:
         cargo fmt --check --verbose &&
         cargo clippy -- -D warnings -W clippy::all
 
+    # This command will create a single code coverage report for the whole workspace.
+    # In the future we'll want to create a separate coverage report for each project
+    # within the workspace so we can create a codecov flag for each one.
+    #
+    # Codecov docs:
+    # https://docs.codecov.com/docs/flags#one-to-one-relationship-of-flags-to-uploads
     - name: Test with Coverage
       run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
+    # We'll want to add flags to track the test coverage delta in pull requests.
+    #
+    # Flag usage:
+    # https://docs.codecov.com/docs/flags
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        files: lcov.info
+        files: ./lcov.info
         fail_ci_if_error: true
