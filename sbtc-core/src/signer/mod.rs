@@ -1,14 +1,17 @@
-/// An sBTC signer configuration
+/// sBTC signer configuration module
 pub mod config;
-
-use std::collections::HashMap;
+/// sBTC coordinator module
+pub mod coordinator;
 
 use crate::SBTCError;
-use crate::{signer::config::Config, SBTCResult};
+use crate::{
+    signer::config::Config,
+    signer::coordinator::{Coordinate, PublicKeys},
+    SBTCResult,
+};
 use bitcoin::{Address, Network, PrivateKey, PublicKey, Transaction as BitcoinTransaction};
 use p256k1::ecdsa;
 use url::Url;
-use wsts::{bip340::SchnorrProof, common::Signature};
 
 /// A Stacks transaction
 /// TODO: replace with the core library's StacksTransaction
@@ -20,33 +23,12 @@ pub struct StacksTransaction {}
 /// depending on https://github.com/Trust-Machines/stacks-sbtc/pull/595
 pub struct SBTCTransaction {}
 
-#[derive(Default, Clone, Debug)]
-/// Signers' public keys required for weighted distributed signing
-pub struct PublicKeys {
-    /// Signer ids to public key mapping
-    pub signer_ids: HashMap<u32, ecdsa::PublicKey>,
-    /// Vote ids to public key mapping
-    pub vote_ids: HashMap<u32, ecdsa::PublicKey>,
-}
-
 /// sBTC Keys trait for retrieving signer IDs, vote IDs, and public keys
 trait Keys {
     /// Retrieve the current public keys for the signers and their vote ids
     fn public_keys(&self) -> SBTCResult<PublicKeys>;
     /// Get the ordered list of coordinator public keys for the given transaction
     fn coordinator_public_keys(&self, tx: &BitcoinTransaction) -> SBTCResult<Vec<PublicKey>>;
-}
-
-/// Coordinator trait for generating the sBTC wallet public key and running a signing round
-pub trait Coordinate {
-    /// Generate the sBTC wallet public key
-    fn generate_sbtc_wallet_public_key(&self, public_keys: &PublicKeys) -> SBTCResult<PublicKey>;
-    /// Run the signing round for the transaction
-    fn run_signing_round(
-        &self,
-        public_keys: &PublicKeys,
-        tx: &BitcoinTransaction,
-    ) -> SBTCResult<(Signature, SchnorrProof)>;
 }
 
 /// Sign trait for signing and verifying messages
@@ -140,34 +122,6 @@ impl<S: Sign + Coordinate> Keys for Signer<S> {
 
     /// Get the ordered list of coordinator public keys for the given transaction
     fn coordinator_public_keys(&self, _tx: &BitcoinTransaction) -> SBTCResult<Vec<PublicKey>> {
-        todo!()
-    }
-}
-
-impl<S: Sign + Coordinate> Coordinate for Signer<S> {
-    /// Generate the sBTC wallet public key
-    fn generate_sbtc_wallet_public_key(&self, _public_keys: &PublicKeys) -> SBTCResult<PublicKey> {
-        todo!()
-    }
-
-    /// Run the signing round for the transaction
-    fn run_signing_round(
-        &self,
-        _public_keys: &PublicKeys,
-        _tx: &BitcoinTransaction,
-    ) -> SBTCResult<(Signature, SchnorrProof)> {
-        todo!()
-    }
-}
-
-impl<S: Sign + Coordinate> Sign for Signer<S> {
-    /// Sign the given message
-    fn sign_message(&self, _message: &[u8]) -> SBTCResult<Vec<u8>> {
-        todo!()
-    }
-    /// Verify the message was signed by the given public key
-    /// TODO: replace ecdsa::PublicKey with a more generic type to enable a more generic signer
-    fn verify_message(&self, _public_key: &ecdsa::PublicKey, _message: &[u8]) -> SBTCResult<bool> {
         todo!()
     }
 }
