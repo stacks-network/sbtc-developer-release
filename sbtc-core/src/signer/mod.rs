@@ -39,6 +39,12 @@ pub trait Sign {
     fn verify_message(&self, public_key: &ecdsa::PublicKey, message: &[u8]) -> SBTCResult<bool>;
 }
 
+/// Revealer trait for revealing BTC commit transactions
+trait Revealer {
+    /// Create a reveal transaction from the BTC commit transaction
+    fn reveal_transaction(&self, tx: &BitcoinTransaction) -> SBTCResult<BitcoinTransaction>;
+}
+
 /// sBTC compliant Signer
 pub struct Signer<S: Sign + Coordinate> {
     /// Signer configuration
@@ -122,6 +128,13 @@ impl<S: Sign + Coordinate> Keys for Signer<S> {
 
     /// Get the ordered list of coordinator public keys for the given transaction
     fn coordinator_public_keys(&self, _tx: &BitcoinTransaction) -> SBTCResult<Vec<PublicKey>> {
+        todo!()
+    }
+}
+
+impl<S: Sign + Coordinate> Revealer for Signer<S> {
+    /// Create a reveal transaction from the BTC commit transaction
+    fn reveal_transaction(&self, _tx: &BitcoinTransaction) -> SBTCResult<BitcoinTransaction> {
         todo!()
     }
 }
