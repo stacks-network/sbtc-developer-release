@@ -1,29 +1,52 @@
 /*!
-Deposit is a transaction with the output structure as below:
+Deposit is a Bitcoin transaction with the output structure as below:
 
 1. data output
 2. payment to peg wallet address
 
-The data output should contain data in the following format:
+The data output should contain data in the following byte format:
 
-0      2  3                  24                            65       80
-|------|--|------------------|-----------------------------|--------|
- magic  op   Stacks address    Size prefixed contract name    memo
-                                   (optional, see note)
+```text
+0     2  3                                                                    80
+|-----|--|---------------------------------------------------------------------|
+ magic op                           deposit data
+```
 
-Contract name is prefixed by a single byte size followed by the contract name
-bytes.
+Where deposit data should be in the following format:
+
+```text
+3                                                      25 >= N <= 66          80
+|------------------------------------------------------------------|-----------|
+                           principal data                              extra
+                                                                       bytes
+```
+
+There are two types of principal data:
+
+- standard (includes only principal type, address version and address hash)
+- contract (includes everything from the last diagram)
+
+If the principal data is of the contract type, then the contract name cannot be
+longer than 40 characters.
+
+Principal data should be in the following format:
+
+```text
+3         4         5                25       26                         N <= 66
+|---------|---------|-----------------|--------|-------------------------------|
+ principal  address       address      contract            contract
+   type     version        hash          name                name
+                                      length (N)
 ```
 */
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 
-use stacks_core::{
-    address::{AddressVersion, StacksAddress},
-    codec::Codec,
-    utils::{ContractName, PrincipalData, StandardPrincipalData},
-};
+use stacks_core::{codec::Codec, utils::PrincipalData, StacksError};
 
 use crate::{SBTCError, SBTCResult};
+
+const WIRE_DATA_MIN_LENGTH: usize = 25;
+const WIRE_PRINCIPAL_DATA_INDEX: usize = 3;
 
 /// Contains the parsed data from a deposit transaction
 pub struct ParsedDepositData {
@@ -33,47 +56,40 @@ pub struct ParsedDepositData {
     pub memo: Vec<u8>,
 }
 
-/// Parses the subset of the data output from a deposit transaction. First 3 bytes need to be removed.
+/// Parses the data output of the deposit transaction
 pub fn parse(data: &[u8]) -> SBTCResult<ParsedDepositData> {
-    if data.len() < 21 {
+    if data.len() < WIRE_DATA_MIN_LENGTH {
         return Err(SBTCError::MalformedData("Should contain at least 21 bytes"));
     }
 
-    let standard_principal_data = {
-        let version = AddressVersion::from_repr(data[0])
-            .ok_or(SBTCError::MalformedData("Address version is invalid"))?;
-        let addr = StacksAddress::deserialize(&mut Cursor::new(&data[0..21]))?;
+    let mut data = Cursor::new(&data[WIRE_PRINCIPAL_DATA_INDEX..]);
+    let recipient = PrincipalData::deserialize(&mut data)?;
 
-        StandardPrincipalData::new(version, addr)
-    };
-
-    let contract_name_size = data[21] as usize;
-
-    let recipient: PrincipalData = if contract_name_size == 0 {
-        PrincipalData::Standard(standard_principal_data)
-    } else {
-        let contract_name_bytes = &data[22..(22 + contract_name_size)];
-
-        let contract_name = std::str::from_utf8(contract_name_bytes)
-            .map_err(|_| SBTCError::MalformedData("Contract name bytes are not valid UTF-8"))
-            .and_then(|contract_name_string| {
-                ContractName::new(contract_name_string).map_err(SBTCError::ContractNameError)
-            })?;
-
-        PrincipalData::Contract(standard_principal_data, contract_name)
-    };
-
-    let memo = data.get(62..).unwrap_or(&[]).to_vec();
+    let mut memo = vec![];
+    data.read_to_end(&mut memo)
+        .map_err(|_| StacksError::InvalidData("Could not read memo bytes"))?;
 
     Ok(ParsedDepositData { recipient, memo })
 }
 
 #[cfg(test)]
 mod tests {
+    use std::io::{Seek, SeekFrom, Write};
+
     use rand::{distributions::Alphanumeric, thread_rng, Rng};
-    use stacks_core::{codec::Codec, crypto::generate_keypair};
+    use stacks_core::{
+        address::{AddressVersion, StacksAddress},
+        codec::Codec,
+        contract_name::{ContractName, CONTRACT_MAX_NAME_LENGTH},
+        crypto::generate_keypair,
+        utils::StandardPrincipalData,
+    };
 
     use super::*;
+
+    const WIRE_CONTRACT_PRINCIPAL_DATA_NAME_INDEX: usize = 26;
+    const WIRE_CONTRACT_PRINCIPAL_DATA_NAME_MAX_INDEX: usize = 66;
+    const WIRE_DATA_MAX_LENGTH: usize = 80;
 
     fn generate_address() -> StacksAddress {
         let pk = generate_keypair(&mut thread_rng()).1;
@@ -81,128 +97,122 @@ mod tests {
         StacksAddress::p2pkh(AddressVersion::TestnetSingleSig, &pk)
     }
 
-    fn generate_contract_name() -> Option<ContractName> {
-        let should_have_contract_name: bool = thread_rng().gen();
+    fn generate_contract_name() -> ContractName {
+        let contract_name_length: u8 = thread_rng().gen_range(1..CONTRACT_MAX_NAME_LENGTH as u8);
 
-        if should_have_contract_name {
-            let contract_name_length: u8 = thread_rng().gen_range(1..40);
-            let contract_name = {
-                let mut contract_name_char_iter =
-                    thread_rng().sample_iter(&Alphanumeric).map(char::from);
+        let contract_name = {
+            let mut contract_name_char_iter =
+                thread_rng().sample_iter(&Alphanumeric).map(char::from);
 
-                let first_letter = loop {
-                    let letter = contract_name_char_iter.next().unwrap();
+            let first_letter = loop {
+                let letter = contract_name_char_iter.next().unwrap();
 
-                    if letter.is_digit(10) {
-                        continue;
-                    } else {
-                        break letter;
-                    };
+                if letter.is_digit(10) {
+                    continue;
+                } else {
+                    break letter;
                 };
-
-                let other_letters = contract_name_char_iter.take(contract_name_length as usize - 1);
-
-                let contract_name_string = [first_letter]
-                    .into_iter()
-                    .chain(other_letters)
-                    .collect::<String>();
-
-                ContractName::new(&contract_name_string).unwrap()
             };
 
-            Some(contract_name)
+            let other_letters = contract_name_char_iter.take(contract_name_length as usize - 1);
+
+            let contract_name_string = [first_letter]
+                .into_iter()
+                .chain(other_letters)
+                .collect::<String>();
+
+            ContractName::new(&contract_name_string).unwrap()
+        };
+
+        contract_name
+    }
+
+    fn generate_contract_principal_data() -> PrincipalData {
+        PrincipalData::Contract(
+            StandardPrincipalData::new(AddressVersion::TestnetSingleSig, generate_address()),
+            generate_contract_name(),
+        )
+    }
+
+    fn generate_principal_data() -> PrincipalData {
+        let should_be_standard_principal: bool = thread_rng().gen();
+
+        if should_be_standard_principal {
+            PrincipalData::Standard(StandardPrincipalData::new(
+                AddressVersion::TestnetSingleSig,
+                generate_address(),
+            ))
         } else {
-            None
+            generate_contract_principal_data()
         }
     }
 
-    fn build_deposit_data(
-        addr: &StacksAddress,
-        contract_name: Option<&ContractName>,
-        memo: &[u8; 15],
-    ) -> [u8; 77] {
-        let mut data = [0u8; 77];
+    fn build_deposit_data(principal_data: &PrincipalData) -> ([u8; WIRE_DATA_MAX_LENGTH], Vec<u8>) {
+        let mut data = [0u8; WIRE_DATA_MAX_LENGTH];
 
-        data[0..21].copy_from_slice(&addr.serialize_to_vec());
+        let memo = {
+            let mut data_cursor = Cursor::new(&mut data[..]);
+            data_cursor
+                .seek(SeekFrom::Start(WIRE_PRINCIPAL_DATA_INDEX as u64))
+                .unwrap();
 
-        if let Some(contract_name) = contract_name {
-            let contract_name_length = contract_name.len();
+            principal_data.serialize(&mut data_cursor).unwrap();
 
-            data[21] = contract_name_length as u8;
-            data[22..22 + contract_name_length].copy_from_slice(contract_name.as_bytes());
-        }
+            let position = data_cursor.position() as usize;
+            let memo: Vec<u8> = std::iter::from_fn(|| Some(thread_rng().gen::<u8>()))
+                .take(WIRE_DATA_MAX_LENGTH - position)
+                .collect();
 
-        data[62..].copy_from_slice(memo);
+            data_cursor.write(&memo).unwrap();
 
-        data
+            memo
+        };
+
+        (data, memo)
     }
 
-    fn generate_deposit_data() -> (StacksAddress, Option<ContractName>, [u8; 15], [u8; 77]) {
-        let addr = generate_address();
-        let maybe_contract_name = generate_contract_name();
-        let memo: [u8; 15] = thread_rng().gen();
+    fn generate_deposit_data() -> (PrincipalData, Vec<u8>, [u8; WIRE_DATA_MAX_LENGTH]) {
+        let principal_data = generate_principal_data();
+        let (data, memo) = build_deposit_data(&principal_data);
 
-        let data = build_deposit_data(&addr, maybe_contract_name.as_ref(), &memo);
-
-        (addr, maybe_contract_name, memo, data)
+        (principal_data, memo, data)
     }
 
     #[test]
     fn should_parse_deposit_data() {
         for _ in 0..1000 {
-            let (expected_addr, expected_contract_name, expected_memo, data) =
-                generate_deposit_data();
-
+            let (expected_principal_data, expected_memo, data) = generate_deposit_data();
             let parsed_data = parse(&data).unwrap();
 
-            match parsed_data.recipient {
-                PrincipalData::Standard(StandardPrincipalData(_, addr)) => {
-                    assert!(expected_contract_name.is_none());
-                    assert_eq!(addr, expected_addr);
-                }
-                PrincipalData::Contract(StandardPrincipalData(_, addr), contract_name) => {
-                    assert!(expected_contract_name.is_some());
-                    assert_eq!(addr, expected_addr);
-                    assert_eq!(contract_name, expected_contract_name.unwrap());
-                }
-            }
-
+            assert_eq!(parsed_data.recipient, expected_principal_data);
             assert_eq!(parsed_data.memo, expected_memo);
         }
     }
 
     #[test]
     fn should_fail_on_missing_contract_name_bytes() {
-        let addr = generate_address();
-        let contract_name = loop {
-            let contract_name = generate_contract_name();
+        let principal_data = generate_contract_principal_data();
+        let (mut data, _) = build_deposit_data(&principal_data);
 
-            if contract_name.is_some() {
-                break contract_name.unwrap();
-            }
-        };
-        let memo: [u8; 15] = thread_rng().gen();
-
-        let mut data = build_deposit_data(&addr, Some(&contract_name), &memo);
-        data[22..62].iter_mut().for_each(|byte| *byte = 0);
+        data[WIRE_CONTRACT_PRINCIPAL_DATA_NAME_INDEX..WIRE_CONTRACT_PRINCIPAL_DATA_NAME_MAX_INDEX]
+            .iter_mut()
+            .for_each(|byte| *byte = 0);
 
         assert!(parse(&data).is_err());
     }
 
     #[test]
     fn should_fail_on_incomplete_contract_name_bytes() {
-        let addr = generate_address();
-        let contract_name = loop {
-            let contract_name = generate_contract_name();
-
-            if contract_name.is_some() {
-                break contract_name.unwrap();
-            }
+        let principal_data = generate_contract_principal_data();
+        let principal_data_contract_name_length = match &principal_data {
+            PrincipalData::Contract(_, contract_name) => contract_name.len(),
+            PrincipalData::Standard(_) => panic!("Should be contract principal data"),
         };
-        let memo: [u8; 15] = thread_rng().gen();
 
-        let mut data = build_deposit_data(&addr, Some(&contract_name), &memo);
-        data[22 + contract_name.len() - 1..62]
+        let (mut data, _) = build_deposit_data(&principal_data);
+
+        data[WIRE_CONTRACT_PRINCIPAL_DATA_NAME_INDEX + principal_data_contract_name_length - 1
+            ..WIRE_CONTRACT_PRINCIPAL_DATA_NAME_MAX_INDEX]
             .iter_mut()
             .for_each(|byte| *byte = 0);
 
@@ -211,50 +221,25 @@ mod tests {
 
     #[test]
     fn should_truncate_on_extra_contract_name_bytes() {
-        let addr = generate_address();
-        let expected_contract_name = loop {
-            let maybe_contract_name = generate_contract_name();
+        let (expected_principal_data, principal_data_contract_name_length) = loop {
+            let principal_data = generate_contract_principal_data();
 
-            if let Some(contract_name) = maybe_contract_name {
-                if contract_name.len() < 40 {
-                    break contract_name;
-                }
+            let principal_data_contract_name_length = match &principal_data {
+                PrincipalData::Contract(_, contract_name) => contract_name.len(),
+                PrincipalData::Standard(_) => panic!("Should be contract principal data"),
+            };
+
+            if principal_data_contract_name_length < CONTRACT_MAX_NAME_LENGTH {
+                break (principal_data, principal_data_contract_name_length);
             }
         };
-        let memo: [u8; 15] = thread_rng().gen();
 
-        let mut data = build_deposit_data(&addr, Some(&expected_contract_name), &memo);
-        data[22 + expected_contract_name.len() + 1] = b'X';
-
-        let parsed_data = parse(&data).unwrap();
-
-        match parsed_data.recipient {
-            PrincipalData::Contract(_, contract_name) => {
-                assert_eq!(contract_name, expected_contract_name)
-            }
-            PrincipalData::Standard(_) => panic!("Should be a contract principal"),
-        }
-    }
-
-    #[test]
-    fn should_ignore_contract_name_bytes_if_size_zero() {
-        let expected_addr = generate_address();
-        let expected_memo: [u8; 15] = thread_rng().gen();
-        let mut data = build_deposit_data(&expected_addr, None, &expected_memo);
-
-        data[22..62]
-            .iter_mut()
-            .for_each(|byte| *byte = thread_rng().gen());
+        let (mut data, _) = build_deposit_data(&expected_principal_data);
+        data[WIRE_CONTRACT_PRINCIPAL_DATA_NAME_INDEX + principal_data_contract_name_length + 1] =
+            b'X';
 
         let parsed_data = parse(&data).unwrap();
 
-        match parsed_data.recipient {
-            PrincipalData::Standard(StandardPrincipalData(_, addr)) => {
-                assert_eq!(addr, expected_addr);
-            }
-            PrincipalData::Contract(_, _) => panic!("Should be a standard principal"),
-        }
-
-        assert_eq!(parsed_data.memo, expected_memo);
+        assert_eq!(parsed_data.recipient, expected_principal_data);
     }
 }

@@ -44,6 +44,8 @@ pub enum StacksError {
     InvalidUintBytes(usize),
     #[error("Codec error: {0}")]
     CodecError(#[from] CodecError),
+    #[error("Invalid data: {0}")]
+    InvalidData(&'static str),
 }
 
 /// Result type for the stacks-core library

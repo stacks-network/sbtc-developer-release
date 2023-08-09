@@ -1,12 +1,15 @@
 use std::{
     borrow::Borrow,
     fmt::{Display, Formatter},
+    io::{self, Read},
     ops::Deref,
 };
 
 use once_cell::sync::Lazy;
 use regex::Regex;
 use thiserror::Error;
+
+use crate::codec::Codec;
 
 /// Minimum contract name length
 pub const CONTRACT_MIN_NAME_LENGTH: usize = 1;
@@ -43,8 +46,8 @@ pub enum ContractNameError {
     InvalidFormat,
 }
 
-/// Contract name type
 #[derive(PartialEq, Eq, Debug, Clone)]
+/// Contract name type
 pub struct ContractName(String);
 
 impl ContractName {
@@ -59,6 +62,32 @@ impl ContractName {
         } else {
             Err(ContractNameError::InvalidFormat)
         }
+    }
+}
+
+impl Codec for ContractName {
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
+        dest.write_all(&[self.len() as u8])?;
+        dest.write_all(self.as_bytes())
+    }
+
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut length_buffer = [0u8; 1];
+        data.read_exact(&mut length_buffer)?;
+        let contract_name_length = length_buffer[0] as usize;
+
+        let mut name_buffer = Vec::with_capacity(contract_name_length);
+        data.take(contract_name_length as u64)
+            .read_to_end(&mut name_buffer)?;
+
+        let contract_name_string = String::from_utf8(name_buffer)
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+
+        Self::new(&contract_name_string)
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     }
 }
 

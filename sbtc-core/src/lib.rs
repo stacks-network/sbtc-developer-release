@@ -4,7 +4,7 @@
 */
 
 use bdk::electrum_client::Error as ElectrumError;
-use stacks_core::{utils::ContractNameError, StacksError};
+use stacks_core::{contract_name::ContractNameError, StacksError};
 use thiserror::Error;
 
 /// Module for sBTC operations
