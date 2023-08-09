@@ -34,7 +34,7 @@ pub trait Codec {
     }
 
     fn serialize_to_vec(&self) -> Vec<u8> {
-        let mut buffer = Vec::with_capacity(21);
+        let mut buffer = vec![];
 
         self.serialize(&mut buffer).unwrap();
 

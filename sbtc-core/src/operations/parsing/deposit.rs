@@ -76,7 +76,7 @@ pub fn parse(data: &[u8]) -> SBTCResult<ParsedDepositData> {
 mod tests {
     use std::io::{Seek, SeekFrom, Write};
 
-    use rand::{distributions::Alphanumeric, thread_rng, Rng};
+    use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
     use stacks_core::{
         address::{AddressVersion, StacksAddress},
         codec::Codec,
@@ -91,18 +91,21 @@ mod tests {
     const WIRE_CONTRACT_PRINCIPAL_DATA_NAME_MAX_INDEX: usize = 66;
     const WIRE_DATA_MAX_LENGTH: usize = 80;
 
-    fn generate_address() -> StacksAddress {
-        let pk = generate_keypair(&mut thread_rng()).1;
+    fn test_rng() -> StdRng {
+        StdRng::seed_from_u64(0)
+    }
+
+    fn generate_address(rng: &mut impl Rng) -> StacksAddress {
+        let pk = generate_keypair(rng).1;
 
         StacksAddress::p2pkh(AddressVersion::TestnetSingleSig, &pk)
     }
 
-    fn generate_contract_name() -> ContractName {
-        let contract_name_length: u8 = thread_rng().gen_range(1..CONTRACT_MAX_NAME_LENGTH as u8);
+    fn generate_contract_name(rng: &mut impl Rng) -> ContractName {
+        let contract_name_length: u8 = rng.gen_range(1..CONTRACT_MAX_NAME_LENGTH as u8);
 
         let contract_name = {
-            let mut contract_name_char_iter =
-                thread_rng().sample_iter(&Alphanumeric).map(char::from);
+            let mut contract_name_char_iter = rng.sample_iter(&Alphanumeric).map(char::from);
 
             let first_letter = loop {
                 let letter = contract_name_char_iter.next().unwrap();
@@ -127,27 +130,30 @@ mod tests {
         contract_name
     }
 
-    fn generate_contract_principal_data() -> PrincipalData {
+    fn generate_contract_principal_data(rng: &mut impl Rng) -> PrincipalData {
         PrincipalData::Contract(
-            StandardPrincipalData::new(AddressVersion::TestnetSingleSig, generate_address()),
-            generate_contract_name(),
+            StandardPrincipalData::new(AddressVersion::TestnetSingleSig, generate_address(rng)),
+            generate_contract_name(rng),
         )
     }
 
-    fn generate_principal_data() -> PrincipalData {
-        let should_be_standard_principal: bool = thread_rng().gen();
+    fn generate_principal_data(rng: &mut impl Rng) -> PrincipalData {
+        let should_be_standard_principal: bool = rng.gen();
 
         if should_be_standard_principal {
             PrincipalData::Standard(StandardPrincipalData::new(
                 AddressVersion::TestnetSingleSig,
-                generate_address(),
+                generate_address(rng),
             ))
         } else {
-            generate_contract_principal_data()
+            generate_contract_principal_data(rng)
         }
     }
 
-    fn build_deposit_data(principal_data: &PrincipalData) -> ([u8; WIRE_DATA_MAX_LENGTH], Vec<u8>) {
+    fn build_deposit_data(
+        rng: &mut impl Rng,
+        principal_data: &PrincipalData,
+    ) -> ([u8; WIRE_DATA_MAX_LENGTH], Vec<u8>) {
         let mut data = [0u8; WIRE_DATA_MAX_LENGTH];
 
         let memo = {
@@ -159,7 +165,7 @@ mod tests {
             principal_data.serialize(&mut data_cursor).unwrap();
 
             let position = data_cursor.position() as usize;
-            let memo: Vec<u8> = std::iter::from_fn(|| Some(thread_rng().gen::<u8>()))
+            let memo: Vec<u8> = std::iter::from_fn(|| Some(rng.gen::<u8>()))
                 .take(WIRE_DATA_MAX_LENGTH - position)
                 .collect();
 
@@ -171,17 +177,21 @@ mod tests {
         (data, memo)
     }
 
-    fn generate_deposit_data() -> (PrincipalData, Vec<u8>, [u8; WIRE_DATA_MAX_LENGTH]) {
-        let principal_data = generate_principal_data();
-        let (data, memo) = build_deposit_data(&principal_data);
+    fn generate_deposit_data(
+        rng: &mut impl Rng,
+    ) -> (PrincipalData, Vec<u8>, [u8; WIRE_DATA_MAX_LENGTH]) {
+        let principal_data = generate_principal_data(rng);
+        let (data, memo) = build_deposit_data(rng, &principal_data);
 
         (principal_data, memo, data)
     }
 
     #[test]
     fn should_parse_deposit_data() {
+        let mut rng = test_rng();
+
         for _ in 0..1000 {
-            let (expected_principal_data, expected_memo, data) = generate_deposit_data();
+            let (expected_principal_data, expected_memo, data) = generate_deposit_data(&mut rng);
             let parsed_data = parse(&data).unwrap();
 
             assert_eq!(parsed_data.recipient, expected_principal_data);
@@ -191,8 +201,10 @@ mod tests {
 
     #[test]
     fn should_fail_on_missing_contract_name_bytes() {
-        let principal_data = generate_contract_principal_data();
-        let (mut data, _) = build_deposit_data(&principal_data);
+        let mut rng = test_rng();
+
+        let principal_data = generate_contract_principal_data(&mut rng);
+        let (mut data, _) = build_deposit_data(&mut rng, &principal_data);
 
         data[WIRE_CONTRACT_PRINCIPAL_DATA_NAME_INDEX..WIRE_CONTRACT_PRINCIPAL_DATA_NAME_MAX_INDEX]
             .iter_mut()
@@ -203,13 +215,15 @@ mod tests {
 
     #[test]
     fn should_fail_on_incomplete_contract_name_bytes() {
-        let principal_data = generate_contract_principal_data();
+        let mut rng = test_rng();
+
+        let principal_data = generate_contract_principal_data(&mut rng);
         let principal_data_contract_name_length = match &principal_data {
             PrincipalData::Contract(_, contract_name) => contract_name.len(),
             PrincipalData::Standard(_) => panic!("Should be contract principal data"),
         };
 
-        let (mut data, _) = build_deposit_data(&principal_data);
+        let (mut data, _) = build_deposit_data(&mut rng, &principal_data);
 
         data[WIRE_CONTRACT_PRINCIPAL_DATA_NAME_INDEX + principal_data_contract_name_length - 1
             ..WIRE_CONTRACT_PRINCIPAL_DATA_NAME_MAX_INDEX]
@@ -221,8 +235,10 @@ mod tests {
 
     #[test]
     fn should_truncate_on_extra_contract_name_bytes() {
+        let mut rng = test_rng();
+
         let (expected_principal_data, principal_data_contract_name_length) = loop {
-            let principal_data = generate_contract_principal_data();
+            let principal_data = generate_contract_principal_data(&mut rng);
 
             let principal_data_contract_name_length = match &principal_data {
                 PrincipalData::Contract(_, contract_name) => contract_name.len(),
@@ -234,7 +250,7 @@ mod tests {
             }
         };
 
-        let (mut data, _) = build_deposit_data(&expected_principal_data);
+        let (mut data, _) = build_deposit_data(&mut rng, &expected_principal_data);
         data[WIRE_CONTRACT_PRINCIPAL_DATA_NAME_INDEX + principal_data_contract_name_length + 1] =
             b'X';
 
