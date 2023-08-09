@@ -43,8 +43,10 @@ pub enum StacksError {
     /// Invalid Uint bytes
     InvalidUintBytes(usize),
     #[error("Codec error: {0}")]
+    /// Codec error
     CodecError(#[from] CodecError),
     #[error("Invalid data: {0}")]
+    /// Invalid data
     InvalidData(&'static str),
 }
 

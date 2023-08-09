@@ -1,3 +1,6 @@
+/*!
+Contract name type and parsing
+*/
 use std::{
     borrow::Borrow,
     fmt::{Display, Formatter},
