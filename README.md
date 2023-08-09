@@ -1,5 +1,8 @@
 # sbtc
 
+![rust workflow](https://github.com/stacks-network/sbtc/actions/workflows/rust.yml/badge.svg)
+[![codecov](https://codecov.io/github/stacks-network/sbtc/branch/master/graph/badge.svg?token=2sbE9YLwT6)](https://codecov.io/github/stacks-network/sbtc)
+
 > Note: This repo is still in early development and is not ready for production use.
 
 This repo contains, or will contain, packages that define sBTC primitives, signer components, helper tools such as `sbtc-cli`.
