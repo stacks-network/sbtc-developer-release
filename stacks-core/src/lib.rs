@@ -1,4 +1,4 @@
-#![deny(missing_docs)]
+#![forbid(missing_docs)]
 /*!
 # stacks-core library: a library for interacting with the Stacks protocol
 */
