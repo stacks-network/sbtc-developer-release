@@ -93,7 +93,7 @@ impl StacksAddress {
 
 impl Codec for StacksAddress {
     fn codec_serialize<W: Write>(&self, dest: &mut W) -> io::Result<()> {
-        dest.write(&[self.version() as u8])?;
+        assert_eq!(dest.write(&[self.version() as u8])?, 1);
         dest.write_all(self.hash().as_ref())
     }
 
