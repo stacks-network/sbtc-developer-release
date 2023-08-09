@@ -1,6 +1,6 @@
-/// Module for FIRE signature generation
+/// Module for Frost Interactive Robustness Extension signature generation
 pub mod fire;
-/// Module for ROAST signature generation
+/// Module for RObust Asynchronous Schnorr Threshold signature generation
 pub mod roast;
 
 use std::collections::HashMap;
@@ -20,7 +20,10 @@ pub struct PublicKeys {
 }
 
 /// TODO: Define the Message types for DKG round
+/// https://github.com/stacks-network/sbtc/issues/42
+
 /// TODO: Define the Message types for Tx Signning Round
+/// https://github.com/stacks-network/sbtc/issues/43
 
 /// Coordinator trait for generating the sBTC wallet public key and running a signing round
 pub trait Coordinate {
