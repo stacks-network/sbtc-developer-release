@@ -44,6 +44,7 @@ pub enum ContractNameError {
 }
 
 /// Contract name type
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ContractName(String);
 
 impl ContractName {

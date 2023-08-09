@@ -23,3 +23,6 @@ stacks-core.path = "../stacks-core"
 thiserror.workspace = true
 url.workspace = true
 wsts.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

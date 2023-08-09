@@ -4,6 +4,7 @@
 */
 
 use bdk::electrum_client::Error as ElectrumError;
+use stacks_core::{utils::ContractNameError, StacksError};
 use thiserror::Error;
 
 /// Module for sBTC operations
@@ -30,6 +31,12 @@ pub enum SBTCError {
     #[error("Deposit amount {0} should be greater than dust amount {1}")]
     /// Insufficient amount
     AmountInsufficient(u64, u64),
+    /// Contract name error
+    #[error("Contract name error: {0}")]
+    ContractNameError(#[from] ContractNameError),
+    /// Stacks error
+    #[error("Stacks error: {0}")]
+    StacksError(#[from] StacksError),
 }
 
 /// A helper type for sBTC results
