@@ -1,4 +1,4 @@
-#![deny(missing_docs)]
+#![forbid(missing_docs)]
 /*!
 # sbtc-core library: a library for interacting with the sBTC protocol
 */

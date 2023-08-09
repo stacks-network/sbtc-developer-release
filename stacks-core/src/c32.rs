@@ -55,6 +55,7 @@ fn decode_underhead(len: usize) -> usize {
 }
 
 #[derive(thiserror::Error, Clone, Debug, Eq, PartialEq)]
+/// C32 error type
 pub enum C32Error {
     /// Invalid C32 string.
     #[error("Invalid C32 string")]
@@ -78,7 +79,7 @@ pub enum C32Error {
     #[error(transparent)]
     IntConversionError(#[from] std::num::TryFromIntError),
 }
-
+/// C32 encode the given data
 pub fn encode(data: impl AsRef<[u8]>) -> String {
     let data = data.as_ref();
 
@@ -121,6 +122,7 @@ pub fn encode(data: impl AsRef<[u8]>) -> String {
     String::from_utf8(encoded).unwrap()
 }
 
+/// C32 decode the given data
 pub fn decode(input: impl AsRef<str>) -> Result<Vec<u8>, C32Error> {
     let input = input.as_ref().as_bytes();
 
@@ -171,6 +173,7 @@ pub fn decode(input: impl AsRef<str>) -> Result<Vec<u8>, C32Error> {
     Ok(decoded)
 }
 
+/// C32 encode the given data with a version check
 pub fn version_check_encode(version: AddressVersion, data: impl AsRef<[u8]>) -> String {
     let data = data.as_ref();
 
@@ -186,6 +189,7 @@ pub fn version_check_encode(version: AddressVersion, data: impl AsRef<[u8]>) -> 
     encoded
 }
 
+/// C32 decode the given data with a version check
 pub fn version_check_decode(input: impl AsRef<str>) -> Result<(AddressVersion, Vec<u8>), C32Error> {
     let input = input.as_ref();
 
@@ -225,6 +229,7 @@ pub fn version_check_decode(input: impl AsRef<str>) -> Result<(AddressVersion, V
     ))
 }
 
+/// C32 encode the given data as an address
 pub fn encode_address(version: AddressVersion, data: impl AsRef<[u8]>) -> String {
     let encoded = version_check_encode(version, data);
     let address = format!("S{}", encoded);
@@ -232,6 +237,7 @@ pub fn encode_address(version: AddressVersion, data: impl AsRef<[u8]>) -> String
     address
 }
 
+/// C32 decode the given address string
 pub fn decode_address(address: impl AsRef<str>) -> Result<(AddressVersion, Vec<u8>), C32Error> {
     let address = address.as_ref();
 

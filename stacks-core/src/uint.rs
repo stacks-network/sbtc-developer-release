@@ -26,9 +26,12 @@ It accepts a const generic `N` which controls the number of u64s used to represe
 pub struct Uint<const N: usize>([u64; N]);
 
 impl<const N: usize> Uint<N> {
+    /// The maximum value that can be represented by this type
     pub const MAX: Self = Self([0xffffffffffffffff; N]);
+    /// The minimum value that can be represented by this type
     pub const MIN: Self = Self([0; N]);
 
+    /// Build a Uint from a u64 array
     pub fn from_u64_array(data: [u64; N]) -> Self {
         Self(data)
     }
@@ -54,6 +57,7 @@ impl<const N: usize> Uint<N> {
         0x40 - self.0[0].leading_zeros() as usize
     }
 
+    /// Multiply by a u32
     pub fn mul_u32(self, other: u32) -> Self {
         let mut carry = [0u64; N];
         let mut ret = [0u64; N];
@@ -155,22 +159,27 @@ impl<const N: usize> Uint<N> {
         Ok(Self(ret))
     }
 
+    /// Convert to a little-endian hex string
     pub fn to_le_hex(&self) -> String {
         hex::encode(self.to_le_bytes())
     }
 
+    /// Convert to a big-endian hex string
     pub fn to_be_hex(&self) -> String {
         hex::encode(self.to_be_bytes())
     }
 
+    /// Build from a little-endian hex string
     pub fn from_le_hex(data: impl AsRef<str>) -> StacksResult<Self> {
         Self::from_le_bytes(hex::decode(data.as_ref())?)
     }
 
+    /// Build from a big-endian hex string
     pub fn from_be_hex(data: impl AsRef<str>) -> StacksResult<Self> {
         Self::from_be_bytes(hex::decode(data.as_ref())?)
     }
 
+    /// Wrapping add by one operation
     pub fn increment(&mut self) {
         let &mut Uint(ref mut arr) = self;
 
@@ -183,6 +192,7 @@ impl<const N: usize> Uint<N> {
         }
     }
 
+    /// Create a new Uint from the provided Uint
     pub fn from_uint<const M: usize>(source: impl AsRef<Uint<M>>) -> Self {
         assert!(M < N, "Cannot convert larger Uint to smaller");
 
@@ -194,6 +204,7 @@ impl<const N: usize> Uint<N> {
         Uint(dest)
     }
 
+    /// Create a new Uint from the provided Uint, truncating if necessary
     pub fn from_uint_lossy<const M: usize>(source: impl AsRef<Uint<M>>) -> Self {
         let source = source.as_ref();
         let mut dest = [0u64; N];
@@ -204,6 +215,7 @@ impl<const N: usize> Uint<N> {
         Uint(dest)
     }
 
+    /// Convert to a smaller Uint
     pub fn to_uint<const M: usize>(&self) -> Uint<M> {
         assert!(M >= N, "Cannot convert larger Uint to smaller");
 
@@ -214,6 +226,7 @@ impl<const N: usize> Uint<N> {
         Uint(dest)
     }
 
+    /// Convert to a smaller Uint, truncating if necessary
     pub fn to_uint_lossy<const M: usize>(&self) -> Uint<M> {
         let mut dest = [0u64; M];
         let bytes_shared = M.min(N);
@@ -557,7 +570,9 @@ impl<const N: usize> TryFrom<Vec<u64>> for Uint<N> {
     }
 }
 
+/// A 256-bit unsigned integer
 pub type Uint256 = Uint<4>;
+/// A 512-bit unsigned integer
 pub type Uint512 = Uint<8>;
 
 #[cfg(test)]
