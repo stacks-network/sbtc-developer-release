@@ -6,7 +6,7 @@ pub mod coordinator;
 use crate::SBTCError;
 use crate::{
     signer::config::Config,
-    signer::coordinator::{Coordinate, PublicKeys},
+    signer::coordinator::{Coordinate, PublicKeys, Reveal},
     SBTCResult,
 };
 use bitcoin::{Address, Network, PrivateKey, PublicKey, Transaction as BitcoinTransaction};
@@ -17,11 +17,16 @@ use url::Url;
 /// TODO: replace with the core library's StacksTransaction
 pub struct StacksTransaction {}
 
-/// An sBTC transaction
-/// TODO: replace with the core library's SBTCTransaction
-/// This could be a BTC transaction or a STX transaction
-/// depending on https://github.com/Trust-Machines/stacks-sbtc/pull/595
-pub struct SBTCTransaction {}
+/// An Bitcoin transaction needing to be SIGNED by the signer
+/// TODO: update with https://github.com/Trust-Machines/stacks-sbtc/pull/595
+pub enum SignableTransaction {
+    /// A reveal transaction
+    Reveal(BitcoinTransaction),
+    /// A withdrawal fulfillment Bitcoin transaction
+    WithdrawalFulfillment(BitcoinTransaction),
+    /// A Bitcoin sBTC wallet handoff transaction
+    Handoff(BitcoinTransaction),
+}
 
 /// sBTC Keys trait for retrieving signer IDs, vote IDs, and public keys
 trait Keys {
@@ -39,8 +44,14 @@ pub trait Sign {
     fn verify_message(&self, public_key: &ecdsa::PublicKey, message: &[u8]) -> SBTCResult<bool>;
 }
 
+/// Validator trait for validating pending Bitcoin transactions
+pub trait Validator {
+    /// Validate the given signable Bitcoin transaction
+    fn validate_transaction(&self, tx: &SignableTransaction) -> SBTCResult<bool>;
+}
+
 /// sBTC compliant Signer
-pub struct Signer<S: Sign + Coordinate> {
+pub struct Signer<S> {
     /// Signer configuration
     pub config: Config,
     /// Signer private key
@@ -51,11 +62,13 @@ pub struct Signer<S: Sign + Coordinate> {
     pub stacks_node_rpc_url: Url,
     /// The bitcoin node RPC URL
     pub bitcoin_node_rpc_url: Url,
+    /// The revealer RPC URL
+    pub revealer_rpc_url: Url,
     /// The signer
     pub signer: S,
 }
 
-impl<S: Sign + Coordinate> Signer<S> {
+impl<S: Sign + Coordinate + Reveal> Signer<S> {
     // Public methods
 
     /// Create a new signer
@@ -65,6 +78,7 @@ impl<S: Sign + Coordinate> Signer<S> {
         network: Network,
         stacks_node_rpc_url: Url,
         bitcoin_node_rpc_url: Url,
+        revealer_rpc_url: Url,
         signer: S,
     ) -> Self {
         Self {
@@ -73,6 +87,7 @@ impl<S: Sign + Coordinate> Signer<S> {
             network,
             stacks_node_rpc_url,
             bitcoin_node_rpc_url,
+            revealer_rpc_url,
             signer,
         }
     }
@@ -89,16 +104,11 @@ impl<S: Sign + Coordinate> Signer<S> {
 
     // Private methods
 
-    /// Retrieve pending sBTC transactions
-    fn _sbtc_transactions(&self) -> SBTCResult<Vec<SBTCTransaction>> {
-        todo!()
-    }
-
     /// Fulfill the withdrawal request using the provided address
     fn _fulfill_withdrawal_request(
         &self,
         _sbtc_wallet_address: &Address,
-        _tx: &SBTCTransaction,
+        _tx: &StacksTransaction,
     ) -> SBTCResult<()> {
         todo!()
     }
@@ -114,7 +124,7 @@ impl<S: Sign + Coordinate> Signer<S> {
     }
 }
 
-impl<S: Sign + Coordinate> Keys for Signer<S> {
+impl<S> Keys for Signer<S> {
     /// Retrieve the current public keys for the signers and their vote ids
     fn public_keys(&self) -> SBTCResult<PublicKeys> {
         todo!()
@@ -123,5 +133,24 @@ impl<S: Sign + Coordinate> Keys for Signer<S> {
     /// Get the ordered list of coordinator public keys for the given transaction
     fn coordinator_public_keys(&self, _tx: &BitcoinTransaction) -> SBTCResult<Vec<PublicKey>> {
         todo!()
+    }
+}
+
+impl<S> Validator for Signer<S> {
+    /// Validate the given sBTC transaction
+    fn validate_transaction(&self, tx: &SignableTransaction) -> SBTCResult<bool> {
+        // TODO: check all addresses involved in each transaction
+        match tx {
+            SignableTransaction::Reveal(_tx) => {
+                // TODO: retrieve the initiator from the originator transaction to verify it is not an auto deny address
+                todo!()
+            }
+            SignableTransaction::WithdrawalFulfillment(_tx) => {
+                todo!()
+            }
+            SignableTransaction::Handoff(_tx) => {
+                todo!()
+            }
+        }
     }
 }
