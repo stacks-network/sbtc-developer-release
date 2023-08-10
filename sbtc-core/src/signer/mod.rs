@@ -6,7 +6,7 @@ pub mod coordinator;
 use crate::SBTCError;
 use crate::{
     signer::config::Config,
-    signer::coordinator::{Coordinate, PublicKeys},
+    signer::coordinator::{Coordinate, PublicKeys, Reveal},
     SBTCResult,
 };
 use bitcoin::{Address, Network, PrivateKey, PublicKey, Transaction as BitcoinTransaction};
@@ -52,7 +52,7 @@ pub trait Validator {
 }
 
 /// sBTC compliant Signer
-pub struct Signer<S: Sign + Coordinate> {
+pub struct Signer<S> {
     /// Signer configuration
     pub config: Config,
     /// Signer private key
@@ -67,7 +67,7 @@ pub struct Signer<S: Sign + Coordinate> {
     pub signer: S,
 }
 
-impl<S: Sign + Coordinate> Signer<S> {
+impl<S: Sign + Coordinate + Reveal> Signer<S> {
     // Public methods
 
     /// Create a new signer
@@ -121,7 +121,7 @@ impl<S: Sign + Coordinate> Signer<S> {
     }
 }
 
-impl<S: Sign + Coordinate> Keys for Signer<S> {
+impl<S> Keys for Signer<S> {
     /// Retrieve the current public keys for the signers and their vote ids
     fn public_keys(&self) -> SBTCResult<PublicKeys> {
         todo!()
@@ -133,7 +133,7 @@ impl<S: Sign + Coordinate> Keys for Signer<S> {
     }
 }
 
-impl<S: Sign + Coordinate> Validator for Signer<S> {
+impl<S> Validator for Signer<S> {
     /// Validate the given sBTC transaction
     fn validate_transaction(&self, tx: &SignableTransaction) -> SBTCResult<bool> {
         // TODO: check all addresses involved in each transaction

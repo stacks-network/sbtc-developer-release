@@ -39,11 +39,9 @@ pub enum SBTCTransaction {
 }
 
 /// Revealer trait for revealing BTC commit transactions
-pub trait Revealer {
-    /// Retrieve pending Commit transactions information
-    fn pending_commit_transactions(
-        &self,
-    ) -> SBTCResult<Vec<(TaprootSpendInfo, BitcoinTransaction)>>;
+pub trait Reveal {
+    /// Retrieve Commit transactions from Revealer service
+    fn commit_transactions(&self) -> SBTCResult<Vec<(TaprootSpendInfo, BitcoinTransaction)>>;
     /// Validate the given commit transaction
     fn validate_commit_transaction(
         &self,
@@ -60,8 +58,8 @@ pub trait Revealer {
 
 /// Coordinator trait for generating the sBTC wallet public key and running a signing round
 pub trait Coordinate {
-    /// Retrieve pending sBTC transactions to be processed
-    fn pending_transactions(&self) -> SBTCResult<Vec<SBTCTransaction>>;
+    /// Retrieve sBTC transactions from the blockchain
+    fn sbtc_transactions(&self) -> SBTCResult<Vec<SBTCTransaction>>;
     /// Generate the sBTC wallet public key
     fn generate_sbtc_wallet_public_key(&self, public_keys: &PublicKeys) -> SBTCResult<PublicKey>;
     /// Run the signing round for the transaction
