@@ -1,5 +1,5 @@
 /*!
-Module for contract name parsing
+Module for serializing and deserializing Stacks data types
 */
 use std::io;
 
