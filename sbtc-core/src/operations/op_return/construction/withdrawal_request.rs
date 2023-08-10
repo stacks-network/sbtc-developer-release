@@ -1,16 +1,20 @@
 use std::iter::once;
 
-use bdk::{database::MemoryDatabase, SignOptions, Wallet};
-use bitcoin::{
-    psbt::PartiallySignedTransaction,
-    secp256k1::{Message, Secp256k1},
-    Address as BitcoinAddress, Network, PrivateKey, Transaction,
+use bdk::{
+    bitcoin::{
+        psbt::PartiallySignedTransaction,
+        secp256k1::{Message, Secp256k1},
+        Address as BitcoinAddress, Network, PrivateKey, Transaction,
+    },
+    database::MemoryDatabase,
+    SignOptions, Wallet,
 };
 use stacks_core::crypto::{sha256::Sha256Hasher, Hashing};
 
 use crate::{
-    operations::construction::utils::{
-        build_op_return_script, magic_bytes, reorder_outputs, setup_wallet,
+    operations::{
+        magic_bytes,
+        op_return::construction::utils::{build_op_return_script, reorder_outputs, setup_wallet},
     },
     SBTCError, SBTCResult,
 };

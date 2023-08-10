@@ -1,3 +1,7 @@
+/*!
+Construction of OP_RETURN transactions for sBTC operations
+*/
+
 /// Module for deposit transaction construction
 pub mod deposit;
 /// Utilities for sBTC operation construction

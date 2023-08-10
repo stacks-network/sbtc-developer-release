@@ -1,12 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
 
 use bdk::{
-    blockchain::ElectrumBlockchain, database::MemoryDatabase, electrum_client::Client,
-    template::P2Wpkh, SyncOptions, Wallet,
-};
-use bitcoin::{
-    blockdata::{opcodes::all::OP_RETURN, script::Builder},
-    Network, PrivateKey, Script, TxOut,
+    bitcoin::{
+        blockdata::{opcodes::all::OP_RETURN, script::Builder},
+        PrivateKey, Script, TxOut,
+    },
+    blockchain::ElectrumBlockchain,
+    database::MemoryDatabase,
+    electrum_client::Client,
+    template::P2Wpkh,
+    SyncOptions, Wallet,
 };
 
 use crate::{SBTCError, SBTCResult};
@@ -71,13 +74,4 @@ pub(crate) fn reorder_outputs(
         .collect();
 
     outputs_ordered.into_values().collect()
-}
-
-/// Returns the magic bytes for the provided network
-pub(crate) fn magic_bytes(network: Network) -> [u8; 2] {
-    match network {
-        Network::Bitcoin => [b'X', b'2'],
-        Network::Testnet => [b'T', b'2'],
-        _ => [b'i', b'd'],
-    }
 }

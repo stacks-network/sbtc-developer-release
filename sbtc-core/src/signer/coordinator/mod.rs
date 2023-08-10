@@ -6,7 +6,8 @@ pub mod roast;
 use std::collections::HashMap;
 
 use crate::SBTCResult;
-use bitcoin::{util::taproot::TaprootSpendInfo, PublicKey, Transaction as BitcoinTransaction};
+
+use bdk::bitcoin::{util::taproot::TaprootSpendInfo, PublicKey, Transaction as BitcoinTransaction};
 use p256k1::ecdsa;
 use wsts::{bip340::SchnorrProof, common::Signature};
 
