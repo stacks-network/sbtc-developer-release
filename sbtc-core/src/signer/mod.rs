@@ -18,8 +18,7 @@ use url::Url;
 pub struct StacksTransaction {}
 
 /// An Bitcoin transaction needing to be SIGNED by the signer
-/// This could be a BTC transaction or a STX transaction
-/// depending on https://github.com/Trust-Machines/stacks-sbtc/pull/595
+/// TODO: update with https://github.com/Trust-Machines/stacks-sbtc/pull/595
 pub enum SignableTransaction {
     /// A reveal transaction
     Reveal(BitcoinTransaction),
