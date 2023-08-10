@@ -5,13 +5,14 @@
 
 use std::array::TryFromSliceError;
 
+use codec::CodecError;
 use thiserror::Error;
 
 /// Module for interacting with stacks addresses
 pub mod address;
 /// Module for c32 encoding and decoding
 pub mod c32;
-/// Module for contract name parsing
+pub mod codec;
 pub mod contract_name;
 /// Module for crypto functions
 pub mod crypto;
@@ -21,7 +22,7 @@ pub mod uint;
 pub mod utils;
 
 /// Error type for the stacks-core library
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum StacksError {
     #[error("Invalid arguments: {0}")]
     /// Invalid arguments
@@ -41,6 +42,12 @@ pub enum StacksError {
     #[error("Could not create Uint from {0} bytes")]
     /// Invalid Uint bytes
     InvalidUintBytes(usize),
+    #[error("Codec error: {0}")]
+    /// Codec error
+    CodecError(#[from] CodecError),
+    #[error("Invalid data: {0}")]
+    /// Invalid data
+    InvalidData(&'static str),
 }
 
 /// Result type for the stacks-core library
