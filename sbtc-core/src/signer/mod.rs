@@ -62,6 +62,8 @@ pub struct Signer<S> {
     pub stacks_node_rpc_url: Url,
     /// The bitcoin node RPC URL
     pub bitcoin_node_rpc_url: Url,
+    /// The revealer RPC URL
+    pub revealer_rpc_url: Url,
     /// The signer
     pub signer: S,
 }
@@ -76,6 +78,7 @@ impl<S: Sign + Coordinate + Reveal> Signer<S> {
         network: Network,
         stacks_node_rpc_url: Url,
         bitcoin_node_rpc_url: Url,
+        revealer_rpc_url: Url,
         signer: S,
     ) -> Self {
         Self {
@@ -84,6 +87,7 @@ impl<S: Sign + Coordinate + Reveal> Signer<S> {
             network,
             stacks_node_rpc_url,
             bitcoin_node_rpc_url,
+            revealer_rpc_url,
             signer,
         }
     }
