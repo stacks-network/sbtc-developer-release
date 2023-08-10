@@ -17,11 +17,17 @@ use url::Url;
 /// TODO: replace with the core library's StacksTransaction
 pub struct StacksTransaction {}
 
-/// An sBTC transaction
-/// TODO: replace with the core library's SBTCTransaction
+/// An Bitcoin transaction needing to be SIGNED by the signer
 /// This could be a BTC transaction or a STX transaction
 /// depending on https://github.com/Trust-Machines/stacks-sbtc/pull/595
-pub struct SBTCTransaction {}
+pub enum SignableTransaction {
+    /// A reveal transaction
+    Reveal(BitcoinTransaction),
+    /// A withdrawal fulfillment Bitcoin transaction
+    WithdrawalFulfillment(BitcoinTransaction),
+    /// A Bitcoin sBTC wallet handoff transaction
+    Handoff(BitcoinTransaction),
+}
 
 /// sBTC Keys trait for retrieving signer IDs, vote IDs, and public keys
 trait Keys {
@@ -39,10 +45,10 @@ pub trait Sign {
     fn verify_message(&self, public_key: &ecdsa::PublicKey, message: &[u8]) -> SBTCResult<bool>;
 }
 
-/// Revealer trait for revealing BTC commit transactions
-trait Revealer {
-    /// Create a reveal transaction from the BTC commit transaction
-    fn reveal_transaction(&self, tx: &BitcoinTransaction) -> SBTCResult<BitcoinTransaction>;
+/// Validator trait for validating pending Bitcoin transactions
+pub trait Validator {
+    /// Validate the given signable Bitcoin transaction
+    fn validate_transaction(&self, tx: &SignableTransaction) -> SBTCResult<bool>;
 }
 
 /// sBTC compliant Signer
@@ -95,16 +101,11 @@ impl<S: Sign + Coordinate> Signer<S> {
 
     // Private methods
 
-    /// Retrieve pending sBTC transactions
-    fn _sbtc_transactions(&self) -> SBTCResult<Vec<SBTCTransaction>> {
-        todo!()
-    }
-
     /// Fulfill the withdrawal request using the provided address
     fn _fulfill_withdrawal_request(
         &self,
         _sbtc_wallet_address: &Address,
-        _tx: &SBTCTransaction,
+        _tx: &StacksTransaction,
     ) -> SBTCResult<()> {
         todo!()
     }
@@ -132,9 +133,21 @@ impl<S: Sign + Coordinate> Keys for Signer<S> {
     }
 }
 
-impl<S: Sign + Coordinate> Revealer for Signer<S> {
-    /// Create a reveal transaction from the BTC commit transaction
-    fn reveal_transaction(&self, _tx: &BitcoinTransaction) -> SBTCResult<BitcoinTransaction> {
-        todo!()
+impl<S: Sign + Coordinate> Validator for Signer<S> {
+    /// Validate the given sBTC transaction
+    fn validate_transaction(&self, tx: &SignableTransaction) -> SBTCResult<bool> {
+        // TODO: check all addresses involved in each transaction
+        match tx {
+            SignableTransaction::Reveal(_tx) => {
+                // TODO: retrieve the initiator from the originator transaction to verify it is not an auto deny address
+                todo!()
+            }
+            SignableTransaction::WithdrawalFulfillment(_tx) => {
+                todo!()
+            }
+            SignableTransaction::Handoff(_tx) => {
+                todo!()
+            }
+        }
     }
 }

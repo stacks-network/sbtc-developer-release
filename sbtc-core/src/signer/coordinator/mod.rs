@@ -6,9 +6,11 @@ pub mod roast;
 use std::collections::HashMap;
 
 use crate::SBTCResult;
-use bitcoin::{PublicKey, Transaction as BitcoinTransaction};
+use bitcoin::{util::taproot::TaprootSpendInfo, PublicKey, Transaction as BitcoinTransaction};
 use p256k1::ecdsa;
 use wsts::{bip340::SchnorrProof, common::Signature};
+
+use super::StacksTransaction;
 
 #[derive(Default, Clone, Debug)]
 /// Signers' public keys required for weighted distributed signing
@@ -25,8 +27,41 @@ pub struct PublicKeys {
 /// TODO: Define the Message types for Tx Signning Round
 /// https://github.com/stacks-network/sbtc/issues/43
 
+/// An sBTC transaction needing to be processed by the coordinator
+/// TODO: replace with the core library's SBTCTransaction
+/// This could be a BTC transaction or a STX transaction
+/// depending on https://github.com/Trust-Machines/stacks-sbtc/pull/595
+pub enum SBTCTransaction {
+    /// A commit Bitcoin transaction
+    Commit(TaprootSpendInfo, BitcoinTransaction),
+    /// A withdrawal Stacks transaction
+    Withdawal(StacksTransaction),
+}
+
+/// Revealer trait for revealing BTC commit transactions
+pub trait Revealer {
+    /// Retrieve pending Commit transactions information
+    fn pending_commit_transactions(
+        &self,
+    ) -> SBTCResult<Vec<(TaprootSpendInfo, BitcoinTransaction)>>;
+    /// Validate the given commit transaction
+    fn validate_commit_transaction(
+        &self,
+        spend_info: TaprootSpendInfo,
+        tx: &BitcoinTransaction,
+    ) -> SBTCResult<bool>;
+    /// Create a reveal transaction from the BTC commit transaction
+    fn reveal_transaction(
+        &self,
+        spend_info: TaprootSpendInfo,
+        tx: &BitcoinTransaction,
+    ) -> SBTCResult<BitcoinTransaction>;
+}
+
 /// Coordinator trait for generating the sBTC wallet public key and running a signing round
 pub trait Coordinate {
+    /// Retrieve pending sBTC transactions to be processed
+    fn pending_transactions(&self) -> SBTCResult<Vec<SBTCTransaction>>;
     /// Generate the sBTC wallet public key
     fn generate_sbtc_wallet_public_key(&self, public_keys: &PublicKeys) -> SBTCResult<PublicKey>;
     /// Run the signing round for the transaction
