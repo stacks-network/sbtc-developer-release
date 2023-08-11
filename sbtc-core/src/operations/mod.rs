@@ -1,4 +1,7 @@
+use std::io;
+
 use bdk::bitcoin::Network;
+use stacks_core::codec::Codec;
 use strum::FromRepr;
 
 /// Primitives for commit reveal transactions
@@ -7,7 +10,7 @@ pub mod commit_reveal;
 pub mod op_return;
 
 /// Opcodes of sBTC transactions
-#[derive(FromRepr, Debug)]
+#[derive(FromRepr, Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum Opcode {
     /// Deposit
@@ -18,6 +21,23 @@ pub enum Opcode {
     WithdrawalFulfillment = b'!',
     /// Wallet handoff
     WalletHandoff = b'H',
+}
+
+impl Codec for Opcode {
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
+        dest.write_all(&[*self as u8])
+    }
+
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut buffer = [0; 1];
+        data.read_exact(&mut buffer)?;
+
+        Self::from_repr(buffer[0])
+            .ok_or(io::Error::new(io::ErrorKind::InvalidData, "Invalid opcode"))
+    }
 }
 
 /// Returns the magic bytes for the provided network

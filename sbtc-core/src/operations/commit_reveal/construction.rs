@@ -1,98 +1,90 @@
 /*!
 Construction of commit reveal transactions
 */
-use std::iter::{once, repeat};
+use std::io;
 
 use bdk::bitcoin::{
-    secp256k1::ecdsa::RecoverableSignature, Address as BitcoinAddress, Transaction, TxOut,
+    secp256k1::ecdsa::RecoverableSignature, Address as BitcoinAddress, Amount, Transaction, TxOut,
     XOnlyPublicKey,
 };
-use stacks_core::address::StacksAddress;
+use stacks_core::{codec::Codec, utils::PrincipalData};
 
 use crate::operations::{
-    commit_reveal::utils::{commit, reveal, CommitRevealError, CommitRevealResult, RevealInputs},
+    commit_reveal::utils::{commit, reveal, CommitRevealResult, RevealInputs},
     Opcode,
 };
 
 /// Data to construct a commit reveal deposit transaction
-pub struct DepositData<'p> {
-    /// Address to deposit to
-    pub address: &'p StacksAddress,
-    /// Name of the contract to deposit to
-    pub contract_name: Option<&'p str>,
+pub struct DepositData {
+    /// Address or contract to deposit to
+    pub principal: PrincipalData,
     /// How much to send for the reveal fee
-    pub reveal_fee: u64,
+    pub reveal_fee: Amount,
 }
 
-impl<'p> DepositData<'p> {
-    /// Create deposit data
-    pub fn new(
-        address: &'p StacksAddress,
-        contract_name: Option<&'p str>,
-        reveal_fee: u64,
-    ) -> Self {
-        Self {
-            address,
-            contract_name,
-            reveal_fee,
-        }
+impl Codec for DepositData {
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
+        Codec::codec_serialize(&Opcode::Deposit, dest)?;
+        self.principal.codec_serialize(dest)?;
+        self.reveal_fee.codec_serialize(dest)?;
+
+        todo!()
     }
 
-    /// Refer to the sBTC doc for the format of this data
-    /// https://stacks-network.github.io/sbtc-docs/introduction.html
-    pub fn to_vec(&self) -> Vec<u8> {
-        once(Opcode::Deposit as u8)
-            .chain(once(self.address.version() as u8))
-            .chain(self.address.hash().as_ref().iter().cloned())
-            .chain(
-                self.contract_name
-                    .map(|contract_name| contract_name.as_bytes().to_vec())
-                    .into_iter()
-                    .flatten(),
-            )
-            .chain(repeat(0))
-            .take(78)
-            .chain(self.reveal_fee.to_be_bytes())
-            .collect()
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let opcode = Opcode::codec_deserialize(data)
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
+
+        if !matches!(opcode, Opcode::Deposit) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Invalid opcode, expected deposit",
+            ));
+        }
+
+        let principal = PrincipalData::codec_deserialize(data)?;
+        let reveal_fee = Amount::codec_deserialize(data)?;
+
+        Ok(Self {
+            principal,
+            reveal_fee,
+        })
     }
 }
 
 /// Data to construct a commit reveal withdrawal transaction
-pub struct WithdrawalData<'r> {
+pub struct WithdrawalData {
     /// Amount to withdraw
-    pub amount: u64,
+    pub amount: Amount,
     /// Signature of the transaction
-    pub signature: &'r RecoverableSignature,
+    pub signature: RecoverableSignature,
     /// How much to send for the reveal fee
-    pub reveal_fee: u64,
+    pub reveal_fee: Amount,
 }
 
-impl<'r> WithdrawalData<'r> {
-    /// Create withdrawal data
-    pub fn new(amount: u64, signature: &'r RecoverableSignature, reveal_fee: u64) -> Self {
-        Self {
+impl Codec for WithdrawalData {
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
+        self.amount.codec_serialize(dest)?;
+        self.signature.codec_serialize(dest)?;
+        self.reveal_fee.codec_serialize(dest)
+    }
+
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let amount = Amount::codec_deserialize(data)?;
+        let signature = RecoverableSignature::codec_deserialize(data)?;
+        let reveal_fee = Amount::codec_deserialize(data)?;
+
+        Ok(Self {
             amount,
             signature,
             reveal_fee,
-        }
-    }
-
-    /// Serialize withdrawal data
-    pub fn to_vec(&self) -> CommitRevealResult<Vec<u8>> {
-        let (recovery_id, signature_bytes) = self.signature.serialize_compact();
-        let recovery_id: u8 = recovery_id
-            .to_i32()
-            .try_into()
-            .map_err(CommitRevealError::InvalidRecoveryId)?;
-        let empty_memo = [0; 4];
-
-        Ok(once(Opcode::WithdrawalRequest as u8)
-            .chain(self.amount.to_be_bytes())
-            .chain(once(recovery_id))
-            .chain(signature_bytes)
-            .chain(empty_memo)
-            .chain(self.reveal_fee.to_be_bytes())
-            .collect())
+        })
     }
 }
 
@@ -102,7 +94,7 @@ pub fn deposit_commit(
     revealer_key: &XOnlyPublicKey,
     reclaim_key: &XOnlyPublicKey,
 ) -> CommitRevealResult<BitcoinAddress> {
-    commit(&deposit_data.to_vec(), revealer_key, reclaim_key)
+    commit(&deposit_data.serialize_to_vec(), revealer_key, reclaim_key)
 }
 
 /// Constructs a peg out payment address
@@ -111,20 +103,24 @@ pub fn withdrawal_request_commit(
     revealer_key: &XOnlyPublicKey,
     reclaim_key: &XOnlyPublicKey,
 ) -> CommitRevealResult<BitcoinAddress> {
-    commit(&withdrawal_data.to_vec()?, revealer_key, reclaim_key)
+    commit(
+        &withdrawal_data.serialize_to_vec(),
+        revealer_key,
+        reclaim_key,
+    )
 }
 
 /// Constructs a transaction that reveals the peg in payment address
 pub fn deposit_reveal_unsigned(
     deposit_data: DepositData,
     reveal_inputs: RevealInputs,
-    commit_amount: u64,
+    commit_amount: Amount,
     peg_wallet_address: BitcoinAddress,
 ) -> CommitRevealResult<Transaction> {
-    let mut tx = reveal(&deposit_data.to_vec(), reveal_inputs)?;
+    let mut tx = reveal(&deposit_data.serialize_to_vec(), reveal_inputs)?;
 
     tx.output.push(TxOut {
-        value: commit_amount - deposit_data.reveal_fee,
+        value: (commit_amount - deposit_data.reveal_fee).to_sat(),
         script_pubkey: peg_wallet_address.script_pubkey(),
     });
 
@@ -135,19 +131,19 @@ pub fn deposit_reveal_unsigned(
 pub fn withdrawal_request_reveal_unsigned(
     withdrawal_data: WithdrawalData,
     reveal_inputs: RevealInputs,
-    fulfillment_fee: u64,
-    commit_amount: u64,
+    fulfillment_fee: Amount,
+    commit_amount: Amount,
     peg_wallet_address: BitcoinAddress,
     recipient_wallet_address: BitcoinAddress,
 ) -> CommitRevealResult<Transaction> {
-    let mut tx = reveal(&withdrawal_data.to_vec()?, reveal_inputs)?;
+    let mut tx = reveal(&withdrawal_data.serialize_to_vec(), reveal_inputs)?;
 
     tx.output.push(TxOut {
-        value: commit_amount - withdrawal_data.reveal_fee - fulfillment_fee,
+        value: (commit_amount - withdrawal_data.reveal_fee - fulfillment_fee).to_sat(),
         script_pubkey: recipient_wallet_address.script_pubkey(),
     });
     tx.output.push(TxOut {
-        value: fulfillment_fee,
+        value: fulfillment_fee.to_sat(),
         script_pubkey: peg_wallet_address.script_pubkey(),
     });
 
