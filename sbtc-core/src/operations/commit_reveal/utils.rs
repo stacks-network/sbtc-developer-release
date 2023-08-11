@@ -1,5 +1,5 @@
 /*!
-Utils for commit reveal transaction construction
+Utils for operation construction
 */
 use std::{iter::once, num::TryFromIntError};
 

@@ -4,10 +4,9 @@ use bdk::bitcoin::Network;
 use stacks_core::codec::Codec;
 use strum::FromRepr;
 
-/// Primitives for commit reveal transactions
 pub mod commit_reveal;
-/// Primitives for op return transactions
 pub mod op_return;
+pub mod utils;
 
 /// Opcodes of sBTC transactions
 #[derive(FromRepr, Debug, Clone, Copy)]

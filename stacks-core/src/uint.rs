@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    fmt,
+    fmt, io,
     mem::transmute,
     ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Shl, Shr, Sub},
 };
@@ -8,6 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    codec::Codec,
     crypto::{
         sha256::{DoubleSha256Hasher, SHA256_LENGTH},
         Hashing,
@@ -538,6 +539,23 @@ impl<const N: usize> From<u128> for Uint<N> {
         ret[1] = (value >> 64) as u64;
 
         Self(ret)
+    }
+}
+
+impl<const N: usize> Codec for Uint<N> {
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
+        dest.write_all(&self.to_be_bytes())
+    }
+
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut buffer = vec![0u8; N * 8];
+        data.read_exact(&mut buffer)?;
+
+        Self::from_be_bytes(buffer)
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Could not deserialize Uint"))
     }
 }
 
