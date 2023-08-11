@@ -24,6 +24,8 @@ Where withdrawal fulfillment data should be in the following format:
             chain tip                             extra bytes
 */
 
+use std::io;
+
 use stacks_core::{codec::Codec, BlockId};
 
 /// The parsed data output from a withdrawal fulfillment transaction
@@ -33,11 +35,11 @@ pub struct ParsedWithdrawalFulfillmentData {
 }
 
 impl Codec for ParsedWithdrawalFulfillmentData {
-    fn codec_serialize<W: std::io::Write>(&self, dest: &mut W) -> std::io::Result<()> {
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
         self.chain_tip.codec_serialize(dest)
     }
 
-    fn codec_deserialize<R: std::io::Read>(data: &mut R) -> std::io::Result<Self>
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
     where
         Self: Sized,
     {
