@@ -38,10 +38,8 @@ impl<'p> DepositData<'p> {
         }
     }
 
-    /// Serializes this data according to the SIP-021 wire formats
-    /// Links:
-    ///  - [SIP draft](https://github.com/stacksgov/sips/blob/56b73eada5ef1b72376f4a230949297b3edcc562/sips/sip-021/sip-021-trustless-two-way-peg-for-bitcoin.md)
-    ///  - [Reference implementation](https://github.com/stacks-network/stacks-blockchain/blob/next/src/chainstate/burn/operations/peg_in.rs)
+    /// Refer to the sBTC doc for the format of this data
+    /// https://stacks-network.github.io/sbtc-docs/introduction.html
     pub fn to_vec(&self) -> Vec<u8> {
         once(Opcode::Deposit as u8)
             .chain(once(self.address.version() as u8))
@@ -99,8 +97,8 @@ impl<'r> WithdrawalData<'r> {
 }
 
 /// Constructs a peg in payment address
-pub fn deposit_commit<'p>(
-    deposit_data: DepositData<'p>,
+pub fn deposit_commit(
+    deposit_data: DepositData,
     revealer_key: &XOnlyPublicKey,
     reclaim_key: &XOnlyPublicKey,
 ) -> CommitRevealResult<BitcoinAddress> {
@@ -117,8 +115,8 @@ pub fn withdrawal_request_commit(
 }
 
 /// Constructs a transaction that reveals the peg in payment address
-pub fn deposit_reveal_unsigned<'p>(
-    deposit_data: DepositData<'p>,
+pub fn deposit_reveal_unsigned(
+    deposit_data: DepositData,
     reveal_inputs: RevealInputs,
     commit_amount: u64,
     peg_wallet_address: BitcoinAddress,

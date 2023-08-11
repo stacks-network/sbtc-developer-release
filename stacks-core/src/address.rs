@@ -158,7 +158,7 @@ fn hash_p2sh<'a>(
     builder = builder.push_int(signature_threshold as i64);
 
     for key in pub_keys {
-        builder = builder.push_slice(&key.serialize());
+        builder = builder.push_slice(key.serialize());
         key_counter += 1;
     }
 

@@ -37,12 +37,9 @@ fn internal_key() -> UntweakedPublicKey {
     // Copied from BIP-0341 at https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#constructing-and-spending-taproot-outputs
     // The BIP recommends a point lift_x(0x0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0).
     // This hex string is copied from the lift_x argument with the first byte stripped.
-
-    // TODO: Verify that this point is secure
     let internal_key_vec =
         hex::decode("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0").unwrap();
 
-    // TODO: Confirm that this is infallible
     XOnlyPublicKey::from_slice(&internal_key_vec).expect("Could not build internal key")
 }
 
@@ -86,9 +83,7 @@ fn address_from_taproot_spend_info(spend_info: TaprootSpendInfo) -> BitcoinAddre
     )
 }
 
-// TODO: Figure out if we want this to be public or not
-/// Builds the taproot spend info for the commit
-pub fn taproot_spend_info(
+fn taproot_spend_info(
     data: &[u8],
     revealer_key: &XOnlyPublicKey,
     reclaim_key: &XOnlyPublicKey,
