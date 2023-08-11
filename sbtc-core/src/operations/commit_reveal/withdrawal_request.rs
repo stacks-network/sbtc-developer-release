@@ -58,8 +58,8 @@ impl Codec for WithdrawalData {
     }
 }
 
-/// Constructs a peg out payment address
-pub fn withdrawal_request_commit(
+/// Constructs a withdrawal payment address
+pub fn withdrawal_request_commit_address(
     withdrawal_data: WithdrawalData,
     revealer_key: &XOnlyPublicKey,
     reclaim_key: &XOnlyPublicKey,
@@ -71,8 +71,8 @@ pub fn withdrawal_request_commit(
     )
 }
 
-/// Constructs a transaction that reveals the peg out payment address
-pub fn withdrawal_request_reveal_unsigned(
+/// Constructs a transaction that reveals the withdrawal payment address
+pub fn withdrawal_request_reveal_unsigned_tx(
     withdrawal_data: WithdrawalData,
     reveal_inputs: RevealInputs,
     fulfillment_fee: Amount,

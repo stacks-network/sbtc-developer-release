@@ -52,8 +52,8 @@ impl Codec for DepositData {
     }
 }
 
-/// Constructs a peg in payment address
-pub fn deposit_commit(
+/// Constructs a deposit payment address
+pub fn deposit_commit_address(
     deposit_data: DepositData,
     revealer_key: &XOnlyPublicKey,
     reclaim_key: &XOnlyPublicKey,
@@ -61,8 +61,8 @@ pub fn deposit_commit(
     commit(&deposit_data.serialize_to_vec(), revealer_key, reclaim_key)
 }
 
-/// Constructs a transaction that reveals the peg in payment address
-pub fn deposit_reveal_unsigned(
+/// Constructs a transaction that reveals the deposit payment address
+pub fn deposit_reveal_unsigned_tx(
     deposit_data: DepositData,
     reveal_inputs: RevealInputs,
     commit_amount: Amount,
