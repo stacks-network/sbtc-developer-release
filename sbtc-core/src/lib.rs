@@ -37,6 +37,9 @@ pub enum SBTCError {
     /// Stacks error
     #[error("Stacks error: {0}")]
     StacksError(#[from] StacksError),
+    /// Invalid Config File
+    #[error("Invalid config file")]
+    InvalidConfig(String),
 }
 
 /// A helper type for sBTC results

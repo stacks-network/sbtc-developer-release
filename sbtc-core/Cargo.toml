@@ -19,8 +19,11 @@ once_cell.workspace = true
 p256k1.workspace = true
 regex.workspace = true
 secp256k1.workspace = true
+serde = { workspace = true, features = ["derive"] }
 stacks-core.path = "../stacks-core"
+tempdir.workspace = true
 thiserror.workspace = true
+toml.workspace = true
 url.workspace = true
 wsts.workspace = true
 
