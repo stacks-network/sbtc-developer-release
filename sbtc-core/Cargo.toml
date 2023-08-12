@@ -11,16 +11,25 @@ repository = "https://github.com/stacks-network/sbtc"
 version = "0.1.0"
 website = "https://www.stacks.co"
 
+[[bin]]
+name = "stacks-signer-mini"
+path = "src/signer/main.rs"
+
 [dependencies]
 bdk.workspace = true
 bitcoin.workspace = true
+clap = { workspace = true, features = ["derive", "env"] }
 log.workspace = true
 once_cell.workspace = true
 p256k1.workspace = true
 regex.workspace = true
 secp256k1.workspace = true
+serde = { workspace = true, features = ["derive"] }
 stacks-core.path = "../stacks-core"
 thiserror.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url.workspace = true
 wsts.workspace = true
 
