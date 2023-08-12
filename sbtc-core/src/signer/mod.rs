@@ -13,9 +13,10 @@ use crate::{
     signer::coordinator::{fire::Coordinator as FireCoordinator, Coordinate},
     SBTCError, SBTCResult,
 };
-use bitcoin::{Address, Network, PrivateKey, PublicKey, Transaction as BitcoinTransaction};
+use bitcoin::{Address, Network, PublicKey, Transaction as BitcoinTransaction};
 use p256k1::ecdsa;
 use url::Url;
+use wsts::Scalar;
 
 #[derive(Default, Clone, Debug)]
 /// Signers' public keys required for weighted distributed signing
@@ -86,7 +87,7 @@ pub struct Signer<S, C> {
     /// Signer configuration
     pub config: Config,
     /// Signer private key
-    pub private_key: PrivateKey,
+    pub private_key: Scalar,
     /// Network to use
     pub network: Network,
     /// The blockchain Broker
@@ -111,7 +112,7 @@ impl<S: Sign, C: Coordinate> Signer<S, C> {
     /// Create a new signer
     pub fn new(
         config: Config,
-        private_key: PrivateKey,
+        private_key: Scalar,
         network: Network,
         broker: Broker,
         signer: S,
@@ -201,7 +202,7 @@ impl TryFrom<ConfigTOML> for Signer<FrostSigner, FireCoordinator> {
     type Error = SBTCError;
     fn try_from(toml: ConfigTOML) -> SBTCResult<Self> {
         let network = toml.network.unwrap_or(Network::Testnet);
-        let private_key = PrivateKey::from_slice(toml.private_key.as_bytes(), network)
+        let private_key = Scalar::try_from(toml.private_key.as_str())
             .map_err(|e| SBTCError::InvalidConfig(format!("Invalid private_key: {}", e)))?;
         let stacks_node_rpc_url = Url::parse(&toml.stacks_node_rpc_url)
             .map_err(|e| SBTCError::InvalidConfig(format!("Invalid stacks_node_rpc_url: {}", e)))?;
@@ -228,5 +229,71 @@ impl TryFrom<ConfigTOML> for Signer<FrostSigner, FireCoordinator> {
             signer,
             coordinator,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand_core::OsRng;
+
+    #[test]
+    fn signer_should_succeed_for_valid_config_toml() {
+        let mut rng = OsRng;
+        let private_key_scalar = Scalar::random(&mut rng);
+
+        let config = ConfigTOML {
+            private_key: private_key_scalar.to_string(),
+            stacks_node_rpc_url: "http://localhost:20443".to_string(),
+            bitcoin_node_rpc_url: "http://localhost:20444".to_string(),
+            revealer_rpc_url: "http://localhost:20445".to_string(),
+            network: None,
+            auto_approve_max_amount: None,
+            auto_deny_addresses_btc: None,
+            auto_deny_addresses_stx: None,
+            auto_deny_deadline_blocks: None,
+        };
+
+        let signer = Signer::<FrostSigner, FireCoordinator>::try_from(config);
+        assert!(signer.is_ok());
+    }
+
+    #[test]
+    fn signer_should_fail_for_invalid_private_key() {
+        let config = ConfigTOML {
+            private_key: "invalid".to_string(),
+            stacks_node_rpc_url: "http://localhost:20443".to_string(),
+            bitcoin_node_rpc_url: "http://localhost:20444".to_string(),
+            revealer_rpc_url: "http://localhost:20445".to_string(),
+            network: None,
+            auto_approve_max_amount: None,
+            auto_deny_addresses_btc: None,
+            auto_deny_addresses_stx: None,
+            auto_deny_deadline_blocks: None,
+        };
+
+        let signer = Signer::<FrostSigner, FireCoordinator>::try_from(config);
+        assert!(signer.is_err());
+    }
+
+    #[test]
+    fn signer_should_fail_for_empty_url() {
+        let mut rng = OsRng;
+        let private_key_scalar = Scalar::random(&mut rng);
+
+        let config = ConfigTOML {
+            private_key: private_key_scalar.to_string(),
+            stacks_node_rpc_url: "".to_string(),
+            bitcoin_node_rpc_url: "http://localhost:20444".to_string(),
+            revealer_rpc_url: "http://localhost:20445".to_string(),
+            network: None,
+            auto_approve_max_amount: None,
+            auto_deny_addresses_btc: None,
+            auto_deny_addresses_stx: None,
+            auto_deny_deadline_blocks: None,
+        };
+
+        let signer = Signer::<FrostSigner, FireCoordinator>::try_from(config);
+        assert!(signer.is_err());
     }
 }
