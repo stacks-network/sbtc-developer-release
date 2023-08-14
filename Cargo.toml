@@ -2,6 +2,7 @@
 members = ["sbtc-core", "stacks-core"]
 
 [workspace.dependencies]
+stacks-core = { version = "0.1.0", path = "./stacks-core"}
 anyhow = "1.0"
 array-bytes = "6.1.0"
 bdk = "0.28.0"
