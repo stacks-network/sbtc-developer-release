@@ -91,6 +91,8 @@ pub struct Signer<S, C> {
     pub signer: S,
     /// The coordinator
     pub coordinator: C,
+    /// The amount of sBTC to stack
+    pub stacked_amount: u64,
 }
 
 impl<S: Sign, C: Coordinate> Signer<S, C> {
@@ -104,6 +106,7 @@ impl<S: Sign, C: Coordinate> Signer<S, C> {
         broker: Broker,
         signer: S,
         coordinator: C,
+        stacked_amount: u64,
     ) -> Self {
         Self {
             config,
@@ -112,6 +115,7 @@ impl<S: Sign, C: Coordinate> Signer<S, C> {
             broker,
             signer,
             coordinator,
+            stacked_amount,
         }
     }
 
@@ -145,7 +149,10 @@ impl<S: Sign, C: Coordinate> Signer<S, C> {
 impl<S, C> Keys for Signer<S, C> {
     /// Retrieve the current public keys for the signers and their vote ids
     fn public_keys(&self) -> SBTCResult<PublicKeys> {
-        self.broker.public_keys()
+        // TODO: get the block height and cycle from internal state
+        let block_height = 0;
+        let cycle = 0;
+        self.broker.signer_public_keys(block_height, cycle)
     }
 
     /// Get the ordered list of coordinator public keys for the given transaction
