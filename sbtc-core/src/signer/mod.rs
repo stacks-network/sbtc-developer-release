@@ -49,8 +49,6 @@ impl Sign for FrostSigner {
 /// An Bitcoin transaction needing to be SIGNED by the signer
 /// TODO: update with https://github.com/Trust-Machines/stacks-sbtc/pull/595
 pub enum SignableTransaction {
-    /// A reveal transaction
-    Reveal(BitcoinTransaction),
     /// A withdrawal fulfillment Bitcoin transaction
     WithdrawalFulfillment(BitcoinTransaction),
     /// A Bitcoin sBTC wallet handoff transaction
@@ -161,10 +159,6 @@ impl<S, C> Validator for Signer<S, C> {
     fn validate_transaction(&self, tx: &SignableTransaction) -> SBTCResult<bool> {
         // TODO: check all addresses involved in each transaction
         match tx {
-            SignableTransaction::Reveal(_tx) => {
-                // TODO: retrieve the initiator from the originator transaction to verify it is not an auto deny address
-                todo!()
-            }
             SignableTransaction::WithdrawalFulfillment(_tx) => {
                 todo!()
             }
