@@ -1,0 +1,54 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches: "master"
+    paths-ignore: ['**.md']
+  push:
+    branches: "master"
+    paths-ignore: ['**.md']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  generate-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo generate-lockfile -v
+    - uses: actions/upload-artifact@v3
+      with:
+        name: Cargo.lock
+        path: Cargo.lock
+
+  pr-validation:
+    needs: generate-lockfile
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
+      with:
+        name: Cargo.lock
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - uses: davidB/rust-cargo-make@v1
+      with:
+        version: "0.36.13"
+
+    - name: Lint
+      run: cargo make --profile github-actions format
+
+    - name: Coverage
+      run: cargo make --profile github-actions coverage-lcov
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage/lcov.info
+        fail_ci_if_error: true

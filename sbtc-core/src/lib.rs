@@ -1,4 +1,5 @@
 #![forbid(missing_docs)]
+#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
 /*!
 # sbtc-core library: a library for interacting with the sBTC protocol
 */

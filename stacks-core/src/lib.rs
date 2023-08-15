@@ -1,4 +1,5 @@
 #![forbid(missing_docs)]
+#![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/README.md"))]
 /*!
 # stacks-core library: a library for interacting with the Stacks protocol
 */
