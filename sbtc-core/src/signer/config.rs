@@ -73,8 +73,6 @@ pub struct ConfigTOML {
     pub stacks_node_rpc_url: String,
     /// The RPC Url of the bitcoin node
     pub bitcoin_node_rpc_url: String,
-    /// The RPC URL of the revealer
-    pub revealer_rpc_url: String,
     /// The network version we are using (One of 'Signet', 'Regtest', 'Testnet', 'Bitcoin'). Default: 'Testnet'
     pub network: Option<Network>,
     /// The maximum dollar amount of a transaction that will be auto approved.
@@ -108,7 +106,6 @@ mod tests {
         private_key: String,
         stacks_node_rpc_url: String,
         bitcoin_node_rpc_url: String,
-        revealer_rpc_url: String,
         network: Option<String>,
         auto_approve_max_amount: Option<u64>,
         auto_deny_addresses_btc: Option<Vec<String>>,
@@ -123,7 +120,6 @@ mod tests {
 private_key = "{private_key}"
 stacks_node_rpc_url = "{stacks_node_rpc_url}"
 bitcoin_node_rpc_url = "{bitcoin_node_rpc_url}"
-revealer_rpc_url = "{revealer_rpc_url}"
 "#
         );
         if let Some(network) = network {
@@ -172,7 +168,6 @@ revealer_rpc_url = "{revealer_rpc_url}"
             "private_key".to_string(),
             "stacks_node_rpc_url".to_string(),
             "bitcoin_node_rpc_url".to_string(),
-            "revealer_rpc_url".to_string(),
             None,
             None,
             None,
@@ -188,7 +183,6 @@ revealer_rpc_url = "{revealer_rpc_url}"
             "private_key".to_string(),
             "stacks_node_rpc_url".to_string(),
             "bitcoin_node_rpc_url".to_string(),
-            "revealer_rpc_url".to_string(),
             Some("invalid_network".to_string()),
             None,
             None,
@@ -204,7 +198,6 @@ revealer_rpc_url = "{revealer_rpc_url}"
             "private_key".to_string(),
             "stacks_node_rpc_url".to_string(),
             "bitcoin_node_rpc_url".to_string(),
-            "revealer_rpc_url".to_string(),
             None,
             None,
             None,
@@ -222,7 +215,6 @@ revealer_rpc_url = "{revealer_rpc_url}"
             "private_key".to_string(),
             "stacks_node_rpc_url".to_string(),
             "bitcoin_node_rpc_url".to_string(),
-            "revealer_rpc_url".to_string(),
             None,
             None,
             Some(vec!["Invalid address".to_string()]),
@@ -240,7 +232,6 @@ revealer_rpc_url = "{revealer_rpc_url}"
             "private_key".to_string(),
             "stacks_node_rpc_url".to_string(),
             "bitcoin_node_rpc_url".to_string(),
-            "revealer_rpc_url".to_string(),
             None,
             None,
             None,
