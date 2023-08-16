@@ -12,6 +12,7 @@ version = "0.1.0"
 website = "https://www.stacks.co"
 
 [dependencies]
+async-trait.workspace = true
 bdk.workspace = true
 bitcoin.workspace = true
 log.workspace = true

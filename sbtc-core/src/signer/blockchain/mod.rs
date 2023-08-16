@@ -9,6 +9,22 @@ use crate::{
     SBTCResult,
 };
 
+/// Current phase of the POX cycle
+pub enum CyclePhase {
+    /// Disbursement phase (x blocks)
+    Disbursement = 0x00,
+    /// Registration phase (1600-x blocks)
+    Registration,
+    /// Voting phase (300 blocks)
+    Voting,
+    /// Transfer phase (100 blocks)
+    Transfer,
+    /// Penalty phase (100 blocks)
+    Penalty,
+    /// Bad state
+    BadPegState,
+}
+
 /// Placeholder for important data for a speific signer in a specific cycle
 struct SignerData {
     /// The amount stacked in the cycle
@@ -30,6 +46,7 @@ struct StackerData {
 }
 
 trait ReadOnlyCallable {
+    /// TODO: this should get moved to the stacks-core library as part of https://github.com/stacks-network/sbtc/issues/55
     /// Helper function for calling read-only functions on the smart contract
     fn read_only_function(
         &self,
@@ -66,6 +83,12 @@ trait ReadOnlyCallable {
         stx_principal: &PrincipalData,
         cycle: u64,
     ) -> SBTCResult<bool>;
+
+    /// Helper function for calling get-current-window
+    fn current_window(
+        &self,
+        block_height: u64
+    ) -> SBTCResult<CyclePhase>;
 }
 
 trait Callable {
@@ -229,6 +252,14 @@ impl ReadOnlyCallable for Broker {
         _cycle: u64,
     ) -> SBTCResult<bool> {
         todo!("call read only function for get-current-pre-signer and parse the response")
+    }
+
+    /// Helper function for calling get-current-window
+    fn current_window(
+        &self,
+        _block_height: u64
+    ) -> SBTCResult<CyclePhase> {
+        todo!("call read only function for get-current-window and parse the response")
     }
 }
 
