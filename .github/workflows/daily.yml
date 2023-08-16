@@ -5,6 +5,9 @@ on:
   schedule:
   - cron: "0 12 * * 1-5"
 
+  # Allow workflow to be triggered manually.
+  workflow_dispatch:
+
 env:
   BRANCH: "master" # TODO: Change main branch to main
   CARGO_TERM_COLOR: always
@@ -15,7 +18,7 @@ jobs:
     generate-lockfile-and-audit:
       runs-on: ubuntu-latest
       steps:
-      - uses: actions/checkout@v 3
+      - uses: actions/checkout@v3
         with:
           ref: ${{ env.BRANCH }}
 
