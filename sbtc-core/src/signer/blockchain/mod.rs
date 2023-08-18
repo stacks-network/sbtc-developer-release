@@ -29,9 +29,9 @@ pub enum CyclePhase {
 struct SignerData {
     /// The amount stacked in the cycle
     amount: u64,
-    /// the locked stacks balance
+    /// True if the signer has registered their sBTC wallet vote
     vote: Option<bool>,
-    /// the height at which the locked stacks unlocks
+    /// The public key of the signer
     public_key: ecdsa::PublicKey,
 }
 
