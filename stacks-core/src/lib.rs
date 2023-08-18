@@ -14,7 +14,6 @@ pub mod address;
 /// Module for c32 encoding and decoding
 pub mod c32;
 pub mod codec;
-pub mod contract_name;
 /// Module for crypto functions
 pub mod crypto;
 pub mod transaction;
@@ -22,6 +21,7 @@ pub mod transaction;
 pub mod uint;
 /// Module for utility functions
 pub mod utils;
+pub mod validated_strings;
 
 /// Error type for the stacks-core library
 #[derive(Error, Debug)]

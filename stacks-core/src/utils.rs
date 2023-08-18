@@ -5,7 +5,7 @@ use strum::FromRepr;
 use crate::{
     address::{AddressVersion, StacksAddress},
     codec::Codec,
-    contract_name::ContractName,
+    validated_strings::contract_name::ContractName,
 };
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -97,7 +97,7 @@ impl Codec for PrincipalData {
 
 #[cfg(test)]
 mod tests {
-    use crate::crypto::hash160::Hash160Hash;
+    use crate::{crypto::hash160::Hash160Hash, validated_strings::Validate};
 
     use super::*;
 

@@ -1,10 +1,15 @@
 /*!
 Utilities and types for working with Stacks transactions.
 */
+pub mod payload;
+pub mod token_transfer_memo;
 
 use secp256k1::PublicKey;
 
-use crate::{address::StacksAddress, contract_name::ContractName, crypto::hash160::Hash160Hash};
+use crate::{
+    address::StacksAddress, crypto::hash160::Hash160Hash,
+    validated_strings::contract_name::ContractName,
+};
 
 /// Stacks transaction version
 #[repr(u8)]
