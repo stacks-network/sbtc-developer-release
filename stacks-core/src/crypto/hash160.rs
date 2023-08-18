@@ -6,7 +6,7 @@ use crate::{
     StacksError, StacksResult,
 };
 
-use super::sha256::Sha256Hasher;
+use super::sha256::Sha256Hash;
 
 pub(crate) const HASH160_LENGTH: usize = 20;
 
@@ -18,7 +18,7 @@ pub struct Hash160Hashing([u8; HASH160_LENGTH]);
 
 impl Hashing<HASH160_LENGTH> for Hash160Hashing {
     fn hash(data: &[u8]) -> Self {
-        Self(Ripemd160::digest(Sha256Hasher::new(data)).into())
+        Self(Ripemd160::digest(Sha256Hash::new(data)).into())
     }
 
     fn as_bytes(&self) -> &[u8] {
@@ -47,7 +47,7 @@ impl TryFrom<Hex> for Hash160Hashing {
 }
 
 /// Hash160 hasher type
-pub type Hash160Hasher = Hasher<Hash160Hashing, HASH160_LENGTH>;
+pub type Hash160Hash = Hasher<Hash160Hashing, HASH160_LENGTH>;
 
 #[cfg(test)]
 mod tests {
@@ -59,7 +59,7 @@ mod tests {
         let expected_hash_hex = "f5e95668dadf6fdef8521f7e1aa8a5e650c9f849";
 
         assert_eq!(
-            hex::encode(Hash160Hasher::hash(plaintext.as_bytes())),
+            hex::encode(Hash160Hash::hash(plaintext.as_bytes())),
             expected_hash_hex
         );
     }

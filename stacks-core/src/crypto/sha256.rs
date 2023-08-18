@@ -80,9 +80,9 @@ impl TryFrom<Hex> for DoubleSha256Hashing {
 }
 
 /// The Sha256 hasher type
-pub type Sha256Hasher = Hasher<Sha256Hashing, SHA256_LENGTH>;
+pub type Sha256Hash = Hasher<Sha256Hashing, SHA256_LENGTH>;
 /// The DoubleSha256 hasher type
-pub type DoubleSha256Hasher = Hasher<DoubleSha256Hashing, SHA256_LENGTH>;
+pub type DoubleSha256Hash = Hasher<DoubleSha256Hashing, SHA256_LENGTH>;
 
 #[cfg(test)]
 mod tests {
@@ -96,7 +96,7 @@ mod tests {
         let expected_hash_hex = "64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c";
 
         assert_eq!(
-            hex::encode(Sha256Hasher::hash(plaintext.as_bytes())),
+            hex::encode(Sha256Hash::hash(plaintext.as_bytes())),
             expected_hash_hex
         );
     }
@@ -107,7 +107,7 @@ mod tests {
         let expected_checksum_hex = "64ec88ca";
 
         assert_eq!(
-            hex::encode(Sha256Hasher::hash(plaintext.as_bytes()).checksum()),
+            hex::encode(Sha256Hash::hash(plaintext.as_bytes()).checksum()),
             expected_checksum_hex
         );
     }
@@ -118,7 +118,7 @@ mod tests {
         let expected_hash_hex = "f6dc724d119649460e47ce719139e521e082be8a9755c5bece181de046ee65fe";
 
         assert_eq!(
-            hex::encode(DoubleSha256Hasher::hash(plaintext.as_bytes()).as_bytes()),
+            hex::encode(DoubleSha256Hash::hash(plaintext.as_bytes()).as_bytes()),
             expected_hash_hex
         );
     }
@@ -129,7 +129,7 @@ mod tests {
         let expected_checksum_hex = "f6dc724d";
 
         assert_eq!(
-            hex::encode(DoubleSha256Hasher::hash(plaintext.as_bytes()).checksum()),
+            hex::encode(DoubleSha256Hash::hash(plaintext.as_bytes()).checksum()),
             expected_checksum_hex
         );
     }

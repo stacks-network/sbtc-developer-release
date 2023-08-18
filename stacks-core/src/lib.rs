@@ -17,6 +17,7 @@ pub mod codec;
 pub mod contract_name;
 /// Module for crypto functions
 pub mod crypto;
+pub mod transaction;
 /// Module for creating large integers and performing basic arithmetic
 pub mod uint;
 /// Module for utility functions
