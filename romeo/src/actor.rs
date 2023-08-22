@@ -60,6 +60,7 @@ impl System {
             .state_directory
             .clone()
             .join(format!("{}.json", ACTOR::NAME));
+
         let mut actor = ACTOR::load(&save_file).unwrap_or_default();
 
         let sender = self.sender.clone();
