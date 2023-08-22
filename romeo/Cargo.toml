@@ -7,6 +7,8 @@ edition = "2021"
 anyhow.workspace = true
 bdk.workspace = true
 blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }
-tokio = { workspace = true, features = ["full"] }
+clap = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+tokio = { workspace = true, features = ["full"] }
+futures.workspace = true

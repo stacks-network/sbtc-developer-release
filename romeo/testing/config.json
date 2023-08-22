@@ -1,0 +1,4 @@
+{
+  "state_directory": "./state/",
+  "tick_interval_seconds": 1
+}

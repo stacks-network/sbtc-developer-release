@@ -11,7 +11,8 @@ pub struct ContractDeployer {
 }
 
 impl Actor for ContractDeployer {
-    const NAME: &'static str = "ContractDeployer";
+    const NAME: &'static str = "contract_deployer";
+
     fn handle(&mut self, event: Event) -> anyhow::Result<Vec<Event>> {
         match event {
             Event::Tick => {

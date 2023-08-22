@@ -1,7 +1,14 @@
+use std::{
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+    time::Duration,
+};
+
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
-    sync::broadcast::{error::RecvError, Sender},
+    sync::broadcast::{self, error::RecvError, Sender},
     task::JoinHandle,
+    time::sleep,
 };
 
 use crate::event::Event;
@@ -31,30 +38,65 @@ pub trait Actor: Serialize + DeserializeOwned + Default + Send + Sync + 'static 
     }
 }
 
-pub fn spawn<A: Actor>(sender: &Sender<Event>) -> JoinHandle<()> {
-    let mut actor = A::load(".").unwrap_or_default();
+pub struct System {
+    state_directory: PathBuf,
+    sender: Sender<Event>,
+    handles: Vec<JoinHandle<()>>,
+}
 
-    let sender = sender.clone();
-    let mut receiver = sender.subscribe();
+impl System {
+    pub fn new(state_directory: impl AsRef<Path>) -> Self {
+        let (sender, _) = broadcast::channel(128);
 
-    tokio::spawn(async move {
-        loop {
-            let new_events = match receiver.recv().await {
-                Ok(event) => {
-                    let new_events = actor.handle(event).unwrap();
-
-                    let save_file = format!("./{}.json", A::NAME);
-                    actor.save(save_file).unwrap();
-
-                    new_events
-                }
-                Err(RecvError::Closed) => break,
-                _ => vec![],
-            };
-
-            for event in new_events {
-                sender.send(event).unwrap();
-            }
+        Self {
+            state_directory: state_directory.as_ref().to_path_buf(),
+            sender,
+            handles: Default::default(),
         }
-    })
+    }
+
+    pub fn spawn<ACTOR: Actor>(&mut self) {
+        let save_file = self
+            .state_directory
+            .clone()
+            .join(format!("{}.json", ACTOR::NAME));
+        let mut actor = ACTOR::load(&save_file).unwrap_or_default();
+
+        let sender = self.sender.clone();
+        let mut receiver = sender.subscribe();
+
+        self.handles.push(tokio::spawn(async move {
+            loop {
+                let new_events = match receiver.recv().await {
+                    Ok(event) => {
+                        let new_events = actor.handle(event).unwrap();
+
+                        actor.save(&save_file).unwrap();
+
+                        new_events
+                    }
+                    Err(RecvError::Closed) => break,
+                    _ => vec![],
+                };
+
+                for event in new_events {
+                    sender.send(event).unwrap();
+                }
+            }
+        }));
+    }
+
+    pub async fn tick_and_wait(self, duration: Duration) {
+        create_dir_all(self.state_directory).unwrap();
+
+        loop {
+            if self.handles.iter().all(|handle| handle.is_finished()) {
+                return;
+            }
+
+            self.sender.send(Event::Tick).unwrap();
+
+            sleep(duration).await;
+        }
+    }
 }

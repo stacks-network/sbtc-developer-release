@@ -25,7 +25,7 @@ enum DepositState {
 }
 
 impl Actor for DepositProcessor {
-    const NAME: &'static str = "DepositProcessor";
+    const NAME: &'static str = "deposit_processor";
 
     fn handle(&mut self, event: Event) -> anyhow::Result<Vec<Event>> {
         match event {
