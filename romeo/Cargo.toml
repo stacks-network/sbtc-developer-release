@@ -1,0 +1,12 @@
+[package]
+name = "romeo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+bdk.workspace = true
+blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
