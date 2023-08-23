@@ -11,7 +11,7 @@ use tokio::{
 use crate::event::Event;
 use crate::store::Store;
 
-pub trait Actor: Serialize + DeserializeOwned + Default + Send + Sync + 'static {
+pub trait Actor: Serialize + DeserializeOwned + Send + Sync + 'static {
     const NAME: &'static str;
 
     fn handle(&mut self, event: Event) -> anyhow::Result<Vec<Event>>;
@@ -39,16 +39,20 @@ impl<S> System<S> {
             handle.abort()
         }
     }
+
+    pub async fn terminate(&mut self) -> anyhow::Result<()>{
+        self.sender.send(Event::Stop)?;
+
+        for handle in self.handles.drain(..) {
+            handle.await?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<S: Store + 'static> System<S> {
-    pub fn spawn<ACTOR: Actor>(&mut self) {
-        let mut actor: ACTOR = self
-            .store
-            .read()
-            .expect("Failed to read actor")
-            .unwrap_or_default();
-
+    pub fn spawn<ACTOR: Actor>(&mut self, mut actor: ACTOR) {
         let sender = self.sender.clone();
         let mut receiver = sender.subscribe();
 
@@ -57,6 +61,7 @@ impl<S: Store + 'static> System<S> {
         let future = async move {
             loop {
                 let new_events = match receiver.recv().await {
+                    Ok(Event::Stop) => break,
                     Ok(event) => {
                         let new_events = actor.handle(event).unwrap();
 
@@ -122,11 +127,18 @@ mod tests {
         let store = crate::store::MemoryStore::default();
         let mut system = System::new(store);
 
-        system.spawn::<EventCounter>();
+        let event_counter = EventCounter::new(number_of_events);
+        system.spawn(event_counter);
 
         for _ in 0..number_of_events {
             system.sender.send(Event::Tick).unwrap();
         }
+
+        system.terminate().await.unwrap();
+
+        let event_counter: EventCounter = system.store.read().unwrap().unwrap();
+
+        assert_eq!(event_counter.count, number_of_events);
     }
 
     async fn test_tick_and_wait() {
@@ -135,9 +147,17 @@ mod tests {
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     struct EventCounter {
-        event: Event,
         count: usize,
         target_count: usize,
+    }
+
+    impl EventCounter {
+        fn new(target_count: usize) -> Self {
+            Self {
+                count: 0,
+                target_count,
+            }
+        }
     }
 
     impl Actor for EventCounter {
