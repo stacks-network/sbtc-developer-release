@@ -13,8 +13,8 @@ async fn main() -> anyhow::Result<()> {
     system.spawn::<romeo::contract_deployer::ContractDeployer>();
 
     system
-    .tick_and_wait(Duration::from_secs(config.tick_interval_seconds))
-    .await;
+        .tick_and_wait(Duration::from_secs(config.tick_interval_seconds))
+        .await;
 
     Ok(())
 }

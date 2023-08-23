@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use futures::Future;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     sync::broadcast::{self, error::RecvError, Sender},
@@ -22,7 +23,7 @@ pub struct System<S> {
     handles: Vec<JoinHandle<()>>,
 }
 
-impl<S: Store + 'static> System<S> {
+impl<S> System<S> {
     pub fn new(store: S) -> Self {
         let (sender, _) = broadcast::channel(128);
 
@@ -33,8 +34,20 @@ impl<S: Store + 'static> System<S> {
         }
     }
 
+    pub fn abort_everything(&mut self) {
+        for handle in self.handles.drain(..) {
+            handle.abort()
+        }
+    }
+}
+
+impl<S: Store + 'static> System<S> {
     pub fn spawn<ACTOR: Actor>(&mut self) {
-        let mut actor: ACTOR = self.store.read().expect("Failed to read actor").unwrap_or_default();
+        let mut actor: ACTOR = self
+            .store
+            .read()
+            .expect("Failed to read actor")
+            .unwrap_or_default();
 
         let sender = self.sender.clone();
         let mut receiver = sender.subscribe();
@@ -66,6 +79,15 @@ impl<S: Store + 'static> System<S> {
         self.handles.push(handle);
     }
 
+    pub fn register_io_task<F, Fut>(&mut self, task: F)
+    where
+        F: FnOnce(Sender<Event>) -> Fut,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        let handle = tokio::spawn(task(self.sender.clone()));
+        self.handles.push(handle);
+    }
+
     pub async fn tick_and_wait(self, duration: Duration) {
         loop {
             if self.handles.iter().all(|handle| handle.is_finished()) {
@@ -76,6 +98,17 @@ impl<S: Store + 'static> System<S> {
 
             sleep(duration).await;
         }
+    }
+
+    pub fn rage_quit(mut self) -> S {
+        self.abort_everything();
+        self.store.clone()
+    }
+}
+
+impl<S> std::ops::Drop for System<S> {
+    fn drop(&mut self) {
+        self.abort_everything()
     }
 }
 
