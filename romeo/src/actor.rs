@@ -18,21 +18,14 @@ pub trait Actor: Serialize + DeserializeOwned + Default + Send + Sync + 'static 
 
     fn handle(&mut self, event: Event) -> anyhow::Result<Vec<Event>>;
 
-    fn save(&self, path: impl AsRef<std::path::Path>) -> anyhow::Result<()> {
-        let file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(path)?;
-
-        serde_json::to_writer_pretty(file, self)?;
+    fn save(&self, writer: impl std::io::Write) -> anyhow::Result<()> {
+        serde_json::to_writer_pretty(writer, self)?;
 
         Ok(())
     }
 
-    fn load(path: impl AsRef<std::path::Path>) -> anyhow::Result<Self> {
-        let file = std::fs::File::open(path)?;
-        let self_ = serde_json::from_reader(file)?;
+    fn load(reader: impl std::io::Read) -> anyhow::Result<Self> {
+        let self_ = serde_json::from_reader(reader)?;
 
         Ok(self_)
     }
@@ -61,7 +54,8 @@ impl System {
             .clone()
             .join(format!("{}.json", ACTOR::NAME));
 
-        let mut actor = ACTOR::load(&save_file).unwrap_or_default();
+        let save_file_read = std::fs::File::open(&save_file).unwrap();
+        let mut actor = ACTOR::load(&save_file_read).unwrap_or_default();
 
         let sender = self.sender.clone();
         let mut receiver = sender.subscribe();
@@ -72,7 +66,14 @@ impl System {
                     Ok(event) => {
                         let new_events = actor.handle(event).unwrap();
 
-                        actor.save(&save_file).unwrap();
+                        let save_file_handle = std::fs::OpenOptions::new()
+                            .create(true)
+                            .write(true)
+                            .truncate(true)
+                            .open(&save_file)
+                            .unwrap();
+
+                        actor.save(&save_file_handle).unwrap();
 
                         new_events
                     }
@@ -99,5 +100,14 @@ impl System {
 
             sleep(duration).await;
         }
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_stuff() {
+        todo!();
     }
 }
