@@ -116,7 +116,36 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_stuff() {
+    async fn test_system() {
+        let number_of_events = 1337;
+        
+        let store = crate::store::MemoryStore::default();
+        let mut system = System::new(store);
+
+        system.spawn::<EventCounter>();
+
+        for _ in 0..number_of_events {
+            system.sender.send(Event::Tick).unwrap();
+        }
+    }
+
+    async fn test_tick_and_wait() {
         todo!();
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    struct EventCounter {
+        event: Event,
+        count: usize,
+        target_count: usize,
+    }
+
+    impl Actor for EventCounter {
+        const NAME: &'static str = "EventCounter";
+
+        fn handle(&mut self, event: Event) -> anyhow::Result<Vec<Event>> {
+            self.count += 1;
+            Ok(vec![])
+        }
     }
 }
