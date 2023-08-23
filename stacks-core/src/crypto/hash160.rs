@@ -13,6 +13,7 @@ pub(crate) const HASH160_LENGTH: usize = 20;
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(try_from = "Hex")]
 #[serde(into = "Hex")]
+/// Hash160 hash type
 pub struct Hash160Hashing([u8; HASH160_LENGTH]);
 
 impl Hashing<HASH160_LENGTH> for Hash160Hashing {
@@ -45,6 +46,7 @@ impl TryFrom<Hex> for Hash160Hashing {
     }
 }
 
+/// Hash160 hasher type
 pub type Hash160Hasher = Hasher<Hash160Hashing, HASH160_LENGTH>;
 
 #[cfg(test)]

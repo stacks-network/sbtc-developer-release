@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{StacksError, StacksResult};
 
+/// Module for Hash160 hashing
 pub mod hash160;
+/// Module for sha256 hashing
 pub mod sha256;
 
 const CHECKSUM_LENGTH: usize = 4;
@@ -12,27 +14,35 @@ const CHECKSUM_LENGTH: usize = 4;
 #[serde(transparent)]
 struct Hex(String);
 
+/// Hashing trait
 pub trait Hashing<const LENGTH: usize>: Clone + Sized {
+    /// Hash the given data
     fn hash(data: &[u8]) -> Self;
+    /// Get the bytes of the hash
     fn as_bytes(&self) -> &[u8];
+    /// Attempt to create a hash from the given bytes
     fn from_bytes(bytes: &[u8]) -> StacksResult<Self>;
-
+    /// Create a hash from the given bytes
     fn new(value: impl AsRef<[u8]>) -> Self {
         Self::hash(value.as_ref())
     }
 
+    /// Create a zeroed hash
     fn zeroes() -> Self {
         Self::from_bytes(vec![0; LENGTH].as_slice()).unwrap()
     }
 
+    /// Get the checksum of the hash
     fn checksum(&self) -> [u8; CHECKSUM_LENGTH] {
         self.as_bytes()[0..CHECKSUM_LENGTH].try_into().unwrap()
     }
 
+    /// Attempt to create a hash from the given hex bytes
     fn from_hex(data: impl AsRef<str>) -> StacksResult<Self> {
         Self::from_bytes(&hex::decode(data.as_ref().as_bytes())?)
     }
 
+    /// Get the hex representation of the hash
     fn to_hex(&self) -> String {
         hex::encode(self.as_bytes())
     }
@@ -41,6 +51,7 @@ pub trait Hashing<const LENGTH: usize>: Clone + Sized {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(try_from = "Hex")]
 #[serde(into = "Hex")]
+/// The hasher type
 pub struct Hasher<T, const LENGTH: usize>(T)
 where
     T: Hashing<LENGTH>;

@@ -11,6 +11,7 @@ use bitcoin::{
 
 use crate::{SBTCError, SBTCResult};
 
+/// Initializes the electrum blockchain client
 pub(crate) fn init_blockchain() -> SBTCResult<ElectrumBlockchain> {
     let client = Client::new("ssl://blockstream.info:993")
         .map_err(|err| SBTCError::ElectrumError("Could not create Electrum client", err))?;
@@ -19,6 +20,7 @@ pub(crate) fn init_blockchain() -> SBTCResult<ElectrumBlockchain> {
     Ok(blockchain)
 }
 
+/// Set up an electrum wallet for sBTC operations
 pub(crate) fn setup_wallet(private_key: PrivateKey) -> SBTCResult<Wallet<MemoryDatabase>> {
     let blockchain = init_blockchain()?;
 
@@ -37,6 +39,7 @@ pub(crate) fn setup_wallet(private_key: PrivateKey) -> SBTCResult<Wallet<MemoryD
     Ok(wallet)
 }
 
+/// Builds an OP_RETURN script from the provided data
 pub(crate) fn build_op_return_script(data: &[u8]) -> Script {
     Builder::new()
         .push_opcode(OP_RETURN)
@@ -44,6 +47,7 @@ pub(crate) fn build_op_return_script(data: &[u8]) -> Script {
         .into_script()
 }
 
+/// Reorders outputs according to the provided order
 pub(crate) fn reorder_outputs(
     outputs: impl IntoIterator<Item = TxOut>,
     order: impl IntoIterator<Item = (Script, u64)>,
@@ -69,6 +73,7 @@ pub(crate) fn reorder_outputs(
     outputs_ordered.into_values().collect()
 }
 
+/// Returns the magic bytes for the provided network
 pub(crate) fn magic_bytes(network: Network) -> [u8; 2] {
     match network {
         Network::Bitcoin => [b'X', b'2'],

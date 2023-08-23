@@ -1,10 +1,14 @@
-use std::fmt;
+use std::{
+    fmt,
+    io::{self, Read, Write},
+};
 
 use bitcoin::blockdata::{opcodes::all::OP_CHECKMULTISIG, script::Builder};
 use strum::{EnumIter, FromRepr};
 
 use crate::{
     c32::{decode_address, encode_address},
+    codec::Codec,
     crypto::{
         hash160::{Hash160Hasher, HASH160_LENGTH},
         sha256::Sha256Hasher,
@@ -17,9 +21,13 @@ use crate::{
 #[repr(u8)]
 #[derive(FromRepr, EnumIter, PartialEq, Eq, Copy, Clone, Debug)]
 pub enum AddressVersion {
+    /// Mainnet single sig address version
     MainnetSingleSig = 22,
+    /// Mainnet multi sig address version
     MainnetMultiSig = 20,
+    /// Testnet single sig address version
     TestnetSingleSig = 26,
+    /// Testnet multi sig address version
     TestnetMultiSig = 21,
 }
 
@@ -31,29 +39,35 @@ impl TryFrom<u8> for AddressVersion {
     }
 }
 
-#[derive(Debug, Clone)]
+/// A Stacks address
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct StacksAddress {
     version: AddressVersion,
     hash: Hash160Hasher,
 }
 
 impl StacksAddress {
+    /// Create a new Stacks address from the given version and hash
     pub fn new(version: AddressVersion, hash: Hash160Hasher) -> Self {
         Self { version, hash }
     }
 
+    /// Get the address version
     pub fn version(&self) -> AddressVersion {
         self.version
     }
 
+    /// Get the address hash
     pub fn hash(&self) -> &Hash160Hasher {
         &self.hash
     }
 
+    /// Create a new Stacks address with a pay-2-public-key-hash
     pub fn p2pkh(version: AddressVersion, key: &PublicKey) -> Self {
         Self::new(version, hash_p2pkh(key))
     }
 
+    /// Create a new Stacks address with a pay-2-script-hash
     pub fn p2sh<'a>(
         version: AddressVersion,
         keys: impl IntoIterator<Item = &'a PublicKey>,
@@ -62,16 +76,39 @@ impl StacksAddress {
         Self::new(version, hash_p2sh(keys, signature_threshold))
     }
 
+    /// Create a new Stacks address with a pay-2-witness-public-key-hash
     pub fn p2wpkh(version: AddressVersion, key: &PublicKey) -> Self {
         Self::new(version, hash_p2wpkh(key))
     }
 
+    /// Create a new Stacks address with a pay-2-witness-script-hash
     pub fn p2wsh<'a>(
         version: AddressVersion,
         keys: impl IntoIterator<Item = &'a PublicKey>,
         signature_threshold: usize,
     ) -> Self {
         Self::new(version, hash_p2wsh(keys, signature_threshold))
+    }
+}
+
+impl Codec for StacksAddress {
+    fn codec_serialize<W: Write>(&self, dest: &mut W) -> io::Result<()> {
+        assert_eq!(dest.write(&[self.version() as u8])?, 1);
+        dest.write_all(self.hash().as_ref())
+    }
+
+    fn codec_deserialize<R: Read>(data: &mut R) -> io::Result<Self> {
+        let mut version_buffer = [0; 1];
+        data.read_exact(&mut version_buffer)?;
+
+        let version = AddressVersion::from_repr(version_buffer[0]).unwrap();
+
+        let mut hash_buffer = [0; HASH160_LENGTH];
+        data.read_exact(&mut hash_buffer)?;
+
+        let hash = Hash160Hasher::from_bytes(&hash_buffer).unwrap();
+
+        Ok(Self { version, hash })
     }
 }
 
