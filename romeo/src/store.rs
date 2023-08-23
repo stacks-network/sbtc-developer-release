@@ -65,7 +65,19 @@ impl Store for FileStore {
     type Error = anyhow::Error;
 
     fn read<ACTOR: Actor>(&self) -> Result<Option<ACTOR>, Self::Error> {
-        let file = std::fs::File::open(&self.save_file(ACTOR::NAME))?;
+        let file_result = std::fs::File::open(&self.save_file(ACTOR::NAME));
+
+        let file = match file_result {
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    return Ok(None);
+                } else {
+                    return Err(anyhow::Error::from(err));
+                }
+            }
+            Ok(file) => file,
+        };
+
         Ok(Some(serde_json::from_reader(file)?))
     }
 

@@ -34,7 +34,7 @@ impl<S: Store + 'static> System<S> {
     }
 
     pub fn spawn<ACTOR: Actor>(&mut self) {
-        let mut actor: ACTOR = self.store.read().unwrap().unwrap_or_default();
+        let mut actor: ACTOR = self.store.read().expect("Failed to read actor").unwrap_or_default();
 
         let sender = self.sender.clone();
         let mut receiver = sender.subscribe();
