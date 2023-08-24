@@ -4,23 +4,9 @@ use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::types::chainstate::StacksAddress;
 
 use crate::config::Config;
+use crate::event::Event;
+use crate::event::TransactionStatus;
 use crate::task::Task;
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-enum TransactionStatus {
-    Created,
-    Broadcasted,
-    Confirmed,
-    Rejected,
-}
-
-#[derive(Debug, Clone)]
-pub enum Event {
-    StacksTransactionUpdate(StacksTxId, TransactionStatus),
-    BitcoinTransactionUpdate(StacksTxId, TransactionStatus),
-
-    BitcoinBlock(Block),
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct State {
@@ -28,12 +14,6 @@ pub struct State {
     withdrawals: Vec<Withdrawal>,
     next_stx_nonce: u64,
     block_height: u64,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Response<T> {
-    tx: T,
-    status: TransactionStatus,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -71,6 +51,12 @@ impl Withdrawal {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct Response<T> {
+    tx: T,
+    status: TransactionStatus,
+}
+
 pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>) {
     match event {
         Event::StacksTransactionUpdate(_, _) => todo!(),
@@ -99,15 +85,17 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
         .iter_mut()
         .filter_map(|deposit| deposit.mint(state.block_height));
 
-    let burn_tasks = state
-        .withdrawals
-        .iter_mut()
-        .filter_map(|withdrawal| withdrawal.burn(state.block_height));
+    let withdrawals = &mut state.withdrawals;
 
-    let fulfillment_tasks = state
-        .withdrawals
+    let burn_tasks: Vec<_> = withdrawals
         .iter_mut()
-        .filter_map(|withdrawal| withdrawal.fulfill(state.block_height));
+        .filter_map(|withdrawal| withdrawal.burn(state.block_height))
+        .collect();
+
+    let fulfillment_tasks: Vec<_> = withdrawals
+        .iter_mut()
+        .filter_map(|withdrawal| withdrawal.fulfill(state.block_height))
+        .collect();
 
     tasks.extend(mint_tasks);
     tasks.extend(burn_tasks);
@@ -132,14 +120,14 @@ fn process_bitcoin_transaction(
     txid: BitcoinTxId,
     status: TransactionStatus,
 ) -> (State, Vec<Task>) {
-    if let Some(fulfillment) = state.withdrawals.iter_mut().find_map(|withdrawal| {
-        withdrawal
-            .fulfillment
-            .filter(|fulfillment| fulfillment.tx.txid() == txid)
-            .as_mut()
-    }) {
-        fulfillment.status = status;
-    };
+    //if let Some(fulfillment) = state.withdrawals.iter_mut().find_map(|withdrawal| {
+    //withdrawal
+    //.fulfillment
+    //.filter(|fulfillment| fulfillment.tx.txid() == txid)
+    //.as_mut()
+    //}) {
+    //fulfillment.status = status;
+    //};
 
     // TODO: handle rejections and remove excess state on confirmations
 
