@@ -25,11 +25,16 @@ struct Contract {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Deposit {
-    txid: BitcoinTxId,
-    amount: u64,
-    recipient: StacksAddress,
-    block_height: u64,
+    info: DepositInfo,
     mint: Option<Response<StacksTransaction>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DepositInfo {
+    pub txid: BitcoinTxId,
+    pub amount: u64,
+    pub recipient: StacksAddress,
+    pub block_height: u64,
 }
 
 impl Deposit {

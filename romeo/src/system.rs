@@ -30,11 +30,8 @@ fn spawn(config: Config, task: Task, result: mpsc::Sender<Event>) -> tokio::task
 
 async fn run_task(config: &Config, task: Task) -> Event {
     match task {
-        Task::BroadcastBitcoinTransaction(transaction) => {
-            broadcast_bitcoin_transaction(config, transaction).await
-        }
-        Task::BroadcastStacksTransaction(transaction) => {
-            broadcast_stacks_transaction(config, transaction).await
+        Task::DeployAssetContract => {
+            deploy_asset_contract(config).await
         }
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
@@ -43,15 +40,15 @@ async fn run_task(config: &Config, task: Task) -> Event {
             check_stacks_transaction_status(config, txid).await
         }
         Task::FetchBitcoinBlock(block_height) => fetch_bitcoin_block(config, block_height).await,
+        _ => panic!(),
     }
 }
 
-async fn broadcast_bitcoin_transaction(config: &Config, transaction: BitcoinTransaction) -> Event {
-    todo!();
-}
+async fn deploy_asset_contract(config: &Config) -> Event {
+    // TODO: #73
 
-async fn broadcast_stacks_transaction(config: &Config, transaction: StacksTransaction) -> Event {
-    todo!();
+    let txid = todo();
+    Event::AssetContractBroadcasted(txid)
 }
 
 async fn check_bitcoin_transaction_status(config: &Config, txid: BitcoinTxId) -> Event {
