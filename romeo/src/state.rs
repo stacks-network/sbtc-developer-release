@@ -37,9 +37,16 @@ struct Deposit {
 /// Relevant information for processing deposits
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DepositInfo {
+    /// ID of the bitcoin deposit transaction
     pub txid: BitcoinTxId,
+
+    /// Amount to deposit
     pub amount: u64,
+
+    /// Recipient of the sBTC
     pub recipient: StacksAddress,
+
+    /// Height of the Bitcoin blockchain where this tx is included
     pub block_height: u64,
 }
 
@@ -186,33 +193,4 @@ fn process_asset_contract_created(
     let task = Task::CheckStacksTransactionStatus(txid);
 
     (state, vec![task])
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_process_bitcoin_block() {
-        todo!();
-    }
-
-    #[test]
-    fn test_parse_deposits() {
-        todo!()
-    }
-
-    #[test]
-    fn test_parse_withrawals() {
-        todo!()
-    }
-
-    #[test]
-    fn test_bitcoin_transaction_update() {
-        todo!();
-    }
-
-    #[test]
-    fn test_stacks_transaction_update() {
-        todo!();
-    }
 }
