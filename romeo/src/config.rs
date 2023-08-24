@@ -12,7 +12,7 @@ pub struct Cli {
     pub config_file: PathBuf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub state_directory: PathBuf,
     pub tick_interval_seconds: u64,
