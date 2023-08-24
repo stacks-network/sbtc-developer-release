@@ -16,16 +16,12 @@ pub async fn run(config: Config, mut state: state::State) {
         for task in tasks {
             spawn(config.clone(), task, tx.clone());
         }
-        
+
         state = next_state;
     }
 }
 
-fn spawn(
-    config: Config,
-    task: Task,
-    result: mpsc::Sender<Event>,
-) -> tokio::task::JoinHandle<()> {
+fn spawn(config: Config, task: Task, result: mpsc::Sender<Event>) -> tokio::task::JoinHandle<()> {
     tokio::task::spawn(async move {
         let event = run_task(&config, task).await;
         result.send(event).await.expect("Failed to return event");

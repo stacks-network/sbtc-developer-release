@@ -1,5 +1,6 @@
 use std::{fs::File, path::PathBuf};
 
+use bdk::bitcoin::PrivateKey;
 use clap::Parser;
 use serde::Deserialize;
 
@@ -15,7 +16,7 @@ pub struct Cli {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub state_directory: PathBuf,
-    pub tick_interval_seconds: u64,
+    pub private_key: PrivateKey, // Used for both Bitcoin and Stacks transactions
 }
 
 impl Config {

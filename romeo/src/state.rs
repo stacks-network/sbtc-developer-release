@@ -8,12 +8,19 @@ use crate::event::Event;
 use crate::event::TransactionStatus;
 use crate::task::Task;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
+    contract: Option<Contract>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
     next_stx_nonce: u64,
     block_height: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct Contract {
+    tx: StacksTransaction,
+    status: TransactionStatus,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -59,9 +66,11 @@ struct Response<T> {
 
 pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>) {
     match event {
-        Event::StacksTransactionUpdate(_, _) => todo!(),
+        Event::StacksTransactionUpdate(txid, status) => {
+            process_stacks_transaction_update(config, state, txid, status)
+        }
         Event::BitcoinTransactionUpdate(txid, status) => {
-            process_bitcoin_transaction(config, state, txid, status)
+            process_bitcoin_transaction_update(config, state, txid, status)
         }
         Event::BitcoinBlock(block) => process_bitcoin_block(config, state, block),
     }
@@ -105,16 +114,16 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
 }
 
 fn parse_deposits(block: &Block) -> Vec<Deposit> {
-    // TODO
+    // TODO: #67
     vec![]
 }
 
 fn parse_withdrawals(block: &Block) -> Vec<Withdrawal> {
-    // TODO
+    // TODO: #68
     vec![]
 }
 
-fn process_bitcoin_transaction(
+fn process_bitcoin_transaction_update(
     config: &Config,
     mut state: State,
     txid: BitcoinTxId,
@@ -132,4 +141,43 @@ fn process_bitcoin_transaction(
     // TODO: handle rejections and remove excess state on confirmations
 
     (state, vec![])
+}
+
+fn process_stacks_transaction_update(
+    config: &Config,
+    mut state: State,
+    txid: StacksTxId,
+    status: TransactionStatus,
+) -> (State, Vec<Task>) {
+    todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_bitcoin_block() {
+        todo!();
+    }
+
+    #[test]
+    fn test_parse_deposits() {
+        todo!()
+    }
+
+    #[test]
+    fn test_parse_withrawals() {
+        todo!()
+    }
+
+    #[test]
+    fn test_bitcoin_transaction_update() {
+        todo!();
+    }
+
+    #[test]
+    fn test_stacks_transaction_update() {
+        todo!();
+    }
 }
