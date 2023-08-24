@@ -27,6 +27,7 @@ pub struct State {
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
     next_stx_nonce: u64,
+    block_height: u64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -44,6 +45,12 @@ struct Deposit {
     mint: Option<Response<StacksTransaction>>,
 }
 
+impl Deposit {
+    fn process(&mut self, block_height: u64) -> Option<Task> {
+        todo!();
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Withdrawal {
     txid: BitcoinTxId,
@@ -54,10 +61,43 @@ struct Withdrawal {
     fulfillment: Option<Response<BitcoinTransaction>>,
 }
 
-pub fn update(config: Config, state: State, event: Event) -> (State, Vec<Task>) {
+pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>) {
     match event {
         Event::StacksTransactionUpdate(_, _) => todo!(),
         Event::BitcoinTransactionUpdate(_, _) => todo!(),
-        Event::BitcoinBlock(_) => todo!(),
+        Event::BitcoinBlock(block) => process_bitcoin_block(config, state, block),
     }
+}
+
+fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
+    let deposits = parse_deposits(&block);
+    let withdrawals = parse_withdrawals(&block);
+
+    state.deposits.extend_from_slice(&deposits);
+    state.withdrawals.extend_from_slice(&withdrawals);
+
+    state.block_height = block
+        .bip34_block_height()
+        .expect("Failed to get block height");
+
+    let task = Task::FetchBitcoinBlock(state.block_height + 1);
+
+    let mint_tasks = state
+        .deposits
+        .iter_mut()
+        .filter_map(|deposit| deposit.process(state.block_height));
+
+    // TODO
+
+    unimplemented!()
+}
+
+fn parse_deposits(block: &Block) -> Vec<Deposit> {
+    // TODO
+    vec![]
+}
+
+fn parse_withdrawals(block: &Block) -> Vec<Withdrawal> {
+    // TODO
+    vec![]
 }

@@ -7,5 +7,5 @@ pub enum Task {
     CheckBitcoinTransactionStatus(BitcoinTxId),
     CheckStacksTransactionStatus(StacksTxId),
 
-    FetchBitcoinBlock,
+    FetchBitcoinBlock(u64),
 }
