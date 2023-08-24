@@ -29,6 +29,7 @@ struct Contract {
 struct Deposit {
     info: DepositInfo,
     mint: Option<Response<StacksTransaction>>,
+    mint_pending: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -50,6 +51,8 @@ struct Withdrawal {
     info: WithdrawalInfo,
     burn: Option<Response<StacksTransaction>>,
     fulfillment: Option<Response<BitcoinTransaction>>,
+    burn_pending: bool,
+    fulfillment_pending: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -160,11 +163,12 @@ fn process_bitcoin_transaction_update(
 
 fn process_stacks_transaction_update(
     _config: &Config,
-    mut _state: State,
+    mut state: State,
     _txid: StacksTxId,
     _status: TransactionStatus,
 ) -> (State, Vec<Task>) {
-    todo!()
+    // TODO
+    (state, vec![])
 }
 
 fn process_asset_contract_created(
@@ -177,7 +181,9 @@ fn process_asset_contract_created(
         status: TransactionStatus::Broadcasted,
     });
 
-    todo!("Handle contract deployment")
+    let task = Task::CheckStacksTransactionStatus(txid);
+
+    (state, vec![task])
 }
 
 #[cfg(test)]

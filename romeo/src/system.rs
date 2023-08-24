@@ -4,6 +4,7 @@ use tokio::sync::mpsc;
 
 use crate::config::Config;
 use crate::event::Event;
+use crate::event::TransactionStatus;
 use crate::state;
 use crate::task::Task;
 
@@ -55,8 +56,10 @@ async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) 
     todo!();
 }
 
-async fn check_stacks_transaction_status(_config: &Config, _txid: StacksTxId) -> Event {
-    todo!();
+async fn check_stacks_transaction_status(_config: &Config, txid: StacksTxId) -> Event {
+    // TODO
+    
+    Event::StacksTransactionUpdate(txid, TransactionStatus::Rejected)
 }
 
 async fn fetch_bitcoin_block(_config: &Config, _block_height: u64) -> Event {

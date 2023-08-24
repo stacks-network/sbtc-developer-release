@@ -1,11 +1,14 @@
 use bdk::bitcoin::{Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
 
+use crate::state::DepositInfo;
+use crate::state::WithdrawalInfo;
+
 #[derive(Debug, Clone)]
 pub enum Event {
-    MintCreated(StacksTxId),
-    BurnCreated(StacksTxId),
-    FulfillCreated(BitcoinTxId),
+    MintCreated(DepositInfo, StacksTxId),
+    BurnCreated(WithdrawalInfo, StacksTxId),
+    FulfillCreated(WithdrawalInfo, BitcoinTxId),
     AssetContractCreated(StacksTxId),
 
     StacksTransactionUpdate(StacksTxId, TransactionStatus),
