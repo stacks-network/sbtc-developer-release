@@ -16,7 +16,6 @@ pub enum Event {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TransactionStatus {
-    Created,
     Broadcasted,
     Confirmed,
     Rejected,

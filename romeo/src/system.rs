@@ -1,5 +1,5 @@
-use bdk::bitcoin::{Transaction as BitcoinTransaction, Txid as BitcoinTxId};
-use blockstack_lib::{burnchains::Txid as StacksTxId, chainstate::stacks::StacksTransaction};
+use bdk::bitcoin::Txid as BitcoinTxId;
+use blockstack_lib::burnchains::Txid as StacksTxId;
 use tokio::sync::mpsc;
 
 use crate::config::Config;
@@ -9,6 +9,9 @@ use crate::task::Task;
 
 pub async fn run(config: Config, mut state: state::State) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
+
+    // Bootstrap
+    spawn(config.clone(), Task::CreateAssetContract, tx.clone());
 
     while let Some(event) = rx.recv().await {
         let (next_state, tasks) = state::update(&config, state, event);
@@ -30,9 +33,7 @@ fn spawn(config: Config, task: Task, result: mpsc::Sender<Event>) -> tokio::task
 
 async fn run_task(config: &Config, task: Task) -> Event {
     match task {
-        Task::DeployAssetContract => {
-            deploy_asset_contract(config).await
-        }
+        Task::CreateAssetContract => deploy_asset_contract(config).await,
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
         }
@@ -44,21 +45,20 @@ async fn run_task(config: &Config, task: Task) -> Event {
     }
 }
 
-async fn deploy_asset_contract(config: &Config) -> Event {
+async fn deploy_asset_contract(_config: &Config) -> Event {
     // TODO: #73
-
-    let txid = todo();
-    Event::AssetContractBroadcasted(txid)
+    println!("Deploying");
+    Event::AssetContractCreated(StacksTxId([0; 32]))
 }
 
-async fn check_bitcoin_transaction_status(config: &Config, txid: BitcoinTxId) -> Event {
+async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {
     todo!();
 }
 
-async fn check_stacks_transaction_status(config: &Config, txid: StacksTxId) -> Event {
+async fn check_stacks_transaction_status(_config: &Config, _txid: StacksTxId) -> Event {
     todo!();
 }
 
-async fn fetch_bitcoin_block(config: &Config, block_height: u64) -> Event {
+async fn fetch_bitcoin_block(_config: &Config, _block_height: u64) -> Event {
     todo!();
 }

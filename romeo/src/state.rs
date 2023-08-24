@@ -1,4 +1,6 @@
-use bdk::bitcoin::{Block, Transaction as BitcoinTransaction, Txid as BitcoinTxId};
+use bdk::bitcoin::{
+    Address as BitcoinAddress, Block, Transaction as BitcoinTransaction, Txid as BitcoinTxId,
+};
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::types::chainstate::StacksAddress;
@@ -19,7 +21,7 @@ pub struct State {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Contract {
-    tx: StacksTransaction,
+    txid: StacksTxId,
     status: TransactionStatus,
 }
 
@@ -45,12 +47,18 @@ impl Deposit {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Withdrawal {
-    txid: BitcoinTxId,
-    amount: u64,
-    recipient: StacksAddress,
-    block_height: u64,
+    info: WithdrawalInfo,
     burn: Option<Response<StacksTransaction>>,
     fulfillment: Option<Response<BitcoinTransaction>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WithdrawalInfo {
+    txid: BitcoinTxId,
+    amount: u64,
+    source: StacksAddress,
+    recipient: BitcoinAddress,
+    block_height: u64,
 }
 
 impl Withdrawal {
@@ -78,6 +86,8 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
             process_bitcoin_transaction_update(config, state, txid, status)
         }
         Event::BitcoinBlock(block) => process_bitcoin_block(config, state, block),
+        Event::AssetContractCreated(txid) => process_asset_contract_created(config, state, txid),
+        event => panic!("Cannot handle yet: {:?}", event),
     }
 }
 
@@ -149,17 +159,29 @@ fn process_bitcoin_transaction_update(
 }
 
 fn process_stacks_transaction_update(
-    config: &Config,
-    mut state: State,
-    txid: StacksTxId,
-    status: TransactionStatus,
+    _config: &Config,
+    mut _state: State,
+    _txid: StacksTxId,
+    _status: TransactionStatus,
 ) -> (State, Vec<Task>) {
     todo!()
 }
 
+fn process_asset_contract_created(
+    _config: &Config,
+    mut state: State,
+    txid: StacksTxId,
+) -> (State, Vec<Task>) {
+    state.contract = Some(Contract {
+        txid,
+        status: TransactionStatus::Broadcasted,
+    });
+
+    todo!("Handle contract deployment")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_process_bitcoin_block() {

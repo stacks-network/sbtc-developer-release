@@ -1,12 +1,12 @@
-use bdk::bitcoin::{Transaction as BitcoinTransaction, Txid as BitcoinTxId};
-use blockstack_lib::{burnchains::Txid as StacksTxId, chainstate::stacks::StacksTransaction};
+use bdk::bitcoin::Txid as BitcoinTxId;
+use blockstack_lib::burnchains::Txid as StacksTxId;
 
 use crate::state;
 
 pub enum Task {
     CreateMint(state::DepositInfo),
-    CreateBurn,
-    CreateFulfill,
+    CreateBurn(state::WithdrawalInfo),
+    CreateFulfill(state::WithdrawalInfo),
     CreateAssetContract,
 
     CheckBitcoinTransactionStatus(BitcoinTxId),
