@@ -25,8 +25,6 @@ pub enum Event {
 
     BitcoinBlock(Block),
     NextNonce(u64),
-    Tick,
-    Stop,
 }
 
 pub type BlockHeight = u64;
