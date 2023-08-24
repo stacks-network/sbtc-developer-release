@@ -44,7 +44,7 @@ pub struct DepositInfo {
 }
 
 impl Deposit {
-    fn mint(&mut self, block_height: u64) -> Option<Task> {
+    fn mint(&mut self, _block_height: u64) -> Option<Task> {
         todo!();
     }
 }
@@ -69,11 +69,11 @@ pub struct WithdrawalInfo {
 }
 
 impl Withdrawal {
-    fn burn(&mut self, block_height: u64) -> Option<Task> {
+    fn burn(&mut self, _block_height: u64) -> Option<Task> {
         todo!();
     }
 
-    fn fulfill(&mut self, block_height: u64) -> Option<Task> {
+    fn fulfill(&mut self, _block_height: u64) -> Option<Task> {
         todo!();
     }
 }
@@ -104,7 +104,7 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
     }
 }
 
-fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
+fn process_bitcoin_block(_config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
     let deposits = parse_deposits(&block);
     let withdrawals = parse_withdrawals(&block);
 
@@ -141,21 +141,21 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
     (state, tasks)
 }
 
-fn parse_deposits(block: &Block) -> Vec<Deposit> {
+fn parse_deposits(_block: &Block) -> Vec<Deposit> {
     // TODO: #67
     vec![]
 }
 
-fn parse_withdrawals(block: &Block) -> Vec<Withdrawal> {
+fn parse_withdrawals(_block: &Block) -> Vec<Withdrawal> {
     // TODO: #68
     vec![]
 }
 
 fn process_bitcoin_transaction_update(
-    config: &Config,
-    mut state: State,
-    txid: BitcoinTxId,
-    status: TransactionStatus,
+    _config: &Config,
+    state: State,
+    _txid: BitcoinTxId,
+    _status: TransactionStatus,
 ) -> (State, Vec<Task>) {
     // TODO: #67 and #68
 
@@ -164,7 +164,7 @@ fn process_bitcoin_transaction_update(
 
 fn process_stacks_transaction_update(
     _config: &Config,
-    mut state: State,
+    state: State,
     _txid: StacksTxId,
     _status: TransactionStatus,
 ) -> (State, Vec<Task>) {
