@@ -4,6 +4,7 @@ use bdk::bitcoin::{
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::types::chainstate::StacksAddress;
+use tracing::debug;
 
 use crate::config::Config;
 use crate::event::Event;
@@ -80,7 +81,10 @@ struct Response<T> {
     status: TransactionStatus,
 }
 
+#[tracing::instrument(skip(config, state))]
 pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>) {
+    debug!("Handling update");
+
     match event {
         Event::StacksTransactionUpdate(txid, status) => {
             process_stacks_transaction_update(config, state, txid, status)

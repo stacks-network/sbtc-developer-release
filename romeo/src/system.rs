@@ -1,6 +1,7 @@
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use tokio::sync::mpsc;
+use tracing::debug;
 
 use crate::config::Config;
 use crate::event::Event;
@@ -25,7 +26,10 @@ pub async fn run(config: Config, mut state: state::State) {
     }
 }
 
+#[tracing::instrument(skip(config, result))]
 fn spawn(config: Config, task: Task, result: mpsc::Sender<Event>) -> tokio::task::JoinHandle<()> {
+    debug!("Spawning task");
+
     tokio::task::spawn(async move {
         let event = run_task(&config, task).await;
         result.send(event).await.expect("Failed to return event");
@@ -58,7 +62,7 @@ async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) 
 
 async fn check_stacks_transaction_status(_config: &Config, txid: StacksTxId) -> Event {
     // TODO
-    
+
     Event::StacksTransactionUpdate(txid, TransactionStatus::Rejected)
 }
 
