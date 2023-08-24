@@ -1,17 +1,11 @@
-use bdk::bitcoin::Txid as BitcoinTxId;
-use blockstack_lib::burnchains::Txid as StacksTxId;
+use bdk::bitcoin::{Transaction as BitcoinTransaction, Txid as BitcoinTxId};
+use blockstack_lib::{burnchains::Txid as StacksTxId, chainstate::stacks::StacksTransaction};
 
 pub enum Task {
-    Mint,
-    Burn,
-    Fulfill,
-
-    FetchBitcoinBlock,
-
-    BroadcastBitcoinTransaction,
-    BroadcastStacksTransaction,
+    BroadcastBitcoinTransaction(BitcoinTransaction),
+    BroadcastStacksTransaction(StacksTransaction),
     CheckBitcoinTransactionStatus(BitcoinTxId),
     CheckStacksTransactionStatus(StacksTxId),
 
-    DeployAssetContract,
+    FetchBitcoinBlock,
 }
