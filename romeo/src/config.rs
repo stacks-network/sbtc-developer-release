@@ -12,6 +12,7 @@ pub struct Cli {
     pub config_file: PathBuf,
 }
 
+/// System configuration. This is typically deserialized once and never mutated throughout the systems lifetime.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     pub state_directory: PathBuf,

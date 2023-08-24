@@ -9,6 +9,10 @@ use crate::event::TransactionStatus;
 use crate::state;
 use crate::task::Task;
 
+/// The main run loop of this system.
+/// This function feeds all events to the `state::update` function and spawns all tasks returned from this function.
+///
+/// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config, mut state: state::State) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
 

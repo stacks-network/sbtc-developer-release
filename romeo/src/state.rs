@@ -11,6 +11,7 @@ use crate::event::Event;
 use crate::event::TransactionStatus;
 use crate::task::Task;
 
+/// The whole state of the application
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
     contract: Option<Contract>,
@@ -33,6 +34,7 @@ struct Deposit {
     mint_pending: bool,
 }
 
+/// Relevant information for processing deposits
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DepositInfo {
     pub txid: BitcoinTxId,
@@ -56,6 +58,7 @@ struct Withdrawal {
     fulfillment_pending: bool,
 }
 
+/// Relevant information for processing withdrawals
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WithdrawalInfo {
     txid: BitcoinTxId,
@@ -81,6 +84,9 @@ struct Response<T> {
     status: TransactionStatus,
 }
 
+/// The beating heart of Romeo.
+/// This function updates the system state in response to an I/O event.
+/// It returns any new I/O tasks the system need to perform alongside the updated state.
 #[tracing::instrument(skip(config, state))]
 pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>) {
     debug!("Handling update");
@@ -151,16 +157,7 @@ fn process_bitcoin_transaction_update(
     txid: BitcoinTxId,
     status: TransactionStatus,
 ) -> (State, Vec<Task>) {
-    //if let Some(fulfillment) = state.withdrawals.iter_mut().find_map(|withdrawal| {
-    //withdrawal
-    //.fulfillment
-    //.filter(|fulfillment| fulfillment.tx.txid() == txid)
-    //.as_mut()
-    //}) {
-    //fulfillment.status = status;
-    //};
-
-    // TODO: handle rejections and remove excess state on confirmations
+    // TODO: #67 and #68
 
     (state, vec![])
 }
@@ -171,7 +168,7 @@ fn process_stacks_transaction_update(
     _txid: StacksTxId,
     _status: TransactionStatus,
 ) -> (State, Vec<Task>) {
-    // TODO
+    // TODO: #73 and #68
     (state, vec![])
 }
 
@@ -180,6 +177,7 @@ fn process_asset_contract_created(
     mut state: State,
     txid: StacksTxId,
 ) -> (State, Vec<Task>) {
+    // TODO: #73
     state.contract = Some(Contract {
         txid,
         status: TransactionStatus::Broadcasted,
