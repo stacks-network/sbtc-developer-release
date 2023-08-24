@@ -1,0 +1,7 @@
+{
+  "state_directory": "./state",
+  "wif": "cQRpBpPRkkk3mj1NY9yTCMrjBqj7nsZsDqVKvFcVbytki8hK8fdk",
+  "bitcoin_node_url": "https://example.com",
+  "stacks_node_url": "https://example.com",
+  "transaction_fee": 2000
+}

@@ -92,8 +92,7 @@ fn withdrawal_psbt(
         )
     })?;
 
-    partial_tx.unsigned_tx.output =
-        reorder_outputs(partial_tx.unsigned_tx.output.into_iter(), outputs);
+    partial_tx.unsigned_tx.output = reorder_outputs(partial_tx.unsigned_tx.output, outputs);
 
     Ok(partial_tx)
 }
