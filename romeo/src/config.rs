@@ -1,7 +1,6 @@
 use std::{fs::File, path::PathBuf};
 
 use clap::Parser;
-use serde::Deserialize;
 
 /// sBTC Alpha Romeo
 #[derive(Debug, Parser)]
@@ -13,7 +12,7 @@ pub struct Cli {
 }
 
 /// System configuration. This is typically deserialized once and never mutated throughout the systems lifetime.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct Config {
     /// Directory to persist the state of the system to
     pub state_directory: PathBuf,
