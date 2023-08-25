@@ -14,6 +14,7 @@
 ;; constants
 ;;
 (define-constant err-invalid-caller u1)
+(define-constant err-not-token-owner u2)
 
 ;; data vars
 ;;
