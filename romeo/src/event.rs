@@ -6,7 +6,7 @@ use crate::state::WithdrawalInfo;
 
 /// Events are spawned from tasks and used
 /// to update the system state.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Event {
     /// A mint transaction has been created and broadcasted
     MintCreated(DepositInfo, StacksTxId),

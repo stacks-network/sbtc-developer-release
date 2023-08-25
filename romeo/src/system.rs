@@ -1,5 +1,11 @@
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
+use tokio::fs::File;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::io::BufReader;
+use tokio::io::BufWriter;
 use tokio::sync::mpsc;
 use tracing::debug;
 
@@ -13,13 +19,16 @@ use crate::task::Task;
 /// This function feeds all events to the `state::update` function and spawns all tasks returned from this function.
 ///
 /// The system is bootstrapped by emitting the CreateAssetContract task.
-pub async fn run(config: Config, mut state: state::State) {
+pub async fn run(config: Config) {
+    let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
 
     // Bootstrap
     spawn(config.clone(), Task::CreateAssetContract, tx.clone());
 
     while let Some(event) = rx.recv().await {
+        storage.record(&event).await;
+
         let (next_state, tasks) = state::update(&config, state, event);
 
         for task in tasks {
@@ -27,6 +36,37 @@ pub async fn run(config: Config, mut state: state::State) {
         }
 
         state = next_state;
+    }
+}
+
+struct Storage(BufWriter<File>);
+
+impl Storage {
+    pub async fn load_and_replay(config: &Config, mut state: state::State) -> (Self, state::State) {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .append(true)
+            .open(config.state_directory.join("log.ndjson"))
+            .await
+            .unwrap();
+
+        let mut r = BufReader::new(&mut file).lines();
+
+        while let Some(line) = r.next_line().await.unwrap() {
+            let event: Event = serde_json::from_str(&line).unwrap();
+            state = state::update(config, state, event).0;
+        }
+
+        (Self(BufWriter::new(file)), state)
+    }
+
+    async fn record(&mut self, event: &Event) {
+        let bytes = serde_json::to_vec(event).unwrap();
+        self.0.write_all(&bytes).await.unwrap();
+        self.0.write_all(b"\n").await.unwrap();
+        self.0.flush().await.unwrap();
     }
 }
 
