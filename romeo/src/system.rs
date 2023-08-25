@@ -1,6 +1,8 @@
 use anyhow::anyhow;
 use bdk::bitcoin::secp256k1::Secp256k1;
 use bdk::bitcoin::Txid as BitcoinTxId;
+use blockstack_lib::address::AddressHashMode;
+use blockstack_lib::address::C32_ADDRESS_VERSION_TESTNET_SINGLESIG;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -13,11 +15,16 @@ use blockstack_lib::chainstate::stacks::SinglesigHashMode;
 use blockstack_lib::chainstate::stacks::SinglesigSpendingCondition;
 use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::chainstate::stacks::StacksTransactionSigner;
+use blockstack_lib::chainstate::stacks::TransactionAnchorMode;
 use blockstack_lib::chainstate::stacks::TransactionAuth;
 use blockstack_lib::chainstate::stacks::TransactionPayload;
+use blockstack_lib::chainstate::stacks::TransactionPostConditionMode;
 use blockstack_lib::chainstate::stacks::TransactionSmartContract;
 use blockstack_lib::chainstate::stacks::TransactionSpendingCondition;
 use blockstack_lib::chainstate::stacks::TransactionVersion;
+use blockstack_lib::codec::StacksMessageCodec;
+use blockstack_lib::core::CHAIN_ID_TESTNET;
+use blockstack_lib::types::chainstate::StacksAddress;
 use blockstack_lib::types::chainstate::StacksPrivateKey;
 use blockstack_lib::types::chainstate::StacksPublicKey;
 use blockstack_lib::types::PrivateKey;
@@ -117,8 +124,10 @@ async fn deploy_asset_contract(config: &Config) -> Event {
     println!("Deploying");
 
     let contract_bytes = tokio::fs::read_to_string(&config.contract).await.unwrap();
-    let private_key = get_stacks_private_key(&config.wif).unwrap();
-    let public_key = StacksPublicKey::from_private(&private_key);
+    let (private_key, btc_private_key) = get_stacks_private_key(&config.wif).unwrap();
+
+    let mut public_key = StacksPublicKey::from_private(&private_key);
+    public_key.set_compressed(true);
 
     let mut tx = StacksTransaction::new(
         TransactionVersion::Testnet,
@@ -127,12 +136,19 @@ async fn deploy_asset_contract(config: &Config) -> Event {
         ),
         TransactionPayload::SmartContract(
             TransactionSmartContract {
-                name: ContractName::from("sbtc-alpha-romeo"),
+                name: ContractName::from("sbtc-alpha-romeo123"),
                 code_body: StacksString::from_string(&contract_bytes).unwrap(),
             },
             None,
         ),
     );
+
+    tx.set_origin_nonce(120);
+    tx.set_tx_fee(2500);
+
+    tx.anchor_mode = TransactionAnchorMode::Any;
+    tx.post_condition_mode = TransactionPostConditionMode::Allow;
+    tx.chain_id = CHAIN_ID_TESTNET;
 
     let mut signer = StacksTransactionSigner::new(&mut tx);
 
@@ -140,14 +156,35 @@ async fn deploy_asset_contract(config: &Config) -> Event {
 
     tx = signer.get_tx().unwrap();
 
-    Event::AssetContractCreated(StacksTxId([0; 32]))
+    let mut tx_bytes = vec![];
+    tx.consensus_serialize(&mut tx_bytes).unwrap();
+
+    std::fs::write("tx.bin", &tx_bytes).unwrap();
+
+    let txid = reqwest::Client::new()
+        .post("https://stacks-node-api.testnet.stacks.co/v2/transactions")
+        .header("Content-type", "application/octet-stream")
+        .body(tx_bytes)
+        .send()
+        .await
+        .unwrap()
+        .json::<String>()
+        .await
+        .unwrap();
+
+    Event::AssetContractCreated(StacksTxId::from_hex(&txid).unwrap())
 }
 
-fn get_stacks_private_key(wif: &str) -> anyhow::Result<StacksPrivateKey> {
-    let pk_bytes = bdk::bitcoin::PrivateKey::from_wif(wif)?.to_bytes();
+fn get_stacks_private_key(
+    wif: &str,
+) -> anyhow::Result<(StacksPrivateKey, bdk::bitcoin::PrivateKey)> {
+    let pk = bdk::bitcoin::PrivateKey::from_wif(wif)?;
 
-    StacksPrivateKey::from_slice(&pk_bytes)
-        .map_err(|err| anyhow!("Could not parse stacks private key bytes: {:?}", err))
+    Ok((
+        StacksPrivateKey::from_slice(&pk.to_bytes())
+            .map_err(|err| anyhow!("Could not parse stacks private key bytes: {:?}", err))?,
+        pk,
+    ))
 }
 
 async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {
