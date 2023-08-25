@@ -6,17 +6,9 @@
 //! and respond the same way the final sBTC system is intended to.
 #![forbid(missing_docs)]
 
-/// Configuration
 pub mod config;
-
-/// Event
 pub mod event;
-
-/// State
+pub mod stacks_client;
 pub mod state;
-
-/// System
 pub mod system;
-
-/// Task
 pub mod task;

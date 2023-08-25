@@ -1,3 +1,5 @@
+//! System
+
 use anyhow::anyhow;
 use bdk::bitcoin::secp256k1::Secp256k1;
 use bdk::bitcoin::Txid as BitcoinTxId;
@@ -144,7 +146,7 @@ async fn deploy_asset_contract(config: &Config) -> Event {
     );
 
     tx.set_origin_nonce(120);
-    tx.set_tx_fee(2500);
+    tx.set_tx_fee(config.stacks_transaction_fee * 2);
 
     tx.anchor_mode = TransactionAnchorMode::Any;
     tx.post_condition_mode = TransactionPostConditionMode::Allow;

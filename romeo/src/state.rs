@@ -1,3 +1,5 @@
+//! State
+
 use bdk::bitcoin::{
     Address as BitcoinAddress, Block, Transaction as BitcoinTransaction, Txid as BitcoinTxId,
 };
@@ -17,7 +19,6 @@ pub struct State {
     contract: Option<Contract>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
-    next_stx_nonce: u64,
     block_height: u64,
 }
 

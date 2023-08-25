@@ -1,3 +1,5 @@
+//! Event
+
 use bdk::bitcoin::{Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
 
