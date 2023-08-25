@@ -42,7 +42,7 @@ pub async fn run(config: Config) {
 struct Storage(BufWriter<File>);
 
 impl Storage {
-    pub async fn load_and_replay(config: &Config, mut state: state::State) -> (Self, state::State) {
+    async fn load_and_replay(config: &Config, mut state: state::State) -> (Self, state::State) {
         let mut file = OpenOptions::new()
             .create(true)
             .read(true)
