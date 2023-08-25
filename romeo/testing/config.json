@@ -1,5 +1,6 @@
 {
   "state_directory": "./state",
+  "contract": "../asset-contract/contracts/asset.clar",
   "wif": "cQRpBpPRkkk3mj1NY9yTCMrjBqj7nsZsDqVKvFcVbytki8hK8fdk",
   "bitcoin_node_url": "https://example.com",
   "stacks_node_url": "https://example.com",

@@ -1,3 +1,5 @@
+use anyhow::anyhow;
+use bdk::bitcoin::secp256k1::Secp256k1;
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use tokio::fs::File;
@@ -6,6 +8,22 @@ use tokio::io::AsyncBufReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader;
 use tokio::io::BufWriter;
+
+use blockstack_lib::chainstate::stacks::SinglesigHashMode;
+use blockstack_lib::chainstate::stacks::SinglesigSpendingCondition;
+use blockstack_lib::chainstate::stacks::StacksTransaction;
+use blockstack_lib::chainstate::stacks::StacksTransactionSigner;
+use blockstack_lib::chainstate::stacks::TransactionAuth;
+use blockstack_lib::chainstate::stacks::TransactionPayload;
+use blockstack_lib::chainstate::stacks::TransactionSmartContract;
+use blockstack_lib::chainstate::stacks::TransactionSpendingCondition;
+use blockstack_lib::chainstate::stacks::TransactionVersion;
+use blockstack_lib::types::chainstate::StacksPrivateKey;
+use blockstack_lib::types::chainstate::StacksPublicKey;
+use blockstack_lib::types::PrivateKey;
+use blockstack_lib::util::hash::Hash160;
+use blockstack_lib::util_lib::strings::StacksString;
+use blockstack_lib::vm::ContractName;
 use tokio::sync::mpsc;
 use tracing::debug;
 
@@ -94,10 +112,42 @@ async fn run_task(config: &Config, task: Task) -> Event {
     }
 }
 
-async fn deploy_asset_contract(_config: &Config) -> Event {
+async fn deploy_asset_contract(config: &Config) -> Event {
     // TODO: #73
     println!("Deploying");
+
+    let contract_bytes = tokio::fs::read_to_string(&config.contract).await.unwrap();
+    let private_key = get_stacks_private_key(&config.wif).unwrap();
+    let public_key = StacksPublicKey::from_private(&private_key);
+
+    let mut tx = StacksTransaction::new(
+        TransactionVersion::Testnet,
+        TransactionAuth::Standard(
+            TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
+        ),
+        TransactionPayload::SmartContract(
+            TransactionSmartContract {
+                name: ContractName::from("sbtc-alpha-romeo"),
+                code_body: StacksString::from_string(&contract_bytes).unwrap(),
+            },
+            None,
+        ),
+    );
+
+    let mut signer = StacksTransactionSigner::new(&mut tx);
+
+    signer.sign_origin(&private_key).unwrap();
+
+    tx = signer.get_tx().unwrap();
+
     Event::AssetContractCreated(StacksTxId([0; 32]))
+}
+
+fn get_stacks_private_key(wif: &str) -> anyhow::Result<StacksPrivateKey> {
+    let pk_bytes = bdk::bitcoin::PrivateKey::from_wif(wif)?.to_bytes();
+
+    StacksPrivateKey::from_slice(&pk_bytes)
+        .map_err(|err| anyhow!("Could not parse stacks private key bytes: {:?}", err))
 }
 
 async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {

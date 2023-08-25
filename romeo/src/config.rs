@@ -17,6 +17,9 @@ pub struct Config {
     /// Directory to persist the state of the system to
     pub state_directory: PathBuf,
 
+    /// Path to the contract file
+    pub contract: PathBuf,
+
     /// Private key used for Bitcoin and Stacks transactions
     pub wif: String,
 
@@ -45,6 +48,10 @@ impl Config {
                 .parent()
                 .unwrap()
                 .join(&config.state_directory);
+        };
+
+        if config.contract.is_relative() {
+            config.contract = args.config_file.parent().unwrap().join(&config.contract);
         };
 
         Ok(config)
