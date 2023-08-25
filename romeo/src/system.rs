@@ -126,7 +126,8 @@ async fn deploy_asset_contract(config: &Config) -> Event {
     println!("Deploying");
 
     let contract_bytes = tokio::fs::read_to_string(&config.contract).await.unwrap();
-    let (private_key, btc_private_key) = get_stacks_private_key(&config.wif).unwrap();
+
+    let private_key = get_stacks_private_key(&config.private_key).unwrap();
 
     let mut public_key = StacksPublicKey::from_private(&private_key);
     public_key.set_compressed(true);
@@ -178,15 +179,12 @@ async fn deploy_asset_contract(config: &Config) -> Event {
 }
 
 fn get_stacks_private_key(
-    wif: &str,
-) -> anyhow::Result<(StacksPrivateKey, bdk::bitcoin::PrivateKey)> {
-    let pk = bdk::bitcoin::PrivateKey::from_wif(wif)?;
-
-    Ok((
+    pk: &bdk::bitcoin::PrivateKey
+) -> anyhow::Result<StacksPrivateKey> {
+    Ok(
         StacksPrivateKey::from_slice(&pk.to_bytes())
-            .map_err(|err| anyhow!("Could not parse stacks private key bytes: {:?}", err))?,
-        pk,
-    ))
+            .map_err(|err| anyhow!("Could not parse stacks private key bytes: {:?}", err))?
+    )
 }
 
 async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {

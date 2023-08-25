@@ -1,5 +1,6 @@
 //! Stacks client
 
+use bdk::bitcoin::Network;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -92,19 +93,11 @@ impl StacksClient {
 
     fn address_version(&self) -> u8 {
         match self.network {
-            Network::Mainnet => C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
+            Network::Bitcoin => C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
             Network::Testnet => C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
+            _ => panic!("Unsupported network"),
         }
     }
-}
-
-/// Network
-#[derive(Debug, Clone, Copy)]
-pub enum Network {
-    /// Mainnet
-    Mainnet,
-    /// Testnet
-    Testnet,
 }
 
 #[derive(serde::Deserialize)]
