@@ -12,7 +12,7 @@ use crate::event::TransactionStatus;
 use crate::task::Task;
 
 /// The whole state of the application
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
     contract: Option<Contract>,
     deposits: Vec<Deposit>,
