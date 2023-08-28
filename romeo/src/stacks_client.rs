@@ -32,7 +32,7 @@ pub struct LockedClient(Arc<Mutex<StacksClient>>);
 
 impl LockedClient {
     /// Lock and obtain a handle to the inner stacks client
-    pub async fn lock<'a>(&'a self) -> MutexGuard<'a, StacksClient> {
+    pub async fn lock(&self) -> MutexGuard<StacksClient> {
         self.0.lock().await
     }
 }
@@ -107,7 +107,7 @@ impl StacksClient {
         tx.post_condition_mode = TransactionPostConditionMode::Allow;
         tx.chain_id = CHAIN_ID_TESTNET;
 
-        let mut signer = StacksTransactionSigner::new(&mut tx);
+        let mut signer = StacksTransactionSigner::new(&tx);
 
         signer.sign_origin(&self.private_key).unwrap();
 
@@ -210,7 +210,7 @@ mod tests {
     // Hacky integration test. TODO: Make it more proper
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore]
-    async fn get_account_info() {
+    async fn get_nonce_info() {
         let config =
             Config::from_path("./testing/config.json").expect("Failed to find config file");
         let http_client = reqwest::Client::new();
@@ -230,18 +230,18 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore]
-    async fn get_fee() {
+    async fn get_fee_rate() {
         let config =
             Config::from_path("./testing/config.json").expect("Failed to find config file");
         let http_client = reqwest::Client::new();
 
-        let mut stacks_client = StacksClient::new(
+        let stacks_client = StacksClient::new(
             config.stacks_private_key(),
             config.stacks_node_url,
             http_client,
             config.private_key.network,
         );
 
-        stacks_client.calculate_fee(123).await;
+        stacks_client.calculate_fee(123).await.unwrap();
     }
 }

@@ -45,19 +45,13 @@ pub async fn run(config: Config) {
     .into();
 
     tracing::debug!("Starting replay of persisted events");
-    let (mut storage, mut state) =
-        Storage::load_and_replay(&config, state::State::default()).await;
+    let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
     tracing::debug!("Replay finished with state: {:?}", state);
 
     let bootstrap_task = state::bootstrap(&state);
 
     // Bootstrap
-    spawn(
-        config.clone(),
-        client.clone(),
-        bootstrap_task,
-        tx.clone(),
-    );
+    spawn(config.clone(), client.clone(), bootstrap_task, tx.clone());
 
     while let Some(event) = rx.recv().await {
         storage.record(&event).await;
@@ -75,10 +69,7 @@ pub async fn run(config: Config) {
 struct Storage(BufWriter<File>);
 
 impl Storage {
-    async fn load_and_replay(
-        config: &Config,
-        mut state: state::State,
-    ) -> (Self, state::State) {
+    async fn load_and_replay(config: &Config, mut state: state::State) -> (Self, state::State) {
         let mut file = OpenOptions::new()
             .create(true)
             .read(true)
