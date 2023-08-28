@@ -1,14 +1,18 @@
 //! Stacks client
 
-use bdk::bitcoin::{Network, util::uint::Uint128};
+use bdk::bitcoin::{util::uint::Uint128, Network};
+use blockstack_lib::codec::StacksMessageCodec;
+use blockstack_lib::core::CHAIN_ID_TESTNET;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 
-use serde::Deserialize;
 use serde::de::Error;
+use serde::Deserialize;
 
-use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::burnchains::Txid as StacksTxId;
+use blockstack_lib::chainstate::stacks::{
+    StacksTransaction, StacksTransactionSigner, TransactionAnchorMode, TransactionPostConditionMode,
+};
 use blockstack_lib::{
     address::{
         AddressHashMode, C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
@@ -24,7 +28,13 @@ pub struct LockedClient(Arc<Mutex<StacksClient>>);
 impl LockedClient {
     /// Lock and obtain a handle to the inner stacks client
     pub async fn lock<'a>(&'a self) -> MutexGuard<'a, StacksClient> {
-        todo!();
+        self.0.lock().await
+    }
+}
+
+impl From<StacksClient> for LockedClient {
+    fn from(client: StacksClient) -> Self {
+        Self(Arc::new(Mutex::new(client)))
     }
 }
 
@@ -63,12 +73,44 @@ impl StacksClient {
     }
 
     /// Sign and broadcast an unsigned stacks transaction
-    pub fn sign_and_broadcast(&mut self, mut tx: StacksTransaction) -> anyhow::Result<StacksTxId> {
+    pub async fn sign_and_broadcast(
+        &mut self,
+        mut tx: StacksTransaction,
+    ) -> anyhow::Result<StacksTxId> {
         tx.set_origin_nonce(self.nonce);
-        tx.set_tx_fee(self.cacluclate_fee(tx.tx_len()));
+        tx.set_tx_fee(self.calculate_fee(tx.tx_len()).await?);
+
+        tx.anchor_mode = TransactionAnchorMode::Any;
+        tx.post_condition_mode = TransactionPostConditionMode::Allow;
+        tx.chain_id = CHAIN_ID_TESTNET;
+
+        let mut signer = StacksTransactionSigner::new(&mut tx);
+
+        signer.sign_origin(&self.private_key).unwrap();
+
+        tx = signer.get_tx().unwrap();
+
+        let mut tx_bytes = vec![];
+        tx.consensus_serialize(&mut tx_bytes).unwrap();
+
+        let res = self
+            .http_client
+            .post(self.transaction_url())
+            .header("Content-type", "application/octet-stream")
+            .body(tx_bytes)
+            .send()
+            .await?;
+
+        panic!("{:?}", res.text().await.unwrap());
+
+        // let txid: StacksTxId = res
+        //     .json()
+        //     .await?;
 
         self.nonce += 1;
-        todo!();
+
+        // Ok(txid)
+        todo!()
     }
 
     async fn reconcile_nonce(&mut self) -> anyhow::Result<()> {
@@ -88,8 +130,16 @@ impl StacksClient {
             .await?)
     }
 
-    fn cacluclate_fee(&self, tx_len: u64) -> u64 {
-        todo!();
+    async fn calculate_fee(&self, tx_len: u64) -> anyhow::Result<u64> {
+        let fee_rate: u64 = self
+            .http_client
+            .get(self.fee_url())
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        Ok(fee_rate * tx_len)
     }
 
     fn transaction_url(&self) -> reqwest::Url {
@@ -136,7 +186,9 @@ struct AccountInfo {
 }
 
 fn deserialize_balance<'de, D>(deserializer: D) -> Result<u64, D::Error>
-where D: serde::Deserializer<'de> {
+where
+    D: serde::Deserializer<'de>,
+{
     let buf = String::deserialize(deserializer)?;
     let bytes = hex::decode(buf.trim_start_matches("0x")).map_err(D::Error::custom)?;
 
@@ -154,10 +206,18 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore]
     async fn get_account_info() {
-        let config = Config::from_path("./testing/config.json").expect("Failed to find config file");
+        let config =
+            Config::from_path("./testing/config.json").expect("Failed to find config file");
         let http_client = reqwest::Client::new();
-        
-        let mut stacks_client = StacksClient::new(config.stacks_private_key(), config.stacks_node_url, http_client, config.private_key.network).await.unwrap();
+
+        let mut stacks_client = StacksClient::new(
+            config.stacks_private_key(),
+            config.stacks_node_url,
+            http_client,
+            config.private_key.network,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(stacks_client.nonce, 121);
 
@@ -165,7 +225,26 @@ mod tests {
 
         assert_eq!(account_info.nonce, 121);
         assert_eq!(account_info.balance, 482115874);
-        
+
         assert!(true);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore]
+    async fn get_fee() {
+        let config =
+            Config::from_path("./testing/config.json").expect("Failed to find config file");
+        let http_client = reqwest::Client::new();
+
+        let mut stacks_client = StacksClient::new(
+            config.stacks_private_key(),
+            config.stacks_node_url,
+            http_client,
+            config.private_key.network,
+        )
+        .await
+        .unwrap();
+
+        stacks_client.calculate_fee(123).await;
     }
 }

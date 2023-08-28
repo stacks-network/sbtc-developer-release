@@ -1,6 +1,5 @@
 //! System
 
-use anyhow::anyhow;
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use tokio::fs::File;
@@ -13,18 +12,12 @@ use tokio::io::BufWriter;
 use blockstack_lib::chainstate::stacks::SinglesigHashMode;
 use blockstack_lib::chainstate::stacks::SinglesigSpendingCondition;
 use blockstack_lib::chainstate::stacks::StacksTransaction;
-use blockstack_lib::chainstate::stacks::StacksTransactionSigner;
-use blockstack_lib::chainstate::stacks::TransactionAnchorMode;
 use blockstack_lib::chainstate::stacks::TransactionAuth;
 use blockstack_lib::chainstate::stacks::TransactionPayload;
-use blockstack_lib::chainstate::stacks::TransactionPostConditionMode;
 use blockstack_lib::chainstate::stacks::TransactionSmartContract;
 use blockstack_lib::chainstate::stacks::TransactionSpendingCondition;
 use blockstack_lib::chainstate::stacks::TransactionVersion;
-use blockstack_lib::codec::StacksMessageCodec;
-use blockstack_lib::core::CHAIN_ID_TESTNET;
-use blockstack_lib::types::chainstate::StacksPrivateKey;
-use blockstack_lib::types::chainstate::StacksPublicKey;
+
 use blockstack_lib::util_lib::strings::StacksString;
 use blockstack_lib::vm::ContractName;
 use tokio::sync::mpsc;
@@ -33,6 +26,8 @@ use tracing::debug;
 use crate::config::Config;
 use crate::event::Event;
 use crate::event::TransactionStatus;
+use crate::stacks_client::LockedClient;
+use crate::stacks_client::StacksClient;
 use crate::state;
 use crate::task::Task;
 
@@ -44,8 +39,23 @@ pub async fn run(config: Config) {
     let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
 
+    let client: LockedClient = StacksClient::new(
+        config.stacks_private_key(),
+        config.stacks_node_url.clone(),
+        reqwest::Client::new(),
+        config.private_key.network,
+    )
+    .await
+    .unwrap()
+    .into();
+
     // Bootstrap
-    spawn(config.clone(), Task::CreateAssetContract, tx.clone());
+    spawn(
+        config.clone(),
+        client.clone(),
+        Task::CreateAssetContract,
+        tx.clone(),
+    );
 
     while let Some(event) = rx.recv().await {
         storage.record(&event).await;
@@ -53,7 +63,7 @@ pub async fn run(config: Config) {
         let (next_state, tasks) = state::update(&config, state, event);
 
         for task in tasks {
-            spawn(config.clone(), task, tx.clone());
+            spawn(config.clone(), client.clone(), task, tx.clone());
         }
 
         state = next_state;
@@ -91,19 +101,24 @@ impl Storage {
     }
 }
 
-#[tracing::instrument(skip(config, result))]
-fn spawn(config: Config, task: Task, result: mpsc::Sender<Event>) -> tokio::task::JoinHandle<()> {
+#[tracing::instrument(skip(config, client, result))]
+fn spawn(
+    config: Config,
+    client: LockedClient,
+    task: Task,
+    result: mpsc::Sender<Event>,
+) -> tokio::task::JoinHandle<()> {
     debug!("Spawning task");
 
     tokio::task::spawn(async move {
-        let event = run_task(&config, task).await;
+        let event = run_task(&config, client, task).await;
         result.send(event).await.expect("Failed to return event");
     })
 }
 
-async fn run_task(config: &Config, task: Task) -> Event {
+async fn run_task(config: &Config, client: LockedClient, task: Task) -> Event {
     match task {
-        Task::CreateAssetContract => deploy_asset_contract(config).await,
+        Task::CreateAssetContract => deploy_asset_contract(config, client).await,
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
         }
@@ -115,70 +130,30 @@ async fn run_task(config: &Config, task: Task) -> Event {
     }
 }
 
-async fn deploy_asset_contract(config: &Config) -> Event {
-    // TODO: #73
-    println!("Deploying");
-
+async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     let contract_bytes = tokio::fs::read_to_string(&config.contract).await.unwrap();
 
-    let private_key = get_stacks_private_key(&config.private_key).unwrap();
-
-    let mut public_key = StacksPublicKey::from_private(&private_key);
-    public_key.set_compressed(true);
-
-    let mut tx = StacksTransaction::new(
-        TransactionVersion::Testnet,
-        TransactionAuth::Standard(
-            TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
-        ),
-        TransactionPayload::SmartContract(
-            TransactionSmartContract {
-                name: ContractName::from("sbtc-alpha-romeo123"),
-                code_body: StacksString::from_string(&contract_bytes).unwrap(),
-            },
-            None,
-        ),
+    let tx_auth = TransactionAuth::Standard(
+        TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
+    );
+    let tx_payload = TransactionPayload::SmartContract(
+        TransactionSmartContract {
+            name: ContractName::from("sbtc-alpha-romeo123"),
+            code_body: StacksString::from_string(&contract_bytes).unwrap(),
+        },
+        None,
     );
 
-    tx.set_origin_nonce(120);
-    tx.set_tx_fee(config.stacks_transaction_fee * 2);
+    let tx = StacksTransaction::new(TransactionVersion::Testnet, tx_auth, tx_payload);
 
-    tx.anchor_mode = TransactionAnchorMode::Any;
-    tx.post_condition_mode = TransactionPostConditionMode::Allow;
-    tx.chain_id = CHAIN_ID_TESTNET;
-
-    let mut signer = StacksTransactionSigner::new(&mut tx);
-
-    signer.sign_origin(&private_key).unwrap();
-
-    tx = signer.get_tx().unwrap();
-
-    let mut tx_bytes = vec![];
-    tx.consensus_serialize(&mut tx_bytes).unwrap();
-
-    std::fs::write("tx.bin", &tx_bytes).unwrap();
-
-    let txid = reqwest::Client::new()
-        .post("https://stacks-node-api.testnet.stacks.co/v2/transactions")
-        .header("Content-type", "application/octet-stream")
-        .body(tx_bytes)
-        .send()
+    let txid = client
+        .lock()
         .await
-        .unwrap()
-        .json::<String>()
+        .sign_and_broadcast(tx)
         .await
-        .unwrap();
+        .expect("Unable to sign and broadcast the asset contract deployment transaction");
 
-    Event::AssetContractCreated(StacksTxId::from_hex(&txid).unwrap())
-}
-
-fn get_stacks_private_key(
-    pk: &bdk::bitcoin::PrivateKey
-) -> anyhow::Result<StacksPrivateKey> {
-    Ok(
-        StacksPrivateKey::from_slice(&pk.to_bytes())
-            .map_err(|err| anyhow!("Could not parse stacks private key bytes: {:?}", err))?
-    )
+    Event::AssetContractCreated(txid)
 }
 
 async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {
