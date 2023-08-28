@@ -6,6 +6,7 @@ use std::{
 };
 
 use bdk::bitcoin::PrivateKey;
+use blockstack_lib::types::chainstate::{StacksPrivateKey, StacksPublicKey};
 use clap::Parser;
 
 /// sBTC Alpha Romeo
@@ -71,6 +72,19 @@ impl Config {
             stacks_transaction_fee: config_file.stacks_transaction_fee,
             bitcoin_transaction_fee: config_file.bitcoin_transaction_fee,
         })
+    }
+
+    /// Stacks version of the private key
+    pub fn stacks_private_key(&self) -> StacksPrivateKey {
+        let mut pk = StacksPrivateKey::from_slice(&self.private_key.to_bytes()).unwrap();
+        pk.set_compress_public(self.private_key.compressed);
+
+        pk
+    }
+
+    /// Stacks public key corresponding to the private key
+    pub fn stacks_public_key(&self) -> StacksPublicKey {
+        StacksPublicKey::from_private(&self.stacks_private_key())
     }
 }
 

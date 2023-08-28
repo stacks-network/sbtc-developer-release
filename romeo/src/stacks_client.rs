@@ -1,8 +1,11 @@
 //! Stacks client
 
-use bdk::bitcoin::Network;
+use bdk::bitcoin::{Network, util::uint::Uint128};
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
+
+use serde::Deserialize;
+use serde::de::Error;
 
 use blockstack_lib::{
     address::{
@@ -104,19 +107,40 @@ impl StacksClient {
 
 #[derive(serde::Deserialize)]
 struct AccountInfo {
+    #[serde(deserialize_with = "deserialize_balance")]
     balance: u64,
     nonce: u64,
 }
 
+fn deserialize_balance<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where D: serde::Deserializer<'de> {
+    let buf = String::deserialize(deserializer)?;
+    let bytes = hex::decode(buf.trim_start_matches("0x")).map_err(D::Error::custom)?;
+
+    let val = Uint128::from_be_slice(&bytes).map_err(D::Error::custom)?;
+    Ok(val.low_u64())
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::config::Config;
+
     use super::*;
 
     // Hacky integration test. TODO: Make it more proper
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore]
     async fn get_account_info() {
-        //let stacks_client = StacksClient::new(, , , )
+        let config = Config::from_path("./testing/config.json").expect("Failed to find config file");
+        let http_client = reqwest::Client::new();
+        
+        let mut stacks_client = StacksClient::new(config.stacks_private_key(), config.stacks_node_url, http_client, config.private_key.network).await.unwrap();
+
+        let account_info = stacks_client.get_account_info().await.unwrap();
+
+        assert_eq!(account_info.nonce, 121);
+        assert_eq!(account_info.balance, 482115874);
+        
         assert!(true);
     }
 }
