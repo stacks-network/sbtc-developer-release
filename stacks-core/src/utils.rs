@@ -5,7 +5,7 @@ use strum::FromRepr;
 use crate::{
     address::{AddressVersion, StacksAddress},
     codec::Codec,
-    contract_name::ContractName,
+    validated_strings::contract_name::ContractName,
 };
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -97,13 +97,13 @@ impl Codec for PrincipalData {
 
 #[cfg(test)]
 mod tests {
-    use crate::crypto::hash160::Hash160Hasher;
+    use crate::{crypto::hash160::Hash160Hash, validated_strings::Validate};
 
     use super::*;
 
     #[test]
     fn should_serialize_standard_principal_data() {
-        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hasher::default());
+        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hash::default());
         let data = PrincipalData::Standard(StandardPrincipalData(addr.version(), addr.clone()));
 
         let mut expected_bytes = vec![];
@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn should_deserialize_standard_principal_data() {
-        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hasher::default());
+        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hash::default());
         let expected_principal_data =
             PrincipalData::Standard(StandardPrincipalData(addr.version(), addr.clone()));
 
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn should_serialize_contract_principal_data() {
-        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hasher::default());
+        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hash::default());
         let contract = ContractName::new("helloworld").unwrap();
         let data = PrincipalData::Contract(
             StandardPrincipalData(addr.version(), addr.clone()),
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn should_deserialize_contract_principal_data() {
-        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hasher::default());
+        let addr = StacksAddress::new(AddressVersion::TestnetSingleSig, Hash160Hash::default());
         let contract = ContractName::new("helloworld").unwrap();
         let expected_principal_data = PrincipalData::Contract(
             StandardPrincipalData(addr.version(), addr.clone()),

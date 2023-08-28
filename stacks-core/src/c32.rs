@@ -2,7 +2,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     address::AddressVersion,
-    crypto::{sha256::DoubleSha256Hasher, Hashing},
+    crypto::{sha256::DoubleSha256Hash, Hashing},
 };
 
 const C32_ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -180,7 +180,7 @@ pub fn version_check_encode(version: AddressVersion, data: impl AsRef<[u8]>) -> 
     let mut buffer = vec![version as u8];
     buffer.extend_from_slice(data);
 
-    let checksum = DoubleSha256Hasher::new(&buffer).checksum();
+    let checksum = DoubleSha256Hash::new(&buffer).checksum();
     buffer.extend_from_slice(&checksum);
 
     let mut encoded = encode(&buffer[1..]);
@@ -212,7 +212,7 @@ pub fn version_check_decode(input: impl AsRef<str>) -> Result<(AddressVersion, V
     let mut buffer_to_check = vec![decoded_version_byte];
     buffer_to_check.extend_from_slice(data_bytes);
 
-    let computed_checksum = DoubleSha256Hasher::new(buffer_to_check).checksum();
+    let computed_checksum = DoubleSha256Hash::new(buffer_to_check).checksum();
 
     if computed_checksum != expected_checksum {
         return Err(C32Error::InvalidChecksum(

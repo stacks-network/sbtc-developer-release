@@ -6,7 +6,7 @@ use bitcoin::{
     secp256k1::{Message, Secp256k1},
     Address as BitcoinAddress, Network, PrivateKey, Transaction,
 };
-use stacks_core::crypto::{sha256::Sha256Hasher, Hashing};
+use stacks_core::crypto::{sha256::Sha256Hash, Hashing};
 
 use crate::{
     operations::construction::utils::{
@@ -106,7 +106,7 @@ fn withdrawal_data(
     let mut msg = amount.to_be_bytes().to_vec();
     msg.extend_from_slice(recipient.script_pubkey().as_bytes());
 
-    let msg_hash = Sha256Hasher::new(msg);
+    let msg_hash = Sha256Hash::new(msg);
     let msg_ecdsa = Message::from_slice(msg_hash.as_ref()).unwrap();
 
     let (recovery_id, signature) = Secp256k1::new()

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     crypto::{
-        sha256::{DoubleSha256Hasher, SHA256_LENGTH},
+        sha256::{DoubleSha256Hash, SHA256_LENGTH},
         Hashing,
     },
     StacksError, StacksResult,
@@ -541,8 +541,8 @@ impl<const N: usize> From<u128> for Uint<N> {
     }
 }
 
-impl From<DoubleSha256Hasher> for Uint256 {
-    fn from(value: DoubleSha256Hasher) -> Self {
+impl From<DoubleSha256Hash> for Uint256 {
+    fn from(value: DoubleSha256Hash) -> Self {
         let buffer: [u8; SHA256_LENGTH] = value.as_bytes().try_into().unwrap();
 
         let mut ret: [u64; 4] = unsafe { transmute(buffer) };
