@@ -9,8 +9,6 @@ use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader;
 use tokio::io::BufWriter;
 
-use blockstack_lib::chainstate::stacks::SinglesigHashMode;
-use blockstack_lib::chainstate::stacks::SinglesigSpendingCondition;
 use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::chainstate::stacks::TransactionAuth;
 use blockstack_lib::chainstate::stacks::TransactionPayload;
@@ -45,24 +43,16 @@ pub async fn run(config: Config) {
         config.private_key.network,
     )
     .into();
-
-    let bootstrap = || {
-        spawn(
-            config.clone(),
-            client.clone(),
-            Task::CreateAssetContract,
-            tx.clone(),
-        );
-    };
-
     let (mut storage, mut state) =
-        Storage::load_and_replay(&config, state::State::default(), bootstrap).await;
+        Storage::load_and_replay(&config, state::State::default()).await;
+
+    let bootstrap_task = state::bootstrap(&state);
 
     // Bootstrap
     spawn(
         config.clone(),
         client.clone(),
-        Task::CreateAssetContract,
+        bootstrap_task,
         tx.clone(),
     );
 
@@ -82,10 +72,9 @@ pub async fn run(config: Config) {
 struct Storage(BufWriter<File>);
 
 impl Storage {
-    async fn load_and_replay<F: FnOnce() -> JoinHandle<()>>(
+    async fn load_and_replay(
         config: &Config,
         mut state: state::State,
-        bootstrap: F,
     ) -> (Self, state::State) {
         let mut file = OpenOptions::new()
             .create(true)
@@ -153,7 +142,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     );
     let tx_payload = TransactionPayload::SmartContract(
         TransactionSmartContract {
-            name: ContractName::from("sbtc-alpha-romeo321"),
+            name: ContractName::from("sbtc-alpha-romeo42"),
             code_body: StacksString::from_string(&contract_bytes).unwrap(),
         },
         None,

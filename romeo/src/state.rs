@@ -92,6 +92,14 @@ struct Response<T> {
     status: TransactionStatus,
 }
 
+/// Spawn initial tasks given a recovered state
+pub fn bootstrap(state: &State) -> Task {
+    match state.contract {
+        None => Task::CreateAssetContract,
+        Some(_) => Task::FetchBitcoinBlock(state.block_height),
+    }
+}
+
 /// The beating heart of Romeo.
 /// This function updates the system state in response to an I/O event.
 /// It returns any new I/O tasks the system need to perform alongside the updated state.
