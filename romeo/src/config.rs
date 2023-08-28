@@ -52,15 +52,10 @@ impl Config {
         );
 
         let config_file = ConfigFile::from_path(&path)?;
-
         let state_directory = normalize(config_root.clone(), config_file.state_directory);
-
         let contract = normalize(config_root, config_file.contract);
-
         let private_key = PrivateKey::from_wif(&config_file.wif)?;
-
         let bitcoin_node_url = reqwest::Url::parse(&config_file.bitcoin_node_url)?;
-
         let stacks_node_url = reqwest::Url::parse(&config_file.stacks_node_url)?;
 
         Ok(Self {
