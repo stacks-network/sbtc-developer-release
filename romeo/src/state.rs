@@ -6,6 +6,7 @@ use bdk::bitcoin::{
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::types::chainstate::StacksAddress;
+use blockstack_lib::vm::ContractName;
 use tracing::debug;
 
 use crate::config::Config;
@@ -46,6 +47,9 @@ pub struct DepositInfo {
 
     /// Recipient of the sBTC
     pub recipient: StacksAddress,
+
+    /// Name of the contract where the funds should be minted
+    pub contract_name: ContractName,
 
     /// Height of the Bitcoin blockchain where this tx is included
     pub block_height: u64,

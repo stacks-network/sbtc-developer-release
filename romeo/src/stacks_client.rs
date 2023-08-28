@@ -1,7 +1,6 @@
 //! Stacks client
 
 use anyhow::anyhow;
-use bdk::bitcoin::Network;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
 use rand::distributions::Alphanumeric;
@@ -18,13 +17,8 @@ use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::{
     StacksTransaction, StacksTransactionSigner, TransactionAnchorMode, TransactionPostConditionMode,
 };
-use blockstack_lib::{
-    address::{
-        AddressHashMode, C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
-        C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
-    },
-    types::chainstate::{StacksAddress, StacksPrivateKey, StacksPublicKey},
-};
+
+use crate::config::Config;
 
 /// Wrapped Stacks Client which can be shared safely between threads.
 #[derive(Clone, Debug)]
@@ -49,25 +43,16 @@ impl From<StacksClient> for LockedClient {
 /// key.
 #[derive(Debug)]
 pub struct StacksClient {
-    private_key: StacksPrivateKey,
-    stacks_node_url: reqwest::Url,
+    config: Config,
     http_client: reqwest::Client,
-    network: Network,
 }
 
 impl StacksClient {
     /// Create a new StacksClient
-    pub fn new(
-        private_key: StacksPrivateKey,
-        stacks_node_url: reqwest::Url,
-        http_client: reqwest::Client,
-        network: Network,
-    ) -> Self {
+    pub fn new(config: Config, http_client: reqwest::Client) -> Self {
         Self {
-            private_key,
-            stacks_node_url,
+            config,
             http_client,
-            network,
         }
     }
 
@@ -109,7 +94,9 @@ impl StacksClient {
 
         let mut signer = StacksTransactionSigner::new(&tx);
 
-        signer.sign_origin(&self.private_key).unwrap();
+        signer
+            .sign_origin(&self.config.stacks_private_key())
+            .unwrap();
 
         tx = signer.get_tx().unwrap();
 
@@ -152,7 +139,10 @@ impl StacksClient {
     }
 
     fn transaction_url(&self) -> reqwest::Url {
-        self.stacks_node_url.join("/v2/transactions").unwrap()
+        self.config
+            .stacks_node_url
+            .join("/v2/transactions")
+            .unwrap()
     }
 
     fn nonce_url(&self) -> reqwest::Url {
@@ -162,37 +152,18 @@ impl StacksClient {
         // We need to make sure node returns the uncached nonce, so we add a cachebuster
         let path = format!(
             "/extended/v1/address/{}/nonces?cachebuster={}",
-            self.stx_address(),
+            self.config.stacks_address(),
             random_string
         );
 
-        self.stacks_node_url.join(&path).unwrap()
+        self.config.stacks_node_url.join(&path).unwrap()
     }
 
     fn fee_url(&self) -> reqwest::Url {
-        self.stacks_node_url.join("/v2/fees/transfer").unwrap()
-    }
-
-    fn stx_address(&self) -> StacksAddress {
-        let address_version = self.address_version();
-        let hash_mode = AddressHashMode::SerializeP2PKH;
-
-        StacksAddress::from_public_keys(address_version, &hash_mode, 1, &vec![self.public_key()])
+        self.config
+            .stacks_node_url
+            .join("/v2/fees/transfer")
             .unwrap()
-    }
-
-    fn public_key(&self) -> StacksPublicKey {
-        let mut public_key = StacksPublicKey::from_private(&self.private_key);
-        public_key.set_compressed(true);
-        public_key
-    }
-
-    fn address_version(&self) -> u8 {
-        match self.network {
-            Network::Bitcoin => C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
-            Network::Testnet => C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
-            _ => panic!("Unsupported network"),
-        }
     }
 }
 
@@ -215,12 +186,7 @@ mod tests {
             Config::from_path("./testing/config.json").expect("Failed to find config file");
         let http_client = reqwest::Client::new();
 
-        let mut stacks_client = StacksClient::new(
-            config.stacks_private_key(),
-            config.stacks_node_url,
-            http_client,
-            config.private_key.network,
-        );
+        let mut stacks_client = StacksClient::new(config, http_client);
 
         let nonce_info = stacks_client.get_nonce_info().await.unwrap();
         assert_eq!(nonce_info.possible_next_nonce, 122);
@@ -235,12 +201,7 @@ mod tests {
             Config::from_path("./testing/config.json").expect("Failed to find config file");
         let http_client = reqwest::Client::new();
 
-        let stacks_client = StacksClient::new(
-            config.stacks_private_key(),
-            config.stacks_node_url,
-            http_client,
-            config.private_key.network,
-        );
+        let stacks_client = StacksClient::new(config, http_client);
 
         stacks_client.calculate_fee(123).await.unwrap();
     }
