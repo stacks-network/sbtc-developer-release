@@ -207,7 +207,7 @@ mod tests {
 
     use super::*;
 
-    // Hacky integration test. TODO: Make it more proper
+    // These integration tests are for exploration/experimentation but should be removed once we have more decent tests
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore]
     async fn get_nonce_info() {
