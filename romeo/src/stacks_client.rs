@@ -7,6 +7,8 @@ use tokio::sync::{Mutex, MutexGuard};
 use serde::Deserialize;
 use serde::de::Error;
 
+use blockstack_lib::chainstate::stacks::StacksTransaction;
+use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::{
     address::{
         AddressHashMode, C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
@@ -60,6 +62,15 @@ impl StacksClient {
         Ok(self_)
     }
 
+    /// Sign and broadcast an unsigned stacks transaction
+    pub fn sign_and_broadcast(&mut self, mut tx: StacksTransaction) -> anyhow::Result<StacksTxId> {
+        tx.set_origin_nonce(self.nonce);
+        tx.set_tx_fee(self.cacluclate_fee(tx.tx_len()));
+
+        self.nonce += 1;
+        todo!();
+    }
+
     async fn reconcile_nonce(&mut self) -> anyhow::Result<()> {
         let account_info = self.get_account_info().await?;
         self.nonce = account_info.nonce;
@@ -77,9 +88,21 @@ impl StacksClient {
             .await?)
     }
 
+    fn cacluclate_fee(&self, tx_len: u64) -> u64 {
+        todo!();
+    }
+
+    fn transaction_url(&self) -> reqwest::Url {
+        self.stacks_node_url.join("/v2/transactions").unwrap()
+    }
+
     fn account_url(&self) -> reqwest::Url {
         let path = format!("/v2/accounts/{}", self.stx_address());
         self.stacks_node_url.join(&path).unwrap()
+    }
+
+    fn fee_url(&self) -> reqwest::Url {
+        self.stacks_node_url.join("/v2/fees/transfer").unwrap()
     }
 
     fn stx_address(&self) -> StacksAddress {
@@ -135,6 +158,8 @@ mod tests {
         let http_client = reqwest::Client::new();
         
         let mut stacks_client = StacksClient::new(config.stacks_private_key(), config.stacks_node_url, http_client, config.private_key.network).await.unwrap();
+
+        assert_eq!(stacks_client.nonce, 121);
 
         let account_info = stacks_client.get_account_info().await.unwrap();
 
