@@ -14,10 +14,11 @@ use blockstack_lib::{
 
 /// Wrapped Stacks Client which can be shared safely between threads.
 #[derive(Clone, Debug)]
-pub struct LockedClient(Arc<Mutex<LockedClient>>);
+pub struct LockedClient(Arc<Mutex<StacksClient>>);
 
 impl LockedClient {
-    async fn lock<'a>(&'a self) -> MutexGuard<'a, StacksClient> {
+    /// Lock and obtain a handle to the inner stacks client
+    pub async fn lock<'a>(&'a self) -> MutexGuard<'a, StacksClient> {
         todo!();
     }
 }
@@ -36,7 +37,8 @@ pub struct StacksClient {
 }
 
 impl StacksClient {
-    async fn new(
+    /// Create a new StacksClient
+    pub async fn new(
         private_key: StacksPrivateKey,
         stacks_node_url: reqwest::Url,
         http_client: reqwest::Client,

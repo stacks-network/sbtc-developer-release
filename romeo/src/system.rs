@@ -1,10 +1,7 @@
 //! System
 
 use anyhow::anyhow;
-use bdk::bitcoin::secp256k1::Secp256k1;
 use bdk::bitcoin::Txid as BitcoinTxId;
-use blockstack_lib::address::AddressHashMode;
-use blockstack_lib::address::C32_ADDRESS_VERSION_TESTNET_SINGLESIG;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -26,11 +23,8 @@ use blockstack_lib::chainstate::stacks::TransactionSpendingCondition;
 use blockstack_lib::chainstate::stacks::TransactionVersion;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
-use blockstack_lib::types::chainstate::StacksAddress;
 use blockstack_lib::types::chainstate::StacksPrivateKey;
 use blockstack_lib::types::chainstate::StacksPublicKey;
-use blockstack_lib::types::PrivateKey;
-use blockstack_lib::util::hash::Hash160;
 use blockstack_lib::util_lib::strings::StacksString;
 use blockstack_lib::vm::ContractName;
 use tokio::sync::mpsc;
