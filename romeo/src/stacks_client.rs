@@ -3,6 +3,8 @@
 use bdk::bitcoin::{util::uint::Uint128, Network};
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -47,7 +49,6 @@ pub struct StacksClient {
     private_key: StacksPrivateKey,
     stacks_node_url: reqwest::Url,
     http_client: reqwest::Client,
-    nonce: u64,
     network: Network,
 }
 
@@ -64,10 +65,7 @@ impl StacksClient {
             stacks_node_url,
             http_client,
             network,
-            nonce: 0,
         };
-
-        self_.reconcile_nonce().await?;
 
         Ok(self_)
     }
@@ -77,7 +75,7 @@ impl StacksClient {
         &mut self,
         mut tx: StacksTransaction,
     ) -> anyhow::Result<StacksTxId> {
-        tx.set_origin_nonce(self.nonce);
+        tx.set_origin_nonce(self.get_nonce_info().await?.possible_next_nonce);
         tx.set_tx_fee(self.calculate_fee(tx.tx_len()).await?);
 
         tx.anchor_mode = TransactionAnchorMode::Any;
@@ -101,29 +99,13 @@ impl StacksClient {
             .send()
             .await?;
 
-        panic!("{:?}", res.text().await.unwrap());
-
-        // let txid: StacksTxId = res
-        //     .json()
-        //     .await?;
-
-        self.nonce += 1;
-
-        // Ok(txid)
-        todo!()
+        Ok(res.json().await?)
     }
 
-    async fn reconcile_nonce(&mut self) -> anyhow::Result<()> {
-        let account_info = self.get_account_info().await?;
-        self.nonce = account_info.nonce;
-
-        Ok(())
-    }
-
-    async fn get_account_info(&mut self) -> anyhow::Result<AccountInfo> {
+    async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
         Ok(self
             .http_client
-            .get(self.account_url())
+            .get(self.nonce_url())
             .send()
             .await?
             .json()
@@ -146,8 +128,17 @@ impl StacksClient {
         self.stacks_node_url.join("/v2/transactions").unwrap()
     }
 
-    fn account_url(&self) -> reqwest::Url {
-        let path = format!("/v2/accounts/{}", self.stx_address());
+    fn nonce_url(&self) -> reqwest::Url {
+        let mut rng = thread_rng();
+        let random_string: String = (0..16).map(|_| rng.sample(Alphanumeric) as char).collect();
+
+        // We need to make sure node returns the uncached nonce, so we add a cachebuster
+        let path = format!(
+            "/extended/v1/address/{}/nonces?cachebuster={}",
+            self.stx_address(),
+            random_string
+        );
+
         self.stacks_node_url.join(&path).unwrap()
     }
 
@@ -179,21 +170,8 @@ impl StacksClient {
 }
 
 #[derive(serde::Deserialize)]
-struct AccountInfo {
-    #[serde(deserialize_with = "deserialize_balance")]
-    balance: u64,
-    nonce: u64,
-}
-
-fn deserialize_balance<'de, D>(deserializer: D) -> Result<u64, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let buf = String::deserialize(deserializer)?;
-    let bytes = hex::decode(buf.trim_start_matches("0x")).map_err(D::Error::custom)?;
-
-    let val = Uint128::from_be_slice(&bytes).map_err(D::Error::custom)?;
-    Ok(val.low_u64())
+struct NonceInfo {
+    possible_next_nonce: u64,
 }
 
 #[cfg(test)]
@@ -219,12 +197,11 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(stacks_client.nonce, 121);
+        assert_eq!(stacks_client.nonce, 122);
 
-        let account_info = stacks_client.get_account_info().await.unwrap();
+        let nonce_info = stacks_client.get_nonce_info().await.unwrap();
 
-        assert_eq!(account_info.nonce, 121);
-        assert_eq!(account_info.balance, 482115874);
+        assert_eq!(nonce_info.possible_next_nonce, 122);
 
         assert!(true);
     }

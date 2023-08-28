@@ -10,6 +10,7 @@ blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/"
 clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 hex.workspace = true
+rand.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
