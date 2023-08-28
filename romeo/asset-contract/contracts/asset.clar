@@ -33,7 +33,7 @@
 (define-public (mint! (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) (err err-invalid-caller))
-        ;; TODO: Assert deposit-txid exists on chain
+        ;; TODO #79: Assert deposit-txid exists on chain
         (print deposit-txid)
         (ft-mint? sbtc amount dst)
     )
@@ -42,7 +42,7 @@
 (define-public (burn! (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) (err err-invalid-caller))
-        ;; TODO: Assert withdraw-txid exists on chain
+        ;; TODO #79: Assert withdraw-txid exists on chain
         (print withdraw-txid)
         (ft-burn? sbtc amount src)
     )
