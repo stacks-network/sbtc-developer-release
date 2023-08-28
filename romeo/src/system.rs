@@ -43,8 +43,11 @@ pub async fn run(config: Config) {
         config.private_key.network,
     )
     .into();
+
+    tracing::debug!("Starting replay of persisted events");
     let (mut storage, mut state) =
         Storage::load_and_replay(&config, state::State::default()).await;
+    tracing::debug!("Replay finished with state: {:?}", state);
 
     let bootstrap_task = state::bootstrap(&state);
 
@@ -84,8 +87,6 @@ impl Storage {
             .open(config.state_directory.join("log.ndjson"))
             .await
             .unwrap();
-
-        dbg!(file.metadata().await.unwrap().len());
 
         let mut r = BufReader::new(&mut file).lines();
 
