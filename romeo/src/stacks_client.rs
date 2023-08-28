@@ -1,15 +1,18 @@
 //! Stacks client
 
-use bdk::bitcoin::{util::uint::Uint128, Network};
+use anyhow::anyhow;
+use bdk::bitcoin::Network;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use reqwest::{Request, StatusCode};
+use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
+use tracing::trace;
 
-use serde::de::Error;
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::{
@@ -54,20 +57,42 @@ pub struct StacksClient {
 
 impl StacksClient {
     /// Create a new StacksClient
-    pub async fn new(
+    pub fn new(
         private_key: StacksPrivateKey,
         stacks_node_url: reqwest::Url,
         http_client: reqwest::Client,
         network: Network,
-    ) -> anyhow::Result<Self> {
-        let mut self_ = Self {
+    ) -> Self {
+        Self {
             private_key,
             stacks_node_url,
             http_client,
             network,
-        };
+        }
+    }
 
-        Ok(self_)
+    async fn send_request<T>(&mut self, req: Request) -> anyhow::Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let request_url = req.url().to_string();
+        let res = self.http_client.execute(req).await?;
+
+        if res.status() == StatusCode::OK {
+            Ok(res.json::<T>().await?)
+        } else {
+            let details = res.json::<Value>().await?;
+
+            trace!(
+                "Request failure details: {:?}",
+                serde_json::to_string(&details)?
+            );
+
+            Err(anyhow!(format!(
+                "Request not 200: {}: {}",
+                request_url, details["error"]
+            )))
+        }
     }
 
     /// Sign and broadcast an unsigned stacks transaction
@@ -92,14 +117,16 @@ impl StacksClient {
         tx.consensus_serialize(&mut tx_bytes).unwrap();
 
         let res = self
-            .http_client
-            .post(self.transaction_url())
-            .header("Content-type", "application/octet-stream")
-            .body(tx_bytes)
-            .send()
+            .send_request(
+                self.http_client
+                    .post(self.transaction_url())
+                    .header("Content-type", "application/octet-stream")
+                    .body(tx_bytes)
+                    .build()?,
+            )
             .await?;
 
-        Ok(res.json().await?)
+        Ok(res)
     }
 
     async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
@@ -193,14 +220,9 @@ mod tests {
             config.stacks_node_url,
             http_client,
             config.private_key.network,
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(stacks_client.nonce, 122);
+        );
 
         let nonce_info = stacks_client.get_nonce_info().await.unwrap();
-
         assert_eq!(nonce_info.possible_next_nonce, 122);
 
         assert!(true);
@@ -218,9 +240,7 @@ mod tests {
             config.stacks_node_url,
             http_client,
             config.private_key.network,
-        )
-        .await
-        .unwrap();
+        );
 
         stacks_client.calculate_fee(123).await;
     }

@@ -21,6 +21,7 @@ use blockstack_lib::chainstate::stacks::TransactionVersion;
 use blockstack_lib::util_lib::strings::StacksString;
 use blockstack_lib::vm::ContractName;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tracing::debug;
 
 use crate::config::Config;
@@ -36,18 +37,26 @@ use crate::task::Task;
 ///
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
-    let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-
     let client: LockedClient = StacksClient::new(
         config.stacks_private_key(),
         config.stacks_node_url.clone(),
         reqwest::Client::new(),
         config.private_key.network,
     )
-    .await
-    .unwrap()
     .into();
+
+    let bootstrap = || {
+        spawn(
+            config.clone(),
+            client.clone(),
+            Task::CreateAssetContract,
+            tx.clone(),
+        );
+    };
+
+    let (mut storage, mut state) =
+        Storage::load_and_replay(&config, state::State::default(), bootstrap).await;
 
     // Bootstrap
     spawn(
@@ -73,7 +82,11 @@ pub async fn run(config: Config) {
 struct Storage(BufWriter<File>);
 
 impl Storage {
-    async fn load_and_replay(config: &Config, mut state: state::State) -> (Self, state::State) {
+    async fn load_and_replay<F: FnOnce() -> JoinHandle<()>>(
+        config: &Config,
+        mut state: state::State,
+        bootstrap: F,
+    ) -> (Self, state::State) {
         let mut file = OpenOptions::new()
             .create(true)
             .read(true)
@@ -82,6 +95,8 @@ impl Storage {
             .open(config.state_directory.join("log.ndjson"))
             .await
             .unwrap();
+
+        dbg!(file.metadata().await.unwrap().len());
 
         let mut r = BufReader::new(&mut file).lines();
 
@@ -107,7 +122,7 @@ fn spawn(
     client: LockedClient,
     task: Task,
     result: mpsc::Sender<Event>,
-) -> tokio::task::JoinHandle<()> {
+) -> JoinHandle<()> {
     debug!("Spawning task");
 
     tokio::task::spawn(async move {
@@ -138,7 +153,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     );
     let tx_payload = TransactionPayload::SmartContract(
         TransactionSmartContract {
-            name: ContractName::from("sbtc-alpha-romeo123"),
+            name: ContractName::from("sbtc-alpha-romeo321"),
             code_body: StacksString::from_string(&contract_bytes).unwrap(),
         },
         None,
