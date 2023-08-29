@@ -6,6 +6,7 @@ use bdk::bitcoin::secp256k1;
 use bdk::esplora_client;
 
 /// Facilitates communication with a Bitcoin esplora server
+#[derive(Debug, Clone)]
 pub struct BitcoinClient {
     client: esplora_client::AsyncClient,
     private_key: bitcoin::PrivateKey,
