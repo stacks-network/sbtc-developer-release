@@ -5,6 +5,8 @@ use bdk::bitcoin::schnorr;
 use bdk::bitcoin::secp256k1;
 use bdk::esplora_client;
 
+use crate::event;
+
 /// Facilitates communication with a Bitcoin esplora server
 #[derive(Debug, Clone)]
 pub struct BitcoinClient {
@@ -29,8 +31,21 @@ impl BitcoinClient {
     }
 
     /// Get the status of a transaction
-    pub async fn get_tx_status(&self, txid: &bitcoin::Txid) -> anyhow::Result<Option<esplora_client::TxStatus>> {
-        Ok(self.client.get_tx_status(txid).await?)
+    pub async fn get_tx_status(
+        &self,
+        txid: &bitcoin::Txid,
+    ) -> anyhow::Result<event::TransactionStatus> {
+        let status = self.client.get_tx_status(txid).await?;
+
+        Ok(match status {
+            Some(esplora_client::TxStatus {
+                confirmed: true, ..
+            }) => event::TransactionStatus::Confirmed,
+            Some(esplora_client::TxStatus {
+                confirmed: false, ..
+            }) => event::TransactionStatus::Broadcasted,
+            None => event::TransactionStatus::Rejected,
+        })
     }
 
     /// Fetch a block at the given block height.
@@ -46,7 +61,7 @@ impl BitcoinClient {
             current_height = self.client.get_height().await?;
         }
 
-        let block_summaries = self.client.get_blocks(Some(block_height as u32)).await?;
+        let block_summaries = self.client.get_blocks(Some(block_height)).await?;
         let block_summary = block_summaries
             .first()
             .ok_or_else(|| anyhow::anyhow!("Could not find block at given block height"))?;
@@ -95,7 +110,8 @@ mod tests {
         let config =
             Config::from_path("./testing/config.json").expect("Failed to find config file");
 
-        let bitcoin_client = BitcoinClient::new("https://blockstream.info/testnet/api", config.private_key).unwrap();
+        let bitcoin_client =
+            BitcoinClient::new("https://blockstream.info/testnet/api", config.private_key).unwrap();
 
         let block_height = bitcoin_client.get_height().await.unwrap();
         let block = bitcoin_client.fetch_block(block_height).await.unwrap();
