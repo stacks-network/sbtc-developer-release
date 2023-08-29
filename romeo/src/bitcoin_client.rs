@@ -50,6 +50,7 @@ impl BitcoinClient {
         let mut current_height = self.client.get_height().await?;
 
         while current_height < block_height {
+            tracing::debug!("Polling: {}", current_height);
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             current_height = self.client.get_height().await?;
         }
@@ -65,6 +66,36 @@ impl BitcoinClient {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Found no block for the given block hash"))?;
 
+        tracing::debug!("Fetched block");
         Ok(block)
+    }
+
+    /// Get the current height of the Bitcoin chain
+    pub async fn get_height(&self) -> anyhow::Result<u32> {
+        Ok(self.client.get_height().await?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::Config;
+
+    use super::*;
+
+    // These integration tests are for exploration/experimentation but should be removed once we have more decent tests
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore]
+    async fn get_block() {
+        let config =
+            Config::from_path("./testing/config.json").expect("Failed to find config file");
+
+        let bitcoin_client = BitcoinClient::new("https://blockstream.info/testnet/api", config.private_key).unwrap();
+
+        let block_height = bitcoin_client.get_height().await.unwrap();
+        let block = bitcoin_client.fetch_block(block_height).await.unwrap();
+
+        println!("Block: {:?}", block);
+
+        assert!(block.txdata.len() > 10);
     }
 }
