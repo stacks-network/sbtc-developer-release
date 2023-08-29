@@ -45,6 +45,7 @@ use std::{collections::HashMap, io};
 
 use bdk::{
     bitcoin::{
+        blockdata::opcodes::all::OP_RETURN, blockdata::script::Instruction,
         psbt::PartiallySignedTransaction, Address as BitcoinAddress, Network, PrivateKey,
         Transaction,
     },
@@ -93,14 +94,80 @@ pub fn build_deposit_transaction<T: BatchDatabase>(
         .finish()
         .map_err(|err| SBTCError::BDKError("Could not finish the transaction", err))?;
 
-    partial_tx.unsigned_tx.output =
-        reorder_outputs(partial_tx.unsigned_tx.output.into_iter(), outputs);
+    partial_tx.unsigned_tx.output = reorder_outputs(partial_tx.unsigned_tx.output, outputs);
 
     wallet
         .sign(&mut partial_tx, SignOptions::default())
         .map_err(|err| SBTCError::BDKError("Could not sign the transaction", err))?;
 
     Ok(partial_tx.extract_tx())
+}
+
+#[derive(Debug, Clone)]
+/// The amount and recipient of a deposit request
+pub struct Deposit {
+    /// Amount of BTC to deposit
+    pub amount: u64,
+    /// Recipient to receive freshly minted sBTC
+    pub recipient: PrincipalData,
+    /// The address where the BTC was deposited
+    pub sbtc_wallet_address: BitcoinAddress,
+    /// Network which the transaction is on
+    pub network: Network,
+}
+
+impl Deposit {
+    /// Parse a deposit from a transaction
+    pub fn parse(network: Network, tx: Transaction) -> Result<Self, DepositParseError> {
+        let mut output_iter = tx.output.into_iter();
+
+        let data_output = output_iter
+            .next()
+            .ok_or(DepositParseError::InvalidOutputs)?;
+
+        let mut instructions_iter = data_output.script_pubkey.instructions();
+
+        let Some(Ok(Instruction::Op(OP_RETURN))) = instructions_iter.next() else {
+            return Err(DepositParseError::NotSbtcOp);
+        };
+
+        let Some(Ok(Instruction::PushBytes(mut data))) =  instructions_iter.next() else {
+            return Err(DepositParseError::NotSbtcOp)
+        };
+
+        let deposit_data = DepositOutputData::codec_deserialize(&mut data)
+            .map_err(|_| DepositParseError::NotSbtcOp)?;
+
+        let amount_output = output_iter
+            .next()
+            .ok_or(DepositParseError::InvalidOutputs)?;
+
+        let amount = amount_output.value;
+        let address = BitcoinAddress::from_script(&amount_output.script_pubkey, network)?;
+
+        Ok(Self {
+            amount,
+            recipient: deposit_data.recipient,
+            sbtc_wallet_address: address,
+            network,
+        })
+    }
+}
+
+#[derive(thiserror::Error, Clone, Debug, Eq, PartialEq)]
+/// Errors occuring when parsing deposits
+pub enum DepositParseError {
+    /// Missing expected output
+    #[error("Missing an expected output")]
+    InvalidOutputs,
+
+    /// Doesn't contain an OP_RETURN with the right opcode
+    #[error("Not an sBTC operation")]
+    NotSbtcOp,
+
+    /// Could not build address from script pubkey
+    #[error(transparent)]
+    AddressError(#[from] bdk::bitcoin::util::address::Error),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -308,6 +375,45 @@ mod tests {
                 DepositOutputData::deserialize(&mut serialized_data.as_slice()).unwrap();
 
             assert_eq!(deserialized_data, expected_data);
+        }
+    }
+
+    #[test]
+    fn deposit_parse_should_succeed_given_a_valid_transaction() {
+        let recipient: StacksAddress = "ST3RBZ4TZ3EK22SZRKGFZYBCKD7WQ5B8FFRS57TT6"
+            .try_into()
+            .unwrap();
+        let recipient: PrincipalData = recipient.into();
+
+        let assertions = [
+            DepositParseScenario {
+                given_tx_hex: "010000000001019131d69f4616c2a17f3d2519a3dc697136a56846794e677982f565f79295e0370100000000feffffff0300000000000000001b6a1954323c051af0bf935f1ba62167f89c1fff2d9369f972ad0f7e6e0a020000000000225120b85fdda4ae0f69883280360a9b91555a2f23c5b9e34173fabec5d903416c2aaf7b850800000000001600147c969cfcab0d2ad171aa3f201c94b51b0e8eca6602473044022036663b723c79333f9c8b7d5d9db3b6cd301fc6bf82515e62303713eb69b4d18d0220548939af6e1d86fcf8a54da1f6942f25f36ed0488a0d3616c47daa49f59bc7b601210215bd6d522931e602fde924571eb472bc1db953484b29ba6542774ebbf083412329c62500",
+                expected_amount: 133742,
+                expected_recipient: recipient.clone(),
+            }
+        ];
+
+        for assertion in assertions {
+            assertion.assert()
+        }
+    }
+
+    struct DepositParseScenario {
+        given_tx_hex: &'static str,
+        expected_amount: u64,
+        expected_recipient: PrincipalData,
+    }
+
+    impl DepositParseScenario {
+        fn assert(&self) {
+            use bdk::bitcoin::consensus::encode;
+
+            let data = hex::decode(self.given_tx_hex).unwrap();
+            let tx: Transaction = encode::deserialize(&data).unwrap();
+            let deposit = Deposit::parse(Network::Testnet, tx).unwrap();
+
+            assert_eq!(deposit.amount, self.expected_amount);
+            assert_eq!(deposit.recipient, self.expected_recipient);
         }
     }
 }

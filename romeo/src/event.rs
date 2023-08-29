@@ -8,7 +8,8 @@ use crate::state::WithdrawalInfo;
 
 /// Events are spawned from tasks and used
 /// to update the system state.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, derivative::Derivative)]
+#[derivative(Debug)]
 pub enum Event {
     /// A mint transaction has been created and broadcasted
     MintCreated(DepositInfo, StacksTxId),
@@ -29,7 +30,7 @@ pub enum Event {
     BitcoinTransactionUpdate(BitcoinTxId, TransactionStatus),
 
     /// A wild bitcoin block has appeared
-    BitcoinBlock(Block),
+    BitcoinBlock(#[derivative(Debug = "ignore")] Block),
 }
 
 /// Status of a broadcasted transaction, useful for implementing retry logic

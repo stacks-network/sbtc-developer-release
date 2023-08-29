@@ -1,9 +1,14 @@
 //! State
 
+use std::io::Cursor;
+
 use bdk::bitcoin::{Address as BitcoinAddress, Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
+use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::types::chainstate::StacksAddress;
-use blockstack_lib::vm::ContractName;
+use blockstack_lib::vm::types::PrincipalData;
+use sbtc_core::operations::op_return;
+use stacks_core::codec::Codec;
 use tracing::debug;
 
 use crate::config::Config;
@@ -17,18 +22,18 @@ pub struct State {
     contract: Option<Response<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
-    block_height: u64,
+    block_height: Option<u32>,
 }
 
+/// A parsed deposit
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Deposit {
+pub struct Deposit {
     info: DepositInfo,
     mint: Option<Response<StacksTxId>>,
-    mint_pending: bool,
 }
 
 /// Relevant information for processing deposits
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DepositInfo {
     /// ID of the bitcoin deposit transaction
     pub txid: BitcoinTxId,
@@ -37,18 +42,31 @@ pub struct DepositInfo {
     pub amount: u64,
 
     /// Recipient of the sBTC
-    pub recipient: StacksAddress,
+    pub recipient: PrincipalData,
 
-    /// Name of the contract where the funds should be minted
-    pub contract_name: ContractName,
-
-    /// Height of the Bitcoin blockchain where this tx is included
-    pub block_height: u64,
+    /// Height of the Bitcoin blockchain where this deposit transaction exists
+    pub block_height: u32,
 }
 
 impl Deposit {
-    fn mint(&mut self, _block_height: u64) -> Option<Task> {
-        todo!();
+    fn mint(&self) -> Option<Task> {
+        match self.mint.as_ref() {
+            Some(Response {
+                status: TransactionStatus::Broadcasted,
+                txid,
+            }) => Some(Task::CheckStacksTransactionStatus(*txid)),
+            // TODO: Think about removing deposits at this stage #99
+            Some(Response {
+                status: TransactionStatus::Confirmed,
+                ..
+            }) => None,
+            Some(Response {
+                status: TransactionStatus::Rejected,
+                ..
+            }) => panic!("Mint transaction rejected"),
+            // TODO: Confirm that the deposit wallet is correct
+            None => Some(Task::CreateMint(self.info.clone())),
+        }
     }
 }
 
@@ -57,26 +75,34 @@ struct Withdrawal {
     info: WithdrawalInfo,
     burn: Option<Response<StacksTxId>>,
     fulfillment: Option<Response<BitcoinTxId>>,
-    burn_pending: bool,
-    fulfillment_pending: bool,
 }
 
 /// Relevant information for processing withdrawals
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WithdrawalInfo {
+    /// ID of the bitcoin withdrawal request transaction
     txid: BitcoinTxId,
+
+    /// Amount to withdraw
     amount: u64,
+
+    /// Where to withdraw sBTC from
     source: StacksAddress,
+
+    /// Recipient of the BTC
     recipient: BitcoinAddress,
-    block_height: u64,
+
+    /// Height of the Bitcoin blockchain where this withdrawal request
+    /// transaction exists
+    block_height: u32,
 }
 
 impl Withdrawal {
-    fn burn(&mut self, _block_height: u64) -> Option<Task> {
+    fn burn(&self) -> Option<Task> {
         todo!();
     }
 
-    fn fulfill(&mut self, _block_height: u64) -> Option<Task> {
+    fn fulfill(&self) -> Option<Task> {
         todo!();
     }
 }
@@ -105,7 +131,7 @@ where
 pub fn bootstrap(state: &State) -> Task {
     match state.contract {
         None => Task::CreateAssetContract,
-        Some(_) => Task::FetchBitcoinBlock(state.block_height),
+        Some(_) => Task::FetchBitcoinBlock(get_next_block_height(state.block_height)),
     }
 }
 
@@ -125,50 +151,105 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
         }
         Event::BitcoinBlock(block) => process_bitcoin_block(config, state, block),
         Event::AssetContractCreated(txid) => process_asset_contract_created(config, state, txid),
+        Event::MintCreated(deposit_info, txid) => process_mint_created(state, deposit_info, txid),
         event => panic!("Cannot handle yet: {:?}", event),
     }
 }
 
-fn process_bitcoin_block(_config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
-    let deposits = parse_deposits(&block);
+fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
+    let deposits = parse_deposits(config, &block);
     let withdrawals = parse_withdrawals(&block);
 
     state.deposits.extend_from_slice(&deposits);
     state.withdrawals.extend_from_slice(&withdrawals);
 
-    state.block_height = block
+    let new_block_height = block
         .bip34_block_height()
-        .expect("Failed to get block height");
+        .expect("Failed to get block height") as u32;
 
-    let mut tasks = vec![Task::FetchBitcoinBlock(state.block_height + 1)];
+    state.block_height = Some(new_block_height);
 
-    let mint_tasks = state
-        .deposits
-        .iter_mut()
-        .filter_map(|deposit| deposit.mint(state.block_height));
+    let mut tasks = create_transaction_status_update_requests(&state);
+    tasks.push(Task::FetchBitcoinBlock(get_next_block_height(
+        state.block_height,
+    )));
 
-    let withdrawals = &mut state.withdrawals;
+    (state, tasks)
+}
 
-    let burn_tasks: Vec<_> = withdrawals
-        .iter_mut()
-        .filter_map(|withdrawal| withdrawal.burn(state.block_height))
+fn create_transaction_status_update_requests(state: &State) -> Vec<Task> {
+    match state.contract {
+        Some(Response {
+            status: TransactionStatus::Broadcasted,
+            txid,
+        }) => vec![Task::CheckStacksTransactionStatus(txid)],
+        Some(Response {
+            status: TransactionStatus::Confirmed,
+            ..
+        }) => create_transaction_status_update_tasks(state),
+        Some(Response {
+            status: TransactionStatus::Rejected,
+            ..
+        }) => panic!("Contract creation transaction rejected"),
+        None => vec![],
+    }
+}
+
+fn create_transaction_status_update_tasks(state: &State) -> Vec<Task> {
+    let mut tasks = vec![];
+
+    let mint_tasks = state.deposits.iter().filter_map(|deposit| deposit.mint());
+
+    let burn_tasks: Vec<_> = state
+        .withdrawals
+        .iter()
+        .filter_map(|withdrawal| withdrawal.burn())
         .collect();
 
-    let fulfillment_tasks: Vec<_> = withdrawals
-        .iter_mut()
-        .filter_map(|withdrawal| withdrawal.fulfill(state.block_height))
+    let fulfillment_tasks: Vec<_> = state
+        .withdrawals
+        .iter()
+        .filter_map(|withdrawal| withdrawal.fulfill())
         .collect();
 
     tasks.extend(mint_tasks);
     tasks.extend(burn_tasks);
     tasks.extend(fulfillment_tasks);
 
-    (state, tasks)
+    tasks
 }
 
-fn parse_deposits(_block: &Block) -> Vec<Deposit> {
-    // TODO: #67
-    vec![]
+fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
+    let block_height = block
+        .bip34_block_height()
+        .expect("Failed to get block height") as u32;
+
+    block
+        .txdata
+        .iter()
+        .cloned()
+        .filter_map(|tx| {
+            let txid = tx.txid();
+
+            op_return::deposit::Deposit::parse(config.private_key.network, tx)
+                .ok()
+                .map(|parsed_deposit| Deposit {
+                    info: DepositInfo {
+                        txid,
+                        amount: parsed_deposit.amount,
+                        recipient: convert_principal_data(parsed_deposit.recipient),
+                        block_height,
+                    },
+                    mint: None,
+                })
+        })
+        .collect()
+}
+
+fn convert_principal_data(data: stacks_core::utils::PrincipalData) -> PrincipalData {
+    let bytes = data.serialize_to_vec();
+
+    PrincipalData::consensus_deserialize(&mut Cursor::new(bytes)).unwrap()
 }
 
 fn parse_withdrawals(_block: &Block) -> Vec<Withdrawal> {
@@ -197,6 +278,19 @@ fn process_stacks_transaction_update(
         panic!("Stacks transaction failed");
     }
 
+    let tasks = if let Some(contract) = state.contract.as_ref() {
+        if contract.txid == txid
+            && contract.status == TransactionStatus::Broadcasted
+            && state.block_height.is_none()
+        {
+            vec![Task::FetchBitcoinBlock(None)]
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
     let contract_response = state.contract.as_mut().into_iter();
 
     let deposit_responses = state
@@ -223,7 +317,7 @@ fn process_stacks_transaction_update(
         );
     }
 
-    (state, vec![])
+    (state, tasks)
 }
 
 fn process_asset_contract_created(
@@ -231,7 +325,6 @@ fn process_asset_contract_created(
     mut state: State,
     txid: StacksTxId,
 ) -> (State, Vec<Task>) {
-    // TODO: #73
     state.contract = Some(Response {
         txid,
         status: TransactionStatus::Broadcasted,
@@ -240,4 +333,32 @@ fn process_asset_contract_created(
     let task = Task::CheckStacksTransactionStatus(txid);
 
     (state, vec![task])
+}
+
+fn process_mint_created(
+    mut state: State,
+    deposit_info: DepositInfo,
+    txid: StacksTxId,
+) -> (State, Vec<Task>) {
+    let deposit = state
+        .deposits
+        .iter_mut()
+        .find(|deposit| deposit.info == deposit_info)
+        .expect("Could not find a deposit for the mint");
+
+    assert!(
+        deposit.mint.is_none(),
+        "Newly minted deposit already has a mint"
+    );
+
+    deposit.mint = Some(Response {
+        txid,
+        status: TransactionStatus::Broadcasted,
+    });
+
+    (state, vec![])
+}
+
+fn get_next_block_height(height: Option<u32>) -> Option<u32> {
+    height.map(|height| height + 1)
 }
