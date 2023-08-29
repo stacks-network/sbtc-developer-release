@@ -9,7 +9,7 @@ use crate::{
     signer::coordinator::{Coordinate, PublicKeys, Reveal},
     SBTCResult,
 };
-use bitcoin::{Address, Network, PrivateKey, PublicKey, Transaction as BitcoinTransaction};
+use bdk::bitcoin::{Address, Network, PrivateKey, PublicKey, Transaction as BitcoinTransaction};
 use p256k1::ecdsa;
 use url::Url;
 

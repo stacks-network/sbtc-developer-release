@@ -6,7 +6,8 @@ pub mod roast;
 use std::collections::HashMap;
 
 use crate::SBTCResult;
-use bitcoin::{util::taproot::TaprootSpendInfo, PublicKey, Transaction as BitcoinTransaction};
+
+use bdk::bitcoin::{util::taproot::TaprootSpendInfo, PublicKey, Transaction as BitcoinTransaction};
 use p256k1::ecdsa;
 use wsts::{bip340::SchnorrProof, common::Signature};
 
@@ -22,10 +23,10 @@ pub struct PublicKeys {
 }
 
 /// TODO: Define the Message types for DKG round
-/// https://github.com/stacks-network/sbtc/issues/42
+/// <https://github.com/stacks-network/sbtc/issues/42>
 
 /// TODO: Define the Message types for Tx Signning Round
-/// https://github.com/stacks-network/sbtc/issues/43
+/// <https://github.com/stacks-network/sbtc/issues/43>
 
 /// An sBTC transaction needing to be processed by the coordinator
 /// TODO: replace with the core library's SBTCTransaction

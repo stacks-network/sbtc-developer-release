@@ -12,6 +12,7 @@ version = "0.1.0"
 website = "https://www.stacks.co"
 
 [dependencies]
+bdk.workspace = true
 bitcoin.workspace = true
 hex.workspace = true
 once_cell.workspace = true

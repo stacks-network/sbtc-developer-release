@@ -1,4 +1,4 @@
-use bitcoin::Address as BitcoinAddress;
+use bdk::bitcoin::Address as BitcoinAddress;
 use secp256k1::PublicKey;
 use stacks_core::address::StacksAddress;
 

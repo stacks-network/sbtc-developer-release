@@ -4,7 +4,7 @@ members = ["sbtc-core", "stacks-core", "romeo"]
 [workspace.dependencies]
 anyhow = "1.0"
 array-bytes = "6.1.0"
-bdk = "0.28.0"
+bdk = "0.28.1"
 bitcoin = "0.29.2"
 clap = "4.1.1"
 futures = "0.3.28"

@@ -4,10 +4,11 @@
 # stacks-core library: a library for interacting with the Stacks protocol
 */
 
-use std::array::TryFromSliceError;
+use std::{array::TryFromSliceError, io};
 
-use codec::CodecError;
+use codec::{Codec, CodecError};
 use thiserror::Error;
+use uint::Uint256;
 
 /// Module for interacting with stacks addresses
 pub mod address;
@@ -53,3 +54,26 @@ pub enum StacksError {
 
 /// Result type for the stacks-core library
 pub type StacksResult<T> = Result<T, StacksError>;
+
+/// A stacks block ID
+pub struct BlockId(Uint256);
+
+impl BlockId {
+    /// Creates a new StacksBlockId from a slice of bytes
+    pub fn new(number: Uint256) -> StacksResult<Self> {
+        Ok(Self(number))
+    }
+}
+
+impl Codec for BlockId {
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
+        self.0.codec_serialize(dest)
+    }
+
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(Self(Uint256::codec_deserialize(data)?))
+    }
+}
