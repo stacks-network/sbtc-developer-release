@@ -6,6 +6,7 @@
 //! and respond the same way the final sBTC system is intended to.
 #![forbid(missing_docs)]
 
+pub mod bitcoin_client;
 pub mod config;
 pub mod event;
 pub mod stacks_client;
