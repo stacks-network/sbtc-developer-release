@@ -1,11 +1,9 @@
 //! State
 
-use bdk::bitcoin::{
-    Address as BitcoinAddress, Block, Transaction as BitcoinTransaction, Txid as BitcoinTxId,
-};
+use bdk::bitcoin::{Address as BitcoinAddress, Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
-use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::types::chainstate::StacksAddress;
+use blockstack_lib::vm::ContractName;
 use tracing::debug;
 
 use crate::config::Config;
@@ -16,22 +14,16 @@ use crate::task::Task;
 /// The whole state of the application
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
-    contract: Option<Contract>,
+    contract: Option<Response<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
     block_height: u64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Contract {
-    txid: StacksTxId,
-    status: TransactionStatus,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Deposit {
     info: DepositInfo,
-    mint: Option<Response<StacksTransaction>>,
+    mint: Option<Response<StacksTxId>>,
     mint_pending: bool,
 }
 
@@ -47,6 +39,9 @@ pub struct DepositInfo {
     /// Recipient of the sBTC
     pub recipient: StacksAddress,
 
+    /// Name of the contract where the funds should be minted
+    pub contract_name: ContractName,
+
     /// Height of the Bitcoin blockchain where this tx is included
     pub block_height: u64,
 }
@@ -60,8 +55,8 @@ impl Deposit {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Withdrawal {
     info: WithdrawalInfo,
-    burn: Option<Response<StacksTransaction>>,
-    fulfillment: Option<Response<BitcoinTransaction>>,
+    burn: Option<Response<StacksTxId>>,
+    fulfillment: Option<Response<BitcoinTxId>>,
     burn_pending: bool,
     fulfillment_pending: bool,
 }
@@ -88,8 +83,22 @@ impl Withdrawal {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Response<T> {
-    tx: T,
+    txid: T,
     status: TransactionStatus,
+}
+
+impl<T> Response<T>
+where
+    T: PartialEq + Eq,
+{
+    fn update_status(&mut self, txid: T, status: TransactionStatus) -> bool {
+        if self.txid == txid {
+            self.status = status;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 /// Spawn initial tasks given a recovered state
@@ -180,11 +189,40 @@ fn process_bitcoin_transaction_update(
 
 fn process_stacks_transaction_update(
     _config: &Config,
-    state: State,
-    _txid: StacksTxId,
-    _status: TransactionStatus,
+    mut state: State,
+    txid: StacksTxId,
+    status: TransactionStatus,
 ) -> (State, Vec<Task>) {
-    // TODO: #73 and #68
+    if status == TransactionStatus::Rejected {
+        panic!("Stacks transaction failed");
+    }
+
+    let contract_response = state.contract.as_mut().into_iter();
+
+    let deposit_responses = state
+        .deposits
+        .iter_mut()
+        .filter_map(|deposit| deposit.mint.as_mut());
+
+    let withdrawal_responses = state
+        .withdrawals
+        .iter_mut()
+        .filter_map(|withdrawal| withdrawal.burn.as_mut());
+
+    let statuses_updated: usize = std::iter::empty()
+        .chain(contract_response)
+        .chain(deposit_responses)
+        .chain(withdrawal_responses)
+        .map(|response| response.update_status(txid, status.clone()) as usize)
+        .sum();
+
+    if statuses_updated != 1 {
+        panic!(
+            "Unexpected number of statuses updated: {}",
+            statuses_updated
+        );
+    }
+
     (state, vec![])
 }
 
@@ -194,7 +232,7 @@ fn process_asset_contract_created(
     txid: StacksTxId,
 ) -> (State, Vec<Task>) {
     // TODO: #73
-    state.contract = Some(Contract {
+    state.contract = Some(Response {
         txid,
         status: TransactionStatus::Broadcasted,
     });

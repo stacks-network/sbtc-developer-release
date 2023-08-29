@@ -5,8 +5,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use bdk::bitcoin::PrivateKey;
-use blockstack_lib::types::chainstate::{StacksPrivateKey, StacksPublicKey};
+use bdk::bitcoin::{self, PrivateKey};
+use blockstack_lib::{
+    address::{
+        AddressHashMode, C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
+        C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
+    },
+    types::chainstate::{StacksAddress, StacksPrivateKey, StacksPublicKey},
+};
 use clap::Parser;
 
 /// sBTC Alpha Romeo
@@ -80,6 +86,29 @@ impl Config {
     /// Stacks public key corresponding to the private key
     pub fn stacks_public_key(&self) -> StacksPublicKey {
         StacksPublicKey::from_private(&self.stacks_private_key())
+    }
+
+    /// Stacks address version corresponding to the network
+    fn address_version(&self) -> u8 {
+        match self.private_key.network {
+            bitcoin::Network::Bitcoin => C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
+            bitcoin::Network::Testnet => C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
+            _ => panic!("Unsupported network"),
+        }
+    }
+
+    /// Stacks address corresponding to the private key
+    pub fn stacks_address(&self) -> StacksAddress {
+        let address_version = self.address_version();
+        let hash_mode = AddressHashMode::SerializeP2PKH;
+
+        StacksAddress::from_public_keys(
+            address_version,
+            &hash_mode,
+            1,
+            &vec![self.stacks_public_key()],
+        )
+        .unwrap()
     }
 }
 
