@@ -45,8 +45,9 @@ use std::{collections::HashMap, io};
 
 use bdk::{
     bitcoin::{
-        network::Address, psbt::PartiallySignedTransaction, Address as BitcoinAddress, Network,
-        PrivateKey, Transaction, blockdata::script::Instruction, blockdata::{opcodes as btc_opcodes, self}
+        blockdata::opcodes::all::OP_RETURN, blockdata::script::Instruction,
+        psbt::PartiallySignedTransaction, Address as BitcoinAddress, Network, PrivateKey,
+        Transaction, TxOut,
     },
     database::{BatchDatabase, MemoryDatabase},
     SignOptions, Wallet,
@@ -117,37 +118,51 @@ pub struct Deposit {
 }
 
 impl Deposit {
-    fn parse(tx: &Transaction) -> Result<Self, DepositParseError> {
-        let mut output_iter = tx.output.into_iter();
-        let data_output = output_iter.next().ok_or(DepositParseError::MissingOutput)?;
-        let amount_output = output_iter.next().ok_or(DepositParseError::MissingOutput)?;
+    fn parse(network: Network, tx: Transaction) -> Result<Self, DepositParseError> {
+        let [data_output, amount_output]: [TxOut; 2] = tx
+            .output
+            .try_into()
+            .map_err(|_| DepositParseError::InvalidOutputs)?;
 
         let mut instructions_iter = data_output.script_pubkey.instructions();
-        if instructions_iter.next().ok_or(DepositParseError::NotSbtcOp)?? != Instruction::Op(btc_opcodes::all::OP_RETURN) {
-            return Err(DepositParseError::NotSbtcOp)
+
+        if let Some(Ok(Instruction::Op(OP_RETURN))) = instructions_iter.next() {
+            return Err(DepositParseError::NotSbtcOp);
         }
 
-        let amount = amount_output.value;
-        let address = BitcoinAddress::from_script(&amount_output.script_pubkey, network)
+        let Some(Ok(Instruction::PushBytes(mut data))) =  instructions_iter.next() else {
+            return Err(DepositParseError::NotSbtcOp)
+        };
 
-        todo!();
+        let deposit_data = DepositOutputData::codec_deserialize(&mut data)
+            .map_err(|_| DepositParseError::NotSbtcOp)?;
+
+        let amount = amount_output.value;
+        let address = BitcoinAddress::from_script(&amount_output.script_pubkey, network)?;
+
+        Ok(Self {
+            amount,
+            recipient: deposit_data.recipient,
+            sbtc_wallet_address: address,
+            network,
+        })
     }
 }
-
 
 #[derive(thiserror::Error, Clone, Debug, Eq, PartialEq)]
 /// Errors occuring when parsing deposits
 pub enum DepositParseError {
     /// Missing expected output
     #[error("Missing an expected output")]
-    MissingOutput,
+    InvalidOutputs,
 
     /// Doesn't contain an OP_RETURN with the right opcode
     #[error("Not an sBTC operation")]
     NotSbtcOp,
 
+    /// Could not build address from script pubkey
     #[error(transparent)]
-    BlockdataError(#[from] blockdata::script::Error),
+    AddressError(#[from] bdk::bitcoin::util::address::Error),
 }
 
 #[derive(PartialEq, Eq, Debug)]
