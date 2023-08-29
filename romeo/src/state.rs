@@ -14,16 +14,10 @@ use crate::task::Task;
 /// The whole state of the application
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
-    contract: Option<Contract>,
+    contract: Option<Response<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
     block_height: u64,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Contract {
-    txid: StacksTxId,
-    status: TransactionStatus,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -89,8 +83,22 @@ impl Withdrawal {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Response<T> {
-    tx: T,
+    txid: T,
     status: TransactionStatus,
+}
+
+impl<T> Response<T>
+where
+    T: PartialEq + Eq,
+{
+    fn update_status(&mut self, txid: T, status: TransactionStatus) -> bool {
+        if self.txid == txid {
+            self.status = status;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 /// Spawn initial tasks given a recovered state
@@ -185,59 +193,35 @@ fn process_stacks_transaction_update(
     txid: StacksTxId,
     status: TransactionStatus,
 ) -> (State, Vec<Task>) {
-    // TODO: #73 and #68
-
     if status == TransactionStatus::Rejected {
         panic!("Stacks transaction failed");
     }
 
-    let mut txids_and_statuses = vec![];
+    let contract_response = state.contract.as_mut().into_iter();
 
-    // Add contract
-    if let Some(txid_and_status) = state
-        .contract
-        .as_mut()
-        .map(|contract| (&contract.txid, &mut contract.status))
-    {
-        txids_and_statuses.push(txid_and_status);
-    };
-
-    // Add mints
-    state
+    let deposit_responses = state
         .deposits
         .iter_mut()
-        .filter_map(|deposit| deposit.mint.as_mut().map(|res| (&res.tx, &mut res.status)))
-        .for_each(|txid_and_status| {
-            txids_and_statuses.push(txid_and_status);
-        });
+        .filter_map(|deposit| deposit.mint.as_mut());
 
-    // Add burns
-    state
+    let withdrawal_responses = state
         .withdrawals
         .iter_mut()
-        .filter_map(|withdrawal| {
-            withdrawal
-                .burn
-                .as_mut()
-                .map(|res| (&res.tx, &mut res.status))
-        })
-        .for_each(|txid_and_status| {
-            txids_and_statuses.push(txid_and_status);
-        });
+        .filter_map(|withdrawal| withdrawal.burn.as_mut());
 
-    // Find the transaction state to update
-    let status_to_update = txids_and_statuses
-        .into_iter()
-        .find_map(|(txid_inner, status)| {
-            if txid_inner == &txid {
-                Some(status)
-            } else {
-                None
-            }
-        })
-        .expect("Could not find Stacks transaction to update state");
+    let statuses_updated: usize = std::iter::empty()
+        .chain(contract_response)
+        .chain(deposit_responses)
+        .chain(withdrawal_responses)
+        .map(|response| response.update_status(txid, status.clone()) as usize)
+        .sum();
 
-    *status_to_update = status;
+    if statuses_updated != 1 {
+        panic!(
+            "Unexpected number of statuses updated: {}",
+            statuses_updated
+        );
+    }
 
     (state, vec![])
 }
@@ -248,7 +232,7 @@ fn process_asset_contract_created(
     txid: StacksTxId,
 ) -> (State, Vec<Task>) {
     // TODO: #73
-    state.contract = Some(Contract {
+    state.contract = Some(Response {
         txid,
         status: TransactionStatus::Broadcasted,
     });
