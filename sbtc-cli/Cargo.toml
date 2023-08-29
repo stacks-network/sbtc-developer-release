@@ -14,6 +14,7 @@ serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true
 stacks-core.path = "../stacks-core"
+sbtc-core.path = "../sbtc-core"
 
 [[bin]]
 name = "sbtc"
