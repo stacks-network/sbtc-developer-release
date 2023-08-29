@@ -7,6 +7,8 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::{Request, StatusCode};
 use serde_json::Value;
+use std::io::Cursor;
+use std::slice::from_raw_parts_mut;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::trace;
@@ -19,6 +21,7 @@ use blockstack_lib::chainstate::stacks::{
 };
 
 use crate::config::Config;
+use crate::event::TransactionStatus;
 
 /// Wrapped Stacks Client which can be shared safely between threads.
 #[derive(Clone, Debug)]
@@ -116,6 +119,32 @@ impl StacksClient {
         Ok(res)
     }
 
+    /// Get transaction status for a given txid
+    pub async fn get_transation_status(
+        &mut self,
+        txid: StacksTxId,
+    ) -> anyhow::Result<TransactionStatus> {
+        let res: Value = self
+            .send_request(
+                self.http_client
+                    .get(self.get_transation_details_url(txid))
+                    .header("Accept", "application/json")
+                    .build()?,
+            )
+            .await?;
+
+        let tx_status_str = res["tx_status"]
+            .as_str()
+            .expect("Could not get raw transaction from response");
+
+        Ok(match tx_status_str {
+            "pending" => TransactionStatus::Broadcasted,
+            "success" => TransactionStatus::Confirmed,
+            "abort_by_response" => TransactionStatus::Rejected,
+            status => panic!("Unknown transation status: {}", status),
+        })
+    }
+
     async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
         Ok(self
             .http_client
@@ -142,6 +171,13 @@ impl StacksClient {
         self.config
             .stacks_node_url
             .join("/v2/transactions")
+            .unwrap()
+    }
+
+    fn get_transation_details_url(&self, txid: StacksTxId) -> reqwest::Url {
+        self.config
+            .stacks_node_url
+            .join(&format!("/extended/v1/tx/{}", txid))
             .unwrap()
     }
 

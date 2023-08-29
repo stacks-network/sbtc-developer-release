@@ -32,7 +32,7 @@ struct Contract {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Deposit {
     info: DepositInfo,
-    mint: Option<Response<StacksTransaction>>,
+    mint: Option<Response<StacksTxId>>,
     mint_pending: bool,
 }
 
@@ -64,8 +64,8 @@ impl Deposit {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Withdrawal {
     info: WithdrawalInfo,
-    burn: Option<Response<StacksTransaction>>,
-    fulfillment: Option<Response<BitcoinTransaction>>,
+    burn: Option<Response<StacksTxId>>,
+    fulfillment: Option<Response<BitcoinTxId>>,
     burn_pending: bool,
     fulfillment_pending: bool,
 }
@@ -184,11 +184,64 @@ fn process_bitcoin_transaction_update(
 
 fn process_stacks_transaction_update(
     _config: &Config,
-    state: State,
-    _txid: StacksTxId,
-    _status: TransactionStatus,
+    mut state: State,
+    txid: StacksTxId,
+    status: TransactionStatus,
 ) -> (State, Vec<Task>) {
     // TODO: #73 and #68
+
+    if status == TransactionStatus::Rejected {
+        panic!("Stacks transaction failed");
+    }
+
+    let mut txids_and_statuses = vec![];
+
+    // Add contract
+    if let Some(txid_and_status) = state
+        .contract
+        .as_mut()
+        .map(|contract| (&contract.txid, &mut contract.status))
+    {
+        txids_and_statuses.push(txid_and_status);
+    };
+
+    // Add mints
+    state
+        .deposits
+        .iter_mut()
+        .filter_map(|deposit| deposit.mint.as_mut().map(|res| (&res.tx, &mut res.status)))
+        .for_each(|txid_and_status| {
+            txids_and_statuses.push(txid_and_status);
+        });
+
+    // Add burns
+    state
+        .withdrawals
+        .iter_mut()
+        .filter_map(|withdrawal| {
+            withdrawal
+                .burn
+                .as_mut()
+                .map(|res| (&res.tx, &mut res.status))
+        })
+        .for_each(|txid_and_status| {
+            txids_and_statuses.push(txid_and_status);
+        });
+
+    // Find the transaction state to update
+    let status_to_update = txids_and_statuses
+        .into_iter()
+        .find_map(|(txid_inner, status)| {
+            if txid_inner == &txid {
+                Some(status)
+            } else {
+                None
+            }
+        })
+        .expect("Could not find Stacks transaction to update state");
+
+    *status_to_update = status;
+
     (state, vec![])
 }
 

@@ -27,10 +27,10 @@ use blockstack_lib::vm::ContractName;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::debug;
+use tracing::trace;
 
 use crate::config::Config;
 use crate::event::Event;
-use crate::event::TransactionStatus;
 use crate::stacks_client::LockedClient;
 use crate::stacks_client::StacksClient;
 use crate::state;
@@ -58,6 +58,8 @@ pub async fn run(config: Config) {
         storage.record(&event).await;
 
         let (next_state, tasks) = state::update(&config, state, event);
+
+        trace!("State: {}", serde_json::to_string(&next_state).unwrap());
 
         for task in tasks {
             spawn(config.clone(), client.clone(), task, tx.clone());
@@ -121,7 +123,7 @@ async fn run_task(config: &Config, client: LockedClient, task: Task) -> Event {
             check_bitcoin_transaction_status(config, txid).await
         }
         Task::CheckStacksTransactionStatus(txid) => {
-            check_stacks_transaction_status(config, txid).await
+            check_stacks_transaction_status(client, txid).await
         }
         Task::FetchBitcoinBlock(block_height) => fetch_bitcoin_block(config, block_height).await,
         _ => panic!(),
@@ -195,10 +197,15 @@ async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) 
     todo!();
 }
 
-async fn check_stacks_transaction_status(_config: &Config, txid: StacksTxId) -> Event {
-    // TODO
+async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId) -> Event {
+    let status = client
+        .lock()
+        .await
+        .get_transation_status(txid)
+        .await
+        .expect("Could not get transaction status");
 
-    Event::StacksTransactionUpdate(txid, TransactionStatus::Rejected)
+    Event::StacksTransactionUpdate(txid, status)
 }
 
 async fn fetch_bitcoin_block(_config: &Config, _block_height: u64) -> Event {

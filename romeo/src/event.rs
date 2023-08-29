@@ -33,7 +33,7 @@ pub enum Event {
 }
 
 /// Status of a broadcasted transaction, useful for implementing retry logic
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum TransactionStatus {
     /// This transaction has been broadcasted to a node
     Broadcasted,
