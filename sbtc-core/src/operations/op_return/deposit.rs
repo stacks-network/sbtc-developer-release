@@ -45,8 +45,8 @@ use std::{collections::HashMap, io};
 
 use bdk::{
     bitcoin::{
-        psbt::PartiallySignedTransaction, Address as BitcoinAddress, Network, PrivateKey,
-        Transaction,
+        network::Address, psbt::PartiallySignedTransaction, Address as BitcoinAddress, Network,
+        PrivateKey, Transaction, blockdata::script::Instruction, blockdata::{opcodes as btc_opcodes, self}
     },
     database::{BatchDatabase, MemoryDatabase},
     SignOptions, Wallet,
@@ -101,6 +101,53 @@ pub fn build_deposit_transaction<T: BatchDatabase>(
         .map_err(|err| SBTCError::BDKError("Could not sign the transaction", err))?;
 
     Ok(partial_tx.extract_tx())
+}
+
+#[derive(Debug, Clone)]
+/// The amount and recipient of a deposit request
+pub struct Deposit {
+    /// Amount of BTC to deposit
+    pub amount: u64,
+    /// Recipient to receive freshly minted sBTC
+    pub recipient: PrincipalData,
+    /// The address where the BTC was deposited
+    pub sbtc_wallet_address: BitcoinAddress,
+    /// Network which the transaction is on
+    pub network: Network,
+}
+
+impl Deposit {
+    fn parse(tx: &Transaction) -> Result<Self, DepositParseError> {
+        let mut output_iter = tx.output.into_iter();
+        let data_output = output_iter.next().ok_or(DepositParseError::MissingOutput)?;
+        let amount_output = output_iter.next().ok_or(DepositParseError::MissingOutput)?;
+
+        let mut instructions_iter = data_output.script_pubkey.instructions();
+        if instructions_iter.next().ok_or(DepositParseError::NotSbtcOp)?? != Instruction::Op(btc_opcodes::all::OP_RETURN) {
+            return Err(DepositParseError::NotSbtcOp)
+        }
+
+        let amount = amount_output.value;
+        let address = BitcoinAddress::from_script(&amount_output.script_pubkey, network)
+
+        todo!();
+    }
+}
+
+
+#[derive(thiserror::Error, Clone, Debug, Eq, PartialEq)]
+/// Errors occuring when parsing deposits
+pub enum DepositParseError {
+    /// Missing expected output
+    #[error("Missing an expected output")]
+    MissingOutput,
+
+    /// Doesn't contain an OP_RETURN with the right opcode
+    #[error("Not an sBTC operation")]
+    NotSbtcOp,
+
+    #[error(transparent)]
+    BlockdataError(#[from] blockdata::script::Error),
 }
 
 #[derive(PartialEq, Eq, Debug)]
