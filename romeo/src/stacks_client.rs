@@ -1,5 +1,7 @@
 //! Stacks client
 
+use std::sync::Arc;
+
 use anyhow::anyhow;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
@@ -7,9 +9,6 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::{Request, StatusCode};
 use serde_json::Value;
-use std::io::Cursor;
-use std::slice::from_raw_parts_mut;
-use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::trace;
 

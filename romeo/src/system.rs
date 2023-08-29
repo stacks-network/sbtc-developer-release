@@ -163,7 +163,7 @@ async fn mint_asset(config: &Config, client: LockedClient, deposit_info: Deposit
 
     let recipient = PrincipalData::Standard(StandardPrincipalData(
         deposit_info.recipient.version,
-        deposit_info.recipient.bytes.as_bytes().clone(),
+        *deposit_info.recipient.bytes.as_bytes(),
     ));
 
     let function_args = vec![

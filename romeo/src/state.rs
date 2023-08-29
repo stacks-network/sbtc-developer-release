@@ -1,10 +1,7 @@
 //! State
 
-use bdk::bitcoin::{
-    Address as BitcoinAddress, Block, Transaction as BitcoinTransaction, Txid as BitcoinTxId,
-};
+use bdk::bitcoin::{Address as BitcoinAddress, Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
-use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::types::chainstate::StacksAddress;
 use blockstack_lib::vm::ContractName;
 use tracing::debug;
