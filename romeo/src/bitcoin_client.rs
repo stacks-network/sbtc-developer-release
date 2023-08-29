@@ -27,19 +27,9 @@ impl BitcoinClient {
         Ok(self.client.broadcast(tx).await?)
     }
 
-    /// Sign relevant inputs of a bitcoin transaction
-    pub async fn sign(&self, _tx: bitcoin::Transaction) -> anyhow::Result<bitcoin::Transaction> {
-        // TODO #68
-        todo!()
-    }
-
-    /// Bitcoin taproot address associated with the private key
-    pub async fn taproot_address(&self) -> bitcoin::Address {
-        let secp = secp256k1::Secp256k1::new();
-        let internal_key: schnorr::UntweakedPublicKey =
-            self.private_key.public_key(&secp).inner.into();
-
-        bitcoin::Address::p2tr(&secp, internal_key, None, self.private_key.network)
+    /// Get the status of a transaction
+    pub async fn get_tx_status(&self, txid: &bitcoin::Txid) -> anyhow::Result<Option<esplora_client::TxStatus>> {
+        Ok(self.client.get_tx_status(txid).await?)
     }
 
     /// Fetch a block at the given block height.
@@ -73,6 +63,21 @@ impl BitcoinClient {
     /// Get the current height of the Bitcoin chain
     pub async fn get_height(&self) -> anyhow::Result<u32> {
         Ok(self.client.get_height().await?)
+    }
+
+    /// Sign relevant inputs of a bitcoin transaction
+    pub async fn sign(&self, _tx: bitcoin::Transaction) -> anyhow::Result<bitcoin::Transaction> {
+        // TODO #68
+        todo!()
+    }
+
+    /// Bitcoin taproot address associated with the private key
+    pub async fn taproot_address(&self) -> bitcoin::Address {
+        let secp = secp256k1::Secp256k1::new();
+        let internal_key: schnorr::UntweakedPublicKey =
+            self.private_key.public_key(&secp).inner.into();
+
+        bitcoin::Address::p2tr(&secp, internal_key, None, self.private_key.network)
     }
 }
 
