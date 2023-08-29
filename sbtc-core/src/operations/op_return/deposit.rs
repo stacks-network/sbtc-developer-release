@@ -148,8 +148,7 @@ fn create_partially_signed_deposit_transaction(
         SBTCError::BDKError("Could not finish the partially signed transaction", err)
     })?;
 
-    partial_tx.unsigned_tx.output =
-        reorder_outputs(partial_tx.unsigned_tx.output.into_iter(), outputs);
+    partial_tx.unsigned_tx.output = reorder_outputs(partial_tx.unsigned_tx.output, outputs);
 
     Ok(partial_tx)
 }
