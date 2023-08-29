@@ -1,3 +1,4 @@
+#![forbid(missing_docs)]
 use clap::{Parser, Subcommand};
 
 use crate::commands::broadcast::{broadcast_tx, BroadcastArgs};
