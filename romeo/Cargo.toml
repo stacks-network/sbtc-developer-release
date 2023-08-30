@@ -8,6 +8,7 @@ anyhow.workspace = true
 bdk = { workspace = true, features = ["esplora", "use-esplora-async"]}
 blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }
 clap = { workspace = true, features = ["derive"] }
+derivative = { workspace = true }
 futures.workspace = true
 hex.workspace = true
 rand.workspace = true
