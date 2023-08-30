@@ -4,8 +4,7 @@ use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
 use blockstack_lib::vm::types::ASCIIData;
-use blockstack_lib::vm::types::PrincipalData;
-use blockstack_lib::vm::types::StandardPrincipalData;
+
 use blockstack_lib::vm::ClarityName;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -23,7 +22,6 @@ use blockstack_lib::chainstate::stacks::TransactionVersion;
 use blockstack_lib::vm::types::Value;
 
 use blockstack_lib::util_lib::strings::StacksString;
-use blockstack_lib::vm::ContractName;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::debug;
@@ -138,7 +136,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     );
     let tx_payload = TransactionPayload::SmartContract(
         TransactionSmartContract {
-            name: ContractName::from("sbtc-alpha-romeo42"),
+            name: config.contract_name.clone(),
             code_body: StacksString::from_string(&contract_bytes).unwrap(),
         },
         None,
@@ -161,14 +159,9 @@ async fn mint_asset(config: &Config, client: LockedClient, deposit_info: Deposit
         TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
     );
 
-    let recipient = PrincipalData::Standard(StandardPrincipalData(
-        deposit_info.recipient.version,
-        *deposit_info.recipient.bytes.as_bytes(),
-    ));
-
     let function_args = vec![
         Value::UInt(deposit_info.amount as u128),
-        Value::from(recipient),
+        Value::from(deposit_info.recipient.clone()),
         Value::from(ASCIIData {
             data: deposit_info.txid.to_string().as_bytes().to_vec(),
         }),
@@ -176,7 +169,7 @@ async fn mint_asset(config: &Config, client: LockedClient, deposit_info: Deposit
 
     let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
         address: config.stacks_address(),
-        contract_name: deposit_info.contract_name.clone(),
+        contract_name: config.contract_name.clone(),
         function_name: ClarityName::from("mint!"),
         function_args,
     });
@@ -220,6 +213,7 @@ mod tests {
     use blockstack_lib::{
         address::{AddressHashMode, C32_ADDRESS_VERSION_TESTNET_SINGLESIG},
         types::chainstate::StacksAddress,
+        vm::types::{PrincipalData, StandardPrincipalData},
     };
 
     use super::*;
@@ -232,20 +226,23 @@ mod tests {
         let http_client = reqwest::Client::new();
         let client = StacksClient::new(config.clone(), http_client).into();
 
+        let addr = StacksAddress::from_public_keys(
+            C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
+            &AddressHashMode::SerializeP2PKH,
+            1,
+            &vec![config.stacks_public_key()],
+        )
+        .unwrap();
+
+        let recipient = PrincipalData::Standard(StandardPrincipalData(addr.version, addr.bytes.0));
+
         let deposit_info = DepositInfo {
             txid: BitcoinTxId::from_hash(
                 Hash::from_str("7108a2826a070553e2b6c95b8c0a09d3a92100740c172754d68605495a4ed0cf")
                     .unwrap(),
             ),
             amount: 100,
-            recipient: StacksAddress::from_public_keys(
-                C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
-                &AddressHashMode::SerializeP2PKH,
-                1,
-                &vec![config.stacks_public_key()],
-            )
-            .unwrap(),
-            contract_name: ContractName::from("sbtc-alpha-romeo123"),
+            recipient,
             block_height: 2475303,
         };
 

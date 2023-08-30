@@ -1,9 +1,14 @@
 //! State
 
+use std::io::Cursor;
+
 use bdk::bitcoin::{Address as BitcoinAddress, Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
+use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::types::chainstate::StacksAddress;
-use blockstack_lib::vm::ContractName;
+use blockstack_lib::vm::types::PrincipalData;
+use sbtc_core::operations::op_return;
+use stacks_core::codec::Codec;
 use tracing::debug;
 
 use crate::config::Config;
@@ -20,11 +25,11 @@ pub struct State {
     block_height: u64,
 }
 
+/// A parsed deposit
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Deposit {
+pub struct Deposit {
     info: DepositInfo,
     mint: Option<Response<StacksTxId>>,
-    mint_pending: bool,
 }
 
 /// Relevant information for processing deposits
@@ -37,10 +42,7 @@ pub struct DepositInfo {
     pub amount: u64,
 
     /// Recipient of the sBTC
-    pub recipient: StacksAddress,
-
-    /// Name of the contract where the funds should be minted
-    pub contract_name: ContractName,
+    pub recipient: PrincipalData,
 
     /// Height of the Bitcoin blockchain where this tx is included
     pub block_height: u64,
@@ -57,8 +59,6 @@ struct Withdrawal {
     info: WithdrawalInfo,
     burn: Option<Response<StacksTxId>>,
     fulfillment: Option<Response<BitcoinTxId>>,
-    burn_pending: bool,
-    fulfillment_pending: bool,
 }
 
 /// Relevant information for processing withdrawals
@@ -129,8 +129,8 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
     }
 }
 
-fn process_bitcoin_block(_config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
-    let deposits = parse_deposits(&block);
+fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
+    let deposits = parse_deposits(config, &block);
     let withdrawals = parse_withdrawals(&block);
 
     state.deposits.extend_from_slice(&deposits);
@@ -166,9 +166,37 @@ fn process_bitcoin_block(_config: &Config, mut state: State, block: Block) -> (S
     (state, tasks)
 }
 
-fn parse_deposits(_block: &Block) -> Vec<Deposit> {
-    // TODO: #67
-    vec![]
+fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
+    let block_height = block
+        .bip34_block_height()
+        .expect("Failed to get block height");
+
+    block
+        .txdata
+        .iter()
+        .cloned()
+        .filter_map(|tx| {
+            let txid = tx.txid();
+
+            op_return::deposit::Deposit::parse(config.private_key.network, tx)
+                .ok()
+                .map(|parsed_deposit| Deposit {
+                    info: DepositInfo {
+                        txid,
+                        amount: parsed_deposit.amount,
+                        recipient: convert_principal_data(parsed_deposit.recipient),
+                        block_height,
+                    },
+                    mint: None,
+                })
+        })
+        .collect()
+}
+
+fn convert_principal_data(data: stacks_core::utils::PrincipalData) -> PrincipalData {
+    let bytes = data.serialize_to_vec();
+
+    PrincipalData::consensus_deserialize(&mut Cursor::new(bytes)).unwrap()
 }
 
 fn parse_withdrawals(_block: &Block) -> Vec<Withdrawal> {
