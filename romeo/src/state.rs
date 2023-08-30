@@ -276,7 +276,7 @@ fn process_stacks_transaction_update(
 
     let tasks = if let Some(contract) = state.contract.as_ref() {
         if contract.txid == txid
-            && contract.status == TransactionStatus::Confirmed
+            && contract.status == TransactionStatus::Broadcasted
             && state.block_height.is_none()
         {
             vec![Task::FetchBitcoinBlock(None)]
