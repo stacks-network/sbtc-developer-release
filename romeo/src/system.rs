@@ -27,6 +27,7 @@ use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
+use crate::bitcoin_client::BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
 use crate::stacks_client::LockedClient;
@@ -41,7 +42,8 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let client: LockedClient = StacksClient::new(config.clone(), reqwest::Client::new()).into();
+    let bitcoin_client = BitcoinClient::new(&config.bitcoin_node_url.as_str(), config.private_key).expect("Failed to instantiate bitcoin client");
+    let stacks_client: LockedClient = StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
     tracing::debug!("Starting replay of persisted events");
     let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
@@ -50,7 +52,7 @@ pub async fn run(config: Config) {
     let bootstrap_task = state::bootstrap(&state);
 
     // Bootstrap
-    spawn(config.clone(), client.clone(), bootstrap_task, tx.clone());
+    spawn(config.clone(), bitcoin_client.clone(), stacks_client.clone(), bootstrap_task, tx.clone());
 
     while let Some(event) = rx.recv().await {
         storage.record(&event).await;
@@ -60,7 +62,7 @@ pub async fn run(config: Config) {
         trace!("State: {}", serde_json::to_string(&next_state).unwrap());
 
         for task in tasks {
-            spawn(config.clone(), client.clone(), task, tx.clone());
+            spawn(config.clone(), bitcoin_client.clone(), stacks_client.clone(), task, tx.clone());
         }
 
         state = next_state;
@@ -101,27 +103,28 @@ impl Storage {
 #[tracing::instrument(skip(config, client, result))]
 fn spawn(
     config: Config,
-    client: LockedClient,
+    bitcoin_client: BitcoinClient,
+    stacks_client: LockedClient,
     task: Task,
     result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
     debug!("Spawning task");
 
     tokio::task::spawn(async move {
-        let event = run_task(&config, client, task).await;
+        let event = run_task(&config, bitcoin_client, stacks_client, task).await;
         result.send(event).await.expect("Failed to return event");
     })
 }
 
-async fn run_task(config: &Config, client: LockedClient, task: Task) -> Event {
+async fn run_task(config: &Config, bitcoin_client: BitcoinClient, stacks_client: LockedClient, task: Task) -> Event {
     match task {
-        Task::CreateAssetContract => deploy_asset_contract(config, client).await,
-        Task::CreateMint(deposit_info) => mint_asset(config, client, deposit_info).await,
+        Task::CreateAssetContract => deploy_asset_contract(config, stacks_client).await,
+        Task::CreateMint(deposit_info) => mint_asset(config, stacks_client, deposit_info).await,
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
         }
         Task::CheckStacksTransactionStatus(txid) => {
-            check_stacks_transaction_status(client, txid).await
+            check_stacks_transaction_status(stacks_client, txid).await
         }
         Task::FetchBitcoinBlock(block_height) => fetch_bitcoin_block(config, block_height).await,
         _ => panic!(),
