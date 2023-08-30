@@ -30,13 +30,13 @@ jobs:
         with:
           version: "0.36.13"
 
-      - name: Audit
-        run: cargo make audit
-
       - uses: actions/upload-artifact@v3
         with:
           name: Cargo.lock
           path: Cargo.lock
+
+      - name: Audit
+        run: cargo make audit
 
     intense-tests:
       needs: generate-lockfile-and-audit
