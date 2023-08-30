@@ -54,7 +54,7 @@ impl Deposit {
             Some(Response {
                 status: TransactionStatus::Broadcasted,
                 txid,
-            }) => Some(Task::CheckStacksTransactionStatus(txid.clone())),
+            }) => Some(Task::CheckStacksTransactionStatus(*txid)),
             // TODO: Think about removing deposits at this stage
             Some(Response {
                 status: TransactionStatus::Confirmed,
@@ -181,7 +181,7 @@ fn create_transaction_status_update_requests(state: &State) -> Vec<Task> {
         Some(Response {
             status: TransactionStatus::Broadcasted,
             txid,
-        }) => vec![Task::CheckStacksTransactionStatus(txid.clone())],
+        }) => vec![Task::CheckStacksTransactionStatus(txid)],
         Some(Response {
             status: TransactionStatus::Confirmed,
             ..
@@ -190,7 +190,7 @@ fn create_transaction_status_update_requests(state: &State) -> Vec<Task> {
             status: TransactionStatus::Rejected,
             ..
         }) => panic!("Contract creation transaction rejected"),
-        None => return vec![],
+        None => vec![],
     }
 }
 
