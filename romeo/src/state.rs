@@ -33,7 +33,7 @@ pub struct Deposit {
 }
 
 /// Relevant information for processing deposits
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct DepositInfo {
     /// ID of the bitcoin deposit transaction
     pub txid: BitcoinTxId,
@@ -151,6 +151,7 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
         }
         Event::BitcoinBlock(block) => process_bitcoin_block(config, state, block),
         Event::AssetContractCreated(txid) => process_asset_contract_created(config, state, txid),
+        Event::MintCreated(deposit_info, txid) => process_mint_created(state, deposit_info, txid),
         event => panic!("Cannot handle yet: {:?}", event),
     }
 }
@@ -332,4 +333,28 @@ fn process_asset_contract_created(
     let task = Task::CheckStacksTransactionStatus(txid);
 
     (state, vec![task])
+}
+
+fn process_mint_created(
+    mut state: State,
+    deposit_info: DepositInfo,
+    txid: StacksTxId,
+) -> (State, Vec<Task>) {
+    let deposit = state
+        .deposits
+        .iter_mut()
+        .find(|deposit| deposit.info == deposit_info)
+        .expect("Could not find a deposit for the mint");
+
+    assert!(
+        deposit.mint.is_none(),
+        "Newly minted deposit already has a mint"
+    );
+
+    deposit.mint = Some(Response {
+        txid,
+        status: TransactionStatus::Broadcasted,
+    });
+
+    (state, vec![])
 }
