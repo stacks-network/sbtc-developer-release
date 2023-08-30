@@ -168,7 +168,10 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
 
     state.block_height = Some(new_block_height);
 
-    let tasks = create_transaction_status_update_requests(&state);
+    let mut tasks = create_transaction_status_update_requests(&state);
+    tasks.push(Task::FetchBitcoinBlock(
+        state.block_height.map(|height| height + 1),
+    ));
 
     (state, tasks)
 }
