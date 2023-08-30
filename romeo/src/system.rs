@@ -100,7 +100,7 @@ impl Storage {
     }
 }
 
-#[tracing::instrument(skip(config, client, result))]
+#[tracing::instrument(skip(config, stacks_client, result))]
 fn spawn(
     config: Config,
     bitcoin_client: BitcoinClient,
@@ -126,7 +126,7 @@ async fn run_task(config: &Config, bitcoin_client: BitcoinClient, stacks_client:
         Task::CheckStacksTransactionStatus(txid) => {
             check_stacks_transaction_status(stacks_client, txid).await
         }
-        Task::FetchBitcoinBlock(block_height) => fetch_bitcoin_block(config, block_height).await,
+        Task::FetchBitcoinBlock(block_height) => fetch_bitcoin_block(bitcoin_client, block_height).await,
         _ => panic!(),
     }
 }
@@ -204,8 +204,16 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(_config: &Config, block_height: Option<u64>) -> Event {
-    todo!();
+async fn fetch_bitcoin_block(client: BitcoinClient, block_height: Option<u32>) -> Event {
+    let block_height = if let Some(height) = block_height {
+        height
+    } else {
+        client.get_height().await.expect("Failed to get bitcoin block height")
+    };
+
+    let block = client.fetch_block(block_height).await.expect("Failed to fetch block");
+
+    Event::BitcoinBlock(block)
 }
 
 #[cfg(test)]

@@ -22,7 +22,7 @@ pub struct State {
     contract: Option<Response<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
-    block_height: u64,
+    block_height: u32,
 }
 
 /// A parsed deposit
@@ -45,11 +45,11 @@ pub struct DepositInfo {
     pub recipient: PrincipalData,
 
     /// Height of the Bitcoin blockchain where this tx is included
-    pub block_height: u64,
+    pub block_height: u32,
 }
 
 impl Deposit {
-    fn mint(&mut self, _block_height: u64) -> Option<Task> {
+    fn mint(&mut self, _block_height: u32) -> Option<Task> {
         todo!();
     }
 }
@@ -68,15 +68,15 @@ pub struct WithdrawalInfo {
     amount: u64,
     source: StacksAddress,
     recipient: BitcoinAddress,
-    block_height: u64,
+    block_height: u32,
 }
 
 impl Withdrawal {
-    fn burn(&mut self, _block_height: u64) -> Option<Task> {
+    fn burn(&mut self, _block_height: u32) -> Option<Task> {
         todo!();
     }
 
-    fn fulfill(&mut self, _block_height: u64) -> Option<Task> {
+    fn fulfill(&mut self, _block_height: u32) -> Option<Task> {
         todo!();
     }
 }
@@ -138,7 +138,7 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
 
     state.block_height = block
         .bip34_block_height()
-        .expect("Failed to get block height");
+        .expect("Failed to get block height") as u32;
 
     let mut tasks = vec![Task::FetchBitcoinBlock(Some(state.block_height + 1))];
 
@@ -169,7 +169,7 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
 fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
     let block_height = block
         .bip34_block_height()
-        .expect("Failed to get block height");
+        .expect("Failed to get block height") as u32;
 
     block
         .txdata

@@ -26,5 +26,5 @@ pub enum Task {
 
     /// Fetch a bitcoin block for the given block height from the current canonical bitcoin fork
     /// If the block height is not provided, fetch the latest block
-    FetchBitcoinBlock(Option<u64>),
+    FetchBitcoinBlock(Option<u32>),
 }
