@@ -48,7 +48,7 @@ use bdk::{
         psbt::PartiallySignedTransaction, Address as BitcoinAddress, Network, PrivateKey,
         Transaction,
     },
-    database::MemoryDatabase,
+    database::{BatchDatabase, MemoryDatabase},
     SignOptions, Wallet,
 };
 use stacks_core::{codec::Codec, utils::PrincipalData};
@@ -62,6 +62,46 @@ use crate::{
     },
     SBTCError, SBTCResult,
 };
+
+/// Builds a complete deposit transaction
+pub fn build_deposit_transaction<T: BatchDatabase>(
+    wallet: Wallet<T>,
+    recipient: PrincipalData,
+    dkg_address: BitcoinAddress,
+    amount: u64,
+    network: Network,
+) -> SBTCResult<Transaction> {
+    let mut tx_builder = wallet.build_tx();
+
+    let deposit_data = DepositOutputData { network, recipient }.serialize_to_vec();
+    let op_return_script = build_op_return_script(&deposit_data);
+
+    let dkg_script = dkg_address.script_pubkey();
+    let dust_amount = dkg_script.dust_value().to_sat();
+
+    if amount < dust_amount {
+        return Err(SBTCError::AmountInsufficient(amount, dust_amount));
+    }
+
+    let outputs = [(op_return_script, 0), (dkg_script, amount)];
+
+    for (script, amount) in outputs.clone() {
+        tx_builder.add_recipient(script, amount);
+    }
+
+    let (mut partial_tx, _) = tx_builder
+        .finish()
+        .map_err(|err| SBTCError::BDKError("Could not finish the transaction", err))?;
+
+    partial_tx.unsigned_tx.output =
+        reorder_outputs(partial_tx.unsigned_tx.output.into_iter(), outputs);
+
+    wallet
+        .sign(&mut partial_tx, SignOptions::default())
+        .map_err(|err| SBTCError::BDKError("Could not sign the transaction", err))?;
+
+    Ok(partial_tx.extract_tx())
+}
 
 #[derive(PartialEq, Eq, Debug)]
 /// Data for the sBTC OP_RETURN deposit transaction output

@@ -34,6 +34,12 @@ impl Codec for StandardPrincipalData {
     }
 }
 
+impl From<StacksAddress> for StandardPrincipalData {
+    fn from(address: StacksAddress) -> Self {
+        Self(address.version(), address)
+    }
+}
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Principal Data type
 pub enum PrincipalData {
@@ -92,6 +98,12 @@ impl Codec for PrincipalData {
                 Ok(Self::Contract(standard_data, contract_name))
             }
         }
+    }
+}
+
+impl From<StacksAddress> for PrincipalData {
+    fn from(address: StacksAddress) -> Self {
+        Self::Standard(StandardPrincipalData::from(address))
     }
 }
 

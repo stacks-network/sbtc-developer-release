@@ -1,5 +1,5 @@
 [workspace]
-members = ["sbtc-core", "stacks-core", "romeo"]
+members = ["sbtc-cli", "sbtc-core", "stacks-core", "romeo"]
 
 [workspace.dependencies]
 anyhow = "1.0"
