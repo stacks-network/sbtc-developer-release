@@ -163,7 +163,7 @@ impl StacksClient {
             .json()
             .await?;
 
-        Ok(fee_rate * tx_len)
+        Ok(fee_rate * tx_len * 10)
     }
 
     fn transaction_url(&self) -> reqwest::Url {
