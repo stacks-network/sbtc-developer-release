@@ -201,7 +201,7 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(_config: &Config, _block_height: u64) -> Event {
+async fn fetch_bitcoin_block(_config: &Config, block_height: Option<u64>) -> Event {
     todo!();
 }
 

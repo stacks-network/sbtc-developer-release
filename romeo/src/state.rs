@@ -105,7 +105,7 @@ where
 pub fn bootstrap(state: &State) -> Task {
     match state.contract {
         None => Task::CreateAssetContract,
-        Some(_) => Task::FetchBitcoinBlock(state.block_height),
+        Some(_) => Task::FetchBitcoinBlock(Some(state.block_height)),
     }
 }
 
@@ -140,7 +140,7 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
         .bip34_block_height()
         .expect("Failed to get block height");
 
-    let mut tasks = vec![Task::FetchBitcoinBlock(state.block_height + 1)];
+    let mut tasks = vec![Task::FetchBitcoinBlock(Some(state.block_height + 1))];
 
     let mint_tasks = state
         .deposits
@@ -225,6 +225,16 @@ fn process_stacks_transaction_update(
         panic!("Stacks transaction failed");
     }
 
+    let tasks = if let Some(contract) = state.contract.as_ref() {
+        if contract.txid == txid && contract.status == TransactionStatus::Broadcasted {
+            vec![Task::FetchBitcoinBlock(None)]
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
     let contract_response = state.contract.as_mut().into_iter();
 
     let deposit_responses = state
@@ -251,7 +261,7 @@ fn process_stacks_transaction_update(
         );
     }
 
-    (state, vec![])
+    (state, tasks)
 }
 
 fn process_asset_contract_created(
@@ -259,7 +269,6 @@ fn process_asset_contract_created(
     mut state: State,
     txid: StacksTxId,
 ) -> (State, Vec<Task>) {
-    // TODO: #73
     state.contract = Some(Response {
         txid,
         status: TransactionStatus::Broadcasted,
