@@ -1,5 +1,7 @@
 //! System
 
+use std::fs::create_dir_all;
+
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
@@ -42,8 +44,10 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let bitcoin_client = BitcoinClient::new(&config.bitcoin_node_url.as_str(), config.private_key).expect("Failed to instantiate bitcoin client");
-    let stacks_client: LockedClient = StacksClient::new(config.clone(), reqwest::Client::new()).into();
+    let bitcoin_client = BitcoinClient::new(&config.bitcoin_node_url.as_str(), config.private_key)
+        .expect("Failed to instantiate bitcoin client");
+    let stacks_client: LockedClient =
+        StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
     tracing::debug!("Starting replay of persisted events");
     let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
@@ -52,7 +56,13 @@ pub async fn run(config: Config) {
     let bootstrap_task = state::bootstrap(&state);
 
     // Bootstrap
-    spawn(config.clone(), bitcoin_client.clone(), stacks_client.clone(), bootstrap_task, tx.clone());
+    spawn(
+        config.clone(),
+        bitcoin_client.clone(),
+        stacks_client.clone(),
+        bootstrap_task,
+        tx.clone(),
+    );
 
     while let Some(event) = rx.recv().await {
         storage.record(&event).await;
@@ -62,7 +72,13 @@ pub async fn run(config: Config) {
         trace!("State: {}", serde_json::to_string(&next_state).unwrap());
 
         for task in tasks {
-            spawn(config.clone(), bitcoin_client.clone(), stacks_client.clone(), task, tx.clone());
+            spawn(
+                config.clone(),
+                bitcoin_client.clone(),
+                stacks_client.clone(),
+                task,
+                tx.clone(),
+            );
         }
 
         state = next_state;
@@ -73,6 +89,8 @@ struct Storage(BufWriter<File>);
 
 impl Storage {
     async fn load_and_replay(config: &Config, mut state: state::State) -> (Self, state::State) {
+        create_dir_all(&config.state_directory).unwrap();
+
         let mut file = OpenOptions::new()
             .create(true)
             .read(true)
@@ -116,7 +134,12 @@ fn spawn(
     })
 }
 
-async fn run_task(config: &Config, bitcoin_client: BitcoinClient, stacks_client: LockedClient, task: Task) -> Event {
+async fn run_task(
+    config: &Config,
+    bitcoin_client: BitcoinClient,
+    stacks_client: LockedClient,
+    task: Task,
+) -> Event {
     match task {
         Task::CreateAssetContract => deploy_asset_contract(config, stacks_client).await,
         Task::CreateMint(deposit_info) => mint_asset(config, stacks_client, deposit_info).await,
@@ -126,7 +149,9 @@ async fn run_task(config: &Config, bitcoin_client: BitcoinClient, stacks_client:
         Task::CheckStacksTransactionStatus(txid) => {
             check_stacks_transaction_status(stacks_client, txid).await
         }
-        Task::FetchBitcoinBlock(block_height) => fetch_bitcoin_block(bitcoin_client, block_height).await,
+        Task::FetchBitcoinBlock(block_height) => {
+            fetch_bitcoin_block(bitcoin_client, block_height).await
+        }
         _ => panic!(),
     }
 }
@@ -208,10 +233,16 @@ async fn fetch_bitcoin_block(client: BitcoinClient, block_height: Option<u32>) -
     let block_height = if let Some(height) = block_height {
         height
     } else {
-        client.get_height().await.expect("Failed to get bitcoin block height")
+        client
+            .get_height()
+            .await
+            .expect("Failed to get bitcoin block height")
     };
 
-    let block = client.fetch_block(block_height).await.expect("Failed to fetch block");
+    let block = client
+        .fetch_block(block_height)
+        .await
+        .expect("Failed to fetch block");
 
     Event::BitcoinBlock(block)
 }

@@ -49,8 +49,24 @@ pub struct DepositInfo {
 }
 
 impl Deposit {
-    fn mint(&mut self, _block_height: u32) -> Option<Task> {
-        todo!();
+    fn mint(&self) -> Option<Task> {
+        match self.mint.as_ref() {
+            Some(Response {
+                status: TransactionStatus::Broadcasted,
+                txid,
+            }) => Some(Task::CheckStacksTransactionStatus(txid.clone())),
+            // TODO: Think about removing deposits at this stage
+            Some(Response {
+                status: TransactionStatus::Confirmed,
+                ..
+            }) => None,
+            Some(Response {
+                status: TransactionStatus::Rejected,
+                ..
+            }) => panic!("Mint transaction rejected"),
+            // TODO: Confirm that the deposit wallet is correct
+            None => Some(Task::CreateMint(self.info.clone())),
+        }
     }
 }
 
@@ -82,11 +98,11 @@ pub struct WithdrawalInfo {
 }
 
 impl Withdrawal {
-    fn burn(&mut self, _block_height: u32) -> Option<Task> {
+    fn burn(&self) -> Option<Task> {
         todo!();
     }
 
-    fn fulfill(&mut self, _block_height: u32) -> Option<Task> {
+    fn fulfill(&self) -> Option<Task> {
         todo!();
     }
 }
@@ -152,30 +168,51 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
 
     state.block_height = Some(new_block_height);
 
-    let mut tasks = vec![Task::FetchBitcoinBlock(Some(new_block_height + 1))];
+    let tasks = create_transaction_status_update_requests(&state);
 
-    let mint_tasks = state
-        .deposits
-        .iter_mut()
-        .filter_map(|deposit| deposit.mint(new_block_height));
+    (state, tasks)
+}
 
-    let withdrawals = &mut state.withdrawals;
+fn create_transaction_status_update_requests(state: &State) -> Vec<Task> {
+    match state.contract {
+        Some(Response {
+            status: TransactionStatus::Broadcasted,
+            txid,
+        }) => vec![Task::CheckStacksTransactionStatus(txid.clone())],
+        Some(Response {
+            status: TransactionStatus::Confirmed,
+            ..
+        }) => create_transaction_status_update_tasks(state),
+        Some(Response {
+            status: TransactionStatus::Rejected,
+            ..
+        }) => panic!("Contract creation transaction rejected"),
+        None => return vec![],
+    }
+}
 
-    let burn_tasks: Vec<_> = withdrawals
-        .iter_mut()
-        .filter_map(|withdrawal| withdrawal.burn(new_block_height))
+fn create_transaction_status_update_tasks(state: &State) -> Vec<Task> {
+    let mut tasks = vec![];
+
+    let mint_tasks = state.deposits.iter().filter_map(|deposit| deposit.mint());
+
+    let burn_tasks: Vec<_> = state
+        .withdrawals
+        .iter()
+        .filter_map(|withdrawal| withdrawal.burn())
         .collect();
 
-    let fulfillment_tasks: Vec<_> = withdrawals
-        .iter_mut()
-        .filter_map(|withdrawal| withdrawal.fulfill(new_block_height))
+    let fulfillment_tasks: Vec<_> = state
+        .withdrawals
+        .iter()
+        .filter_map(|withdrawal| withdrawal.fulfill())
         .collect();
 
     tasks.extend(mint_tasks);
     tasks.extend(burn_tasks);
     tasks.extend(fulfillment_tasks);
 
-    (state, tasks)
+    tasks
 }
 
 fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
