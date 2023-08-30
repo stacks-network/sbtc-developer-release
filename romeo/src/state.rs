@@ -22,7 +22,7 @@ pub struct State {
     contract: Option<Response<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
-    block_height: u32,
+    block_height: Option<u32>,
 }
 
 /// A parsed deposit
@@ -44,7 +44,7 @@ pub struct DepositInfo {
     /// Recipient of the sBTC
     pub recipient: PrincipalData,
 
-    /// Height of the Bitcoin blockchain where this tx is included
+    /// Height of the Bitcoin blockchain where this deposit transaction exists
     pub block_height: u32,
 }
 
@@ -64,10 +64,20 @@ struct Withdrawal {
 /// Relevant information for processing withdrawals
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WithdrawalInfo {
+    /// ID of the bitcoin withdrawal request transaction
     txid: BitcoinTxId,
+
+    /// Amount to withdraw
     amount: u64,
+
+    /// Where to withdraw sBTC from
     source: StacksAddress,
+
+    /// Recipient of the BTC
     recipient: BitcoinAddress,
+
+    /// Height of the Bitcoin blockchain where this withdrawal request
+    /// transaction exists
     block_height: u32,
 }
 
@@ -105,7 +115,7 @@ where
 pub fn bootstrap(state: &State) -> Task {
     match state.contract {
         None => Task::CreateAssetContract,
-        Some(_) => Task::FetchBitcoinBlock(Some(state.block_height)),
+        Some(_) => Task::FetchBitcoinBlock(state.block_height.map(|block_height| block_height + 1)),
     }
 }
 
@@ -136,27 +146,29 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
     state.deposits.extend_from_slice(&deposits);
     state.withdrawals.extend_from_slice(&withdrawals);
 
-    state.block_height = block
+    let new_block_height = block
         .bip34_block_height()
         .expect("Failed to get block height") as u32;
 
-    let mut tasks = vec![Task::FetchBitcoinBlock(Some(state.block_height + 1))];
+    state.block_height = Some(new_block_height);
+
+    let mut tasks = vec![Task::FetchBitcoinBlock(Some(new_block_height + 1))];
 
     let mint_tasks = state
         .deposits
         .iter_mut()
-        .filter_map(|deposit| deposit.mint(state.block_height));
+        .filter_map(|deposit| deposit.mint(new_block_height));
 
     let withdrawals = &mut state.withdrawals;
 
     let burn_tasks: Vec<_> = withdrawals
         .iter_mut()
-        .filter_map(|withdrawal| withdrawal.burn(state.block_height))
+        .filter_map(|withdrawal| withdrawal.burn(new_block_height))
         .collect();
 
     let fulfillment_tasks: Vec<_> = withdrawals
         .iter_mut()
-        .filter_map(|withdrawal| withdrawal.fulfill(state.block_height))
+        .filter_map(|withdrawal| withdrawal.fulfill(new_block_height))
         .collect();
 
     tasks.extend(mint_tasks);
