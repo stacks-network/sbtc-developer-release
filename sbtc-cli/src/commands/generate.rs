@@ -113,7 +113,7 @@ fn generate_credentials(
         Network::Bitcoin => AddressVersion::MainnetSingleSig,
         _ => panic!("Not supported"),
     };
-    let public_key_hash = Hash160Hasher::from_bytes(&public_key.pubkey_hash().as_hash().to_vec())?;
+    let public_key_hash = Hash160Hasher::from_bytes(&public_key.pubkey_hash().as_hash())?;
     let stacks_address = StacksAddress::new(stacks_address_version, public_key_hash);
     let bitcoin_taproot_address_tweaked =
         BitcoinAddress::p2tr(&secp, public_key.inner.into(), None, private_key.network).to_string();

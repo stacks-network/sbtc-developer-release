@@ -1,4 +1,12 @@
 #![forbid(missing_docs)]
+
+/*!
+sBTC CLI is a tool that allows you to generate and broadcast sBTC transactions.
+
+It also allows you to generate credentials needed to generate transactions and
+interact with the Bitcoin and Stacks networks.
+*/
+
 use clap::{Parser, Subcommand};
 
 use crate::commands::broadcast::{broadcast_tx, BroadcastArgs};
