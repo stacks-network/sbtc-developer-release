@@ -49,11 +49,11 @@ pub async fn run(config: Config) {
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
-    tracing::debug!("Starting replay of persisted events");
-    let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
-    tracing::debug!("Replay finished with state: {:?}", state);
+    tracing::info!("Starting replay of persisted events");
+    let (mut storage, state) = Storage::load_and_replay(&config, state::State::default()).await;
+    tracing::info!("Replay finished with state: {:?}", state);
 
-    let bootstrap_task = state::bootstrap(&state);
+    let (mut state, bootstrap_task) = state::bootstrap(state);
 
     // Bootstrap
     spawn(
@@ -118,7 +118,7 @@ impl Storage {
     }
 }
 
-#[tracing::instrument(skip(config, stacks_client, result))]
+#[tracing::instrument(skip(config, bitcoin_client, stacks_client, result))]
 fn spawn(
     config: Config,
     bitcoin_client: BitcoinClient,
