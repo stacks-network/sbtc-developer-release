@@ -30,6 +30,7 @@ pub struct State {
 pub struct Deposit {
     info: DepositInfo,
     mint: Option<Response<StacksTxId>>,
+    mint_created: bool,
 }
 
 /// Relevant information for processing deposits
@@ -49,8 +50,8 @@ pub struct DepositInfo {
 }
 
 impl Deposit {
-    fn mint(&self) -> Option<Task> {
-        match self.mint.as_ref() {
+    fn mint(&mut self) -> Option<Task> {
+        match self.mint.as_mut() {
             Some(Response {
                 status: TransactionStatus::Broadcasted,
                 txid,
@@ -65,7 +66,14 @@ impl Deposit {
                 ..
             }) => panic!("Mint transaction rejected"),
             // TODO: Confirm that the deposit wallet is correct
-            None => Some(Task::CreateMint(self.info.clone())),
+            None => {
+                if self.mint_created {
+                    return None;
+                }
+
+                self.mint_created = true;
+                Some(Task::CreateMint(self.info.clone()))
+            }
         }
     }
 }
@@ -75,6 +83,8 @@ struct Withdrawal {
     info: WithdrawalInfo,
     burn: Option<Response<StacksTxId>>,
     fulfillment: Option<Response<BitcoinTxId>>,
+    burn_created: bool,
+    fulfillment_created: bool,
 }
 
 /// Relevant information for processing withdrawals
@@ -98,11 +108,11 @@ pub struct WithdrawalInfo {
 }
 
 impl Withdrawal {
-    fn burn(&self) -> Option<Task> {
+    fn burn(&mut self) -> Option<Task> {
         todo!();
     }
 
-    fn fulfill(&self) -> Option<Task> {
+    fn fulfill(&mut self) -> Option<Task> {
         todo!();
     }
 }
@@ -150,8 +160,12 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
             process_bitcoin_transaction_update(config, state, txid, status)
         }
         Event::BitcoinBlock(block) => process_bitcoin_block(config, state, block),
-        Event::AssetContractCreated(txid) => process_asset_contract_created(config, state, txid),
-        Event::MintCreated(deposit_info, txid) => process_mint_created(state, deposit_info, txid),
+        Event::AssetContractBroadcasted(txid) => {
+            process_asset_contract_created(config, state, txid)
+        }
+        Event::MintBroadcasted(deposit_info, txid) => {
+            process_mint_created(state, deposit_info, txid)
+        }
         event => panic!("Cannot handle yet: {:?}", event),
     }
 }
@@ -169,7 +183,7 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
 
     state.block_height = Some(new_block_height);
 
-    let mut tasks = create_transaction_status_update_requests(&state);
+    let mut tasks = create_transaction_status_update_requests(&mut state);
     tasks.push(Task::FetchBitcoinBlock(get_next_block_height(
         state.block_height,
     )));
@@ -177,7 +191,7 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
     (state, tasks)
 }
 
-fn create_transaction_status_update_requests(state: &State) -> Vec<Task> {
+fn create_transaction_status_update_requests(state: &mut State) -> Vec<Task> {
     match state.contract {
         Some(Response {
             status: TransactionStatus::Broadcasted,
@@ -195,20 +209,23 @@ fn create_transaction_status_update_requests(state: &State) -> Vec<Task> {
     }
 }
 
-fn create_transaction_status_update_tasks(state: &State) -> Vec<Task> {
+fn create_transaction_status_update_tasks(state: &mut State) -> Vec<Task> {
     let mut tasks = vec![];
 
-    let mint_tasks = state.deposits.iter().filter_map(|deposit| deposit.mint());
+    let mint_tasks = state
+        .deposits
+        .iter_mut()
+        .filter_map(|deposit| deposit.mint());
 
     let burn_tasks: Vec<_> = state
         .withdrawals
-        .iter()
+        .iter_mut()
         .filter_map(|withdrawal| withdrawal.burn())
         .collect();
 
     let fulfillment_tasks: Vec<_> = state
         .withdrawals
-        .iter()
+        .iter_mut()
         .filter_map(|withdrawal| withdrawal.fulfill())
         .collect();
 
@@ -241,6 +258,7 @@ fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
                         block_height,
                     },
                     mint: None,
+                    mint_created: false,
                 })
         })
         .collect()

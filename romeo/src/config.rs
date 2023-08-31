@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use bdk::bitcoin::{self, PrivateKey};
+use bdk::bitcoin::{self, schnorr, secp256k1, PrivateKey};
 use blockstack_lib::{
     address::{
         AddressHashMode, C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
@@ -114,6 +114,15 @@ impl Config {
             &vec![self.stacks_public_key()],
         )
         .unwrap()
+    }
+
+    /// Bitcoin taproot address associated with the private key
+    pub async fn taproot_address(&self) -> bitcoin::Address {
+        let secp = secp256k1::Secp256k1::new();
+        let internal_key: schnorr::UntweakedPublicKey =
+            self.private_key.public_key(&secp).inner.into();
+
+        bitcoin::Address::p2tr(&secp, internal_key, None, self.private_key.network)
     }
 }
 
