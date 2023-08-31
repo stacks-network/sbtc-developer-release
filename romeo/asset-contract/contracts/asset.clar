@@ -1,7 +1,12 @@
-;; title: asset
-;; version:
+;; title: wrapped BTC on Stacks
+;; version: 0.1.0
 ;; summary: sBTC dev release asset contract
-;; description:
+;; description: sBTC is a wrapped BTC asset on Stacks.
+;; It is a fungible token (SIP-10) that is backed 1:1 by BTC
+;; For this version the wallet is controlled by a centralized entity.
+;; sBTC is minted when BTC is deposited into the wallet and
+;; burned when BTC is withdrawn from the wallet.
+;; Requests for minting and burning are made by the contract owner.
 
 ;; traits
 ;;
@@ -13,8 +18,7 @@
 
 ;; constants
 ;;
-(define-constant err-invalid-caller u1)
-(define-constant err-not-token-owner u2)
+(define-constant err-forbidden (err u403))
 
 ;; data vars
 ;;
@@ -25,32 +29,32 @@
 ;;
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
-        (asserts! (is-contract-owner) (err err-invalid-caller))
+        (asserts! (is-contract-owner) err-forbidden)
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
     )
 )
 
 (define-public (mint (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
     (begin
-        (asserts! (is-contract-owner) (err err-invalid-caller))
+        (asserts! (is-contract-owner) err-forbidden)
         ;; TODO #79: Assert deposit-txid exists on chain
-        (print deposit-txid)
+        (print {notification: "mint", payload: deposit-txid})
         (ft-mint? sbtc amount dst)
     )
 )
 
 (define-public (burn (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
     (begin
-        (asserts! (is-contract-owner) (err err-invalid-caller))
+        (asserts! (is-contract-owner) err-forbidden)
         ;; TODO #79: Assert withdraw-txid exists on chain
-        (print withdraw-txid)
+        (print {notification: "burn", payload: withdraw-txid})
         (ft-burn? sbtc amount src)
     )
 )
 
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-		(asserts! (is-eq tx-sender sender) (err err-not-token-owner))
+		(asserts! (is-eq tx-sender sender) err-forbidden)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)

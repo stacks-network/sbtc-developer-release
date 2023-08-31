@@ -7,8 +7,7 @@
 (define-constant expected-symbol "sBTC")
 (define-constant expected-decimals u8)
 
-(define-constant err-invalid-caller (err u1))
-(define-constant err-not-token-owner (err u2))
+(define-constant err-forbidden (err u403))
 
 (define-private (assert-eq (result (response bool uint)) (compare (response bool uint)) (message (string-ascii 100)))
 	(ok (asserts! (is-eq result compare) (err message)))
@@ -46,7 +45,33 @@
 ;; @no-prepare
 ;; @caller wallet_1
 (define-public (test-protocol-mint-external)
-	(assert-eq (contract-call? .asset mint u10000000 wallet-1 "a txid") err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset mint u10000000 wallet-1 "a txid") err-forbidden "Should have failed")
+)
+
+;; @name Protocol can burn tokens
+;; @caller deployer
+(define-public (test-protocol-burn)
+	(contract-call? .asset burn u10000000 wallet-1 "a txid")
+)
+
+;; @name Non-protocol contracts cannot burn tokens
+;; @caller wallet_1
+(define-public (test-protocol-burn-external)
+	(assert-eq (contract-call? .asset burn u10000000 wallet-1 "a txid") err-forbidden "Should have failed")
+)
+
+;; @name Protocol can set wallet address
+;; @no-prepare
+;; @caller deployer
+(define-public (test-protocol-set-wallet-public-key)
+	(contract-call? .asset set-bitcoin-wallet-public-key 0x1234)
+)
+
+;; @name Non-protocol contracts cannot mint tokens
+;; @no-prepare
+;; @caller wallet_1
+(define-public (test-protocol-set-wallet-public-key-external)
+	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-forbidden "Should have returned err forbidden")
 )
 
 ;; --- SIP010 tests
@@ -60,7 +85,7 @@
 ;; @name Cannot transfer someone else's tokens
 ;; @caller wallet_1
 (define-public (test-transfer-external)
-	(assert-eq (contract-call? .asset transfer u100 wallet-2 tx-sender none) err-not-token-owner "Should have failed")
+	(assert-eq (contract-call? .asset transfer u100 wallet-2 tx-sender none) err-forbidden "Should have failed")
 )
 
 ;; @name Can get name
