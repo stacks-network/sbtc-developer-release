@@ -27,7 +27,7 @@ impl BitcoinClient {
 
     /// Broadcast a bitcoin transaction
     pub async fn broadcast(&self, tx: &bitcoin::Transaction) -> anyhow::Result<()> {
-        Ok(retry(|| self.client.broadcast(tx)).await?)
+        retry(|| self.client.broadcast(tx)).await
     }
 
     /// Get the status of a transaction
@@ -77,7 +77,7 @@ impl BitcoinClient {
 
     /// Get the current height of the Bitcoin chain
     pub async fn get_height(&self) -> anyhow::Result<u32> {
-        Ok(retry(|| self.client.get_height()).await?)
+        retry(|| self.client.get_height()).await
     }
 
     /// Sign relevant inputs of a bitcoin transaction

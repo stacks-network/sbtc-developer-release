@@ -19,7 +19,7 @@ use crate::task::Task;
 /// The whole state of the application
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
-    contract: Option<Response<StacksTxId>>,
+    contract: Option<TransactionRequest<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
     block_height: Option<u32>,
@@ -29,8 +29,16 @@ pub struct State {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Deposit {
     info: DepositInfo,
-    mint: Option<Response<StacksTxId>>,
-    mint_created: bool,
+    mint: Option<TransactionRequest<StacksTxId>>,
+}
+
+/// A transaction request
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum TransactionRequest<T> {
+    /// Created and passed on to a task
+    Created,
+    /// Acknowledged by a task with the status update
+    Acknowledged(T, TransactionStatus),
 }
 
 /// Relevant information for processing deposits
@@ -50,29 +58,19 @@ pub struct DepositInfo {
 }
 
 impl Deposit {
-    fn mint(&mut self) -> Option<Task> {
-        match self.mint.as_mut() {
-            Some(Response {
-                status: TransactionStatus::Broadcasted,
-                txid,
-            }) => Some(Task::CheckStacksTransactionStatus(*txid)),
-            // TODO: Think about removing deposits at this stage #99
-            Some(Response {
-                status: TransactionStatus::Confirmed,
-                ..
-            }) => None,
-            Some(Response {
-                status: TransactionStatus::Rejected,
-                ..
-            }) => panic!("Mint transaction rejected"),
-            // TODO: Confirm that the deposit wallet is correct
+    fn request_work(&mut self) -> Option<Task> {
+        match self.mint {
             None => {
-                if self.mint_created {
-                    return None;
-                }
-
-                self.mint_created = true;
+                self.mint = Some(TransactionRequest::Created);
                 Some(Task::CreateMint(self.info.clone()))
+            }
+            Some(TransactionRequest::Created)
+            | Some(TransactionRequest::Acknowledged(_, TransactionStatus::Confirmed)) => None,
+            Some(TransactionRequest::Acknowledged(txid, TransactionStatus::Broadcasted)) => {
+                Some(Task::CheckStacksTransactionStatus(txid))
+            }
+            Some(TransactionRequest::Acknowledged(txid, TransactionStatus::Rejected)) => {
+                panic!("Mint transaction rejected: {}", txid)
             }
         }
     }
@@ -81,10 +79,8 @@ impl Deposit {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Withdrawal {
     info: WithdrawalInfo,
-    burn: Option<Response<StacksTxId>>,
-    fulfillment: Option<Response<BitcoinTxId>>,
-    burn_created: bool,
-    fulfillment_created: bool,
+    burn: Option<TransactionRequest<StacksTxId>>,
+    fulfillment: Option<TransactionRequest<BitcoinTxId>>,
 }
 
 /// Relevant information for processing withdrawals
@@ -121,20 +117,6 @@ impl Withdrawal {
 struct Response<T> {
     txid: T,
     status: TransactionStatus,
-}
-
-impl<T> Response<T>
-where
-    T: PartialEq + Eq,
-{
-    fn update_status(&mut self, txid: T, status: TransactionStatus) -> bool {
-        if self.txid == txid {
-            self.status = status;
-            true
-        } else {
-            false
-        }
-    }
 }
 
 /// Spawn initial tasks given a recovered state
@@ -193,19 +175,16 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
 
 fn create_transaction_status_update_requests(state: &mut State) -> Vec<Task> {
     match state.contract {
-        Some(Response {
-            status: TransactionStatus::Broadcasted,
-            txid,
-        }) => vec![Task::CheckStacksTransactionStatus(txid)],
-        Some(Response {
-            status: TransactionStatus::Confirmed,
-            ..
-        }) => create_transaction_status_update_tasks(state),
-        Some(Response {
-            status: TransactionStatus::Rejected,
-            ..
-        }) => panic!("Contract creation transaction rejected"),
-        None => vec![],
+        None | Some(TransactionRequest::Created) => vec![],
+        Some(TransactionRequest::Acknowledged(txid, TransactionStatus::Broadcasted)) => {
+            vec![Task::CheckStacksTransactionStatus(txid)]
+        }
+        Some(TransactionRequest::Acknowledged(_, TransactionStatus::Confirmed)) => {
+            create_transaction_status_update_tasks(state)
+        }
+        Some(TransactionRequest::Acknowledged(txid, TransactionStatus::Rejected)) => {
+            panic!("Contract creation transaction rejected: {}", txid)
+        }
     }
 }
 
@@ -215,7 +194,7 @@ fn create_transaction_status_update_tasks(state: &mut State) -> Vec<Task> {
     let mint_tasks = state
         .deposits
         .iter_mut()
-        .filter_map(|deposit| deposit.mint());
+        .filter_map(|deposit| deposit.request_work());
 
     let burn_tasks: Vec<_> = state
         .withdrawals
@@ -258,7 +237,6 @@ fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
                         block_height,
                     },
                     mint: None,
-                    mint_created: false,
                 })
         })
         .collect()
@@ -296,19 +274,6 @@ fn process_stacks_transaction_update(
         panic!("Stacks transaction failed");
     }
 
-    let tasks = if let Some(contract) = state.contract.as_ref() {
-        if contract.txid == txid
-            && contract.status == TransactionStatus::Broadcasted
-            && state.block_height.is_none()
-        {
-            vec![Task::FetchBitcoinBlock(None)]
-        } else {
-            vec![]
-        }
-    } else {
-        vec![]
-    };
-
     let contract_response = state.contract.as_mut().into_iter();
 
     let deposit_responses = state
@@ -325,7 +290,23 @@ fn process_stacks_transaction_update(
         .chain(contract_response)
         .chain(deposit_responses)
         .chain(withdrawal_responses)
-        .map(|response| response.update_status(txid, status.clone()) as usize)
+        .map(|response| {
+            let status_updated = match response {
+                TransactionRequest::Acknowledged(current_txid, current_status) => {
+                    if txid == *current_txid {
+                        *current_status = status.clone();
+                        true
+                    } else {
+                        false
+                    }
+                }
+                TransactionRequest::Created => {
+                    panic!("Got an update for a transaction that was not acknowledged")
+                }
+            };
+
+            status_updated as usize
+        })
         .sum();
 
     if statuses_updated != 1 {
@@ -335,6 +316,21 @@ fn process_stacks_transaction_update(
         );
     }
 
+    let tasks = {
+        let Some(TransactionRequest::Acknowledged(contract_txid, contract_status) ) = state.contract.as_ref() else  {
+            panic!("Contract transaction should be acknowledged and broadcasted first");
+        };
+
+        if txid == *contract_txid
+            && *contract_status == TransactionStatus::Broadcasted
+            && state.block_height.is_none()
+        {
+            vec![Task::FetchBitcoinBlock(None)]
+        } else {
+            vec![]
+        }
+    };
+
     (state, tasks)
 }
 
@@ -343,14 +339,12 @@ fn process_asset_contract_created(
     mut state: State,
     txid: StacksTxId,
 ) -> (State, Vec<Task>) {
-    state.contract = Some(Response {
+    state.contract = Some(TransactionRequest::Acknowledged(
         txid,
-        status: TransactionStatus::Broadcasted,
-    });
+        TransactionStatus::Broadcasted,
+    ));
 
-    let task = Task::CheckStacksTransactionStatus(txid);
-
-    (state, vec![task])
+    (state, vec![Task::CheckStacksTransactionStatus(txid)])
 }
 
 fn process_mint_created(
@@ -369,10 +363,10 @@ fn process_mint_created(
         "Newly minted deposit already has a mint"
     );
 
-    deposit.mint = Some(Response {
+    deposit.mint = Some(TransactionRequest::Acknowledged(
         txid,
-        status: TransactionStatus::Broadcasted,
-    });
+        TransactionStatus::Broadcasted,
+    ));
 
     (state, vec![])
 }
