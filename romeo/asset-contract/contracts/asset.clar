@@ -9,7 +9,7 @@
 
 ;; token definitions
 ;;
-(define-fungible-token sbtc u21000000)
+(define-fungible-token sbtc u21000000000000)
 
 ;; constants
 ;;
@@ -30,7 +30,7 @@
     )
 )
 
-(define-public (mint! (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
+(define-public (mint (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) (err err-invalid-caller))
         ;; TODO #79: Assert deposit-txid exists on chain
@@ -39,7 +39,7 @@
     )
 )
 
-(define-public (burn! (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
+(define-public (burn (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) (err err-invalid-caller))
         ;; TODO #79: Assert withdraw-txid exists on chain
