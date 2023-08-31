@@ -55,7 +55,7 @@ impl Deposit {
                 status: TransactionStatus::Broadcasted,
                 txid,
             }) => Some(Task::CheckStacksTransactionStatus(*txid)),
-            // TODO: Think about removing deposits at this stage
+            // TODO: Think about removing deposits at this stage #99
             Some(Response {
                 status: TransactionStatus::Confirmed,
                 ..
@@ -131,7 +131,7 @@ where
 pub fn bootstrap(state: &State) -> Task {
     match state.contract {
         None => Task::CreateAssetContract,
-        Some(_) => Task::FetchBitcoinBlock(state.block_height.map(|block_height| block_height + 1)),
+        Some(_) => Task::FetchBitcoinBlock(get_next_block_height(state.block_height)),
     }
 }
 
@@ -170,9 +170,9 @@ fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (St
     state.block_height = Some(new_block_height);
 
     let mut tasks = create_transaction_status_update_requests(&state);
-    tasks.push(Task::FetchBitcoinBlock(
-        state.block_height.map(|height| height + 1),
-    ));
+    tasks.push(Task::FetchBitcoinBlock(get_next_block_height(
+        state.block_height,
+    )));
 
     (state, tasks)
 }
@@ -357,4 +357,8 @@ fn process_mint_created(
     });
 
     (state, vec![])
+}
+
+fn get_next_block_height(height: Option<u32>) -> Option<u32> {
+    height.map(|height| height + 1)
 }

@@ -163,6 +163,7 @@ impl StacksClient {
             .json()
             .await?;
 
+        // TODO: Figure out what's the right multiplier #98
         Ok(fee_rate * tx_len * 100)
     }
 
@@ -189,10 +190,9 @@ impl StacksClient {
             .map(|query| query.to_string())
             .unwrap_or_default();
 
-        query = if query.is_empty() {
-            format!("cachebuster={}", random_string)
-        } else {
-            format!("{}&cachebuster={}", query, random_string)
+        query = match query.is_empty() {
+            true => format!("cachebuster={}", random_string),
+            false => format!("{}&cachebuster={}", query, random_string),
         };
 
         url.set_query(Some(&query));
