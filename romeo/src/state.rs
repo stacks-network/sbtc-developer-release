@@ -65,38 +65,39 @@ pub struct DepositInfo {
 }
 
 impl Deposit {
-	fn request_work(&mut self) -> Option<Task> {
-		match self.mint.as_mut() {
-			None => {
-				self.mint = Some(TransactionRequest::Created);
-				Some(Task::CreateMint(self.info.clone()))
-			}
-			Some(TransactionRequest::Created)
-			| Some(TransactionRequest::Acknowledged {
-				status: TransactionStatus::Confirmed,
-				..
-			}) => None,
-			Some(TransactionRequest::Acknowledged {
-				txid,
-				status: TransactionStatus::Broadcasted,
-				has_pending_task,
-			}) => {
-				if !*has_pending_task {
-					*has_pending_task = true;
-					Some(Task::CheckStacksTransactionStatus(*txid))
-				} else {
-					None
-				}
-			}
-			Some(TransactionRequest::Acknowledged {
-				txid,
-				status: TransactionStatus::Rejected,
-				..
-			}) => {
-				panic!("Mint transaction rejected: {}", txid)
-			}
-		}
-	}
+    fn request_work(&mut self) -> Option<Task> {
+        match self.mint.as_mut() {
+            None => {
+                self.mint = Some(TransactionRequest::Created);
+                Some(Task::CreateMint(self.info.clone()))
+            }
+            Some(TransactionRequest::Created)
+            | Some(TransactionRequest::Acknowledged {
+                status: TransactionStatus::Confirmed,
+                ..
+            }) => None,
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Broadcasted,
+                has_pending_task,
+            }) => {
+                if !*has_pending_task {
+                    *has_pending_task = true;
+                    Some(Task::CheckStacksTransactionStatus(*txid))
+                } else {
+                    None
+                }
+            }
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Rejected,
+                ..
+            }) => {
+                panic!("Mint transaction rejected: {}", txid)
+
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
