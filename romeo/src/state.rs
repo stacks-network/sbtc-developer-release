@@ -93,6 +93,7 @@ impl Deposit {
                 ..
             }) => {
                 panic!("Mint transaction rejected: {}", txid)
+
             }
         }
     }
