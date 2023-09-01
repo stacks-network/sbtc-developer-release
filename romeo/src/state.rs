@@ -160,7 +160,7 @@ pub fn bootstrap(mut state: State) -> (State, Task) {
             (state, Task::CreateAssetContract)
         }
         Some(_) => {
-            let block_height = state.block_height.clone();
+            let block_height = state.block_height;
 
             (
                 state,
