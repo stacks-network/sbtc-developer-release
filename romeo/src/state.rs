@@ -42,7 +42,7 @@ pub struct DepositInfo {
     /// Name of the contract where the funds should be minted
     pub contract_name: ContractName,
 
-    /// Height of the Bitcoin blockchain where this tx is included
+    /// Height of the Bitcoin blockchain where the deposit tx is included
     pub block_height: u64,
 }
 

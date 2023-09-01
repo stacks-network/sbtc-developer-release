@@ -2,6 +2,7 @@
 
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
+use blockstack_lib::burnchains::bitcoin;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
 use blockstack_lib::vm::types::ASCIIData;
 use blockstack_lib::vm::types::PrincipalData;
@@ -29,8 +30,10 @@ use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
+use crate::bitcoin_client::BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
+use crate::proof::Proof;
 use crate::stacks_client::LockedClient;
 use crate::stacks_client::StacksClient;
 use crate::state;
@@ -156,7 +159,15 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     Event::AssetContractCreated(txid)
 }
 
-async fn mint_asset(config: &Config, client: LockedClient, deposit_info: DepositInfo) -> Event {
+async fn mint_asset(config: &Config, client: LockedClient, bitcoin_client: BitcoinClient, deposit_info: DepositInfo) -> Event {
+    let block = bitcoin_client.fetch_block(deposit_info.block_height as u32).await.unwrap();
+    let index = block
+        .txdata
+        .iter()
+        .position(|tx| tx.txid() == deposit_info.txid)
+        .unwrap();
+    let _proof = Proof::from_block_and_index(&block, index);
+
     let tx_auth = TransactionAuth::Standard(
         TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
     );
