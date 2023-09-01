@@ -70,7 +70,7 @@ jobs:
           override: true
 
       - name: Install clarinet develop version
-        run: chmod +x ./bin/install_clarinet_ubuntu.sh && ./bin/install_clarinet_ubuntu.sh
+        run: chmod +x ./romeo/asset-contract/scripts/install_clarinet_action.sh && ./romeo/asset-contract/scripts/install_clarinet_action.sh
 
       - name: Run unit tests for romeo
         working-directory: ./romeo/asset-contract

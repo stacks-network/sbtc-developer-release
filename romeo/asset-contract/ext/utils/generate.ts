@@ -3,7 +3,7 @@ export const warningText = `// Code generated using \`clarinet run ./scripts/tes
 // Manual edits will be lost.`;
 
 
-export const defaultDeps = `import { Clarinet, Tx, Chain, Account, Block, types } from 'https://deno.land/x/clarinet@v1.7.0/index.ts';
+export const defaultDeps = `import { Clarinet, Tx, Chain, Account, Block, types } from 'https://deno.land/x/clarinet@v1.7.1/index.ts';
 import { assertEquals } from 'https://deno.land/std@0.170.0/testing/asserts.ts';
 
 export { Clarinet, Tx, Chain, types, assertEquals };

@@ -1,4 +1,4 @@
-import { Clarinet, Contract, Account } from 'https://deno.land/x/clarinet@v1.7.0/index.ts';
+import { Clarinet, Contract, Account } from 'https://deno.land/x/clarinet@v1.7.1/index.ts';
 import { extractTestAnnotations, getContractName } from './utils/clarity-parser.ts';
 import { defaultDeps, generateBootstrapFile, warningText } from './utils/generate.ts';
 
