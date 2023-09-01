@@ -93,8 +93,7 @@ pub fn build_deposit_transaction<T: BatchDatabase>(
         .finish()
         .map_err(|err| SBTCError::BDKError("Could not finish the transaction", err))?;
 
-    partial_tx.unsigned_tx.output =
-        reorder_outputs(partial_tx.unsigned_tx.output.into_iter(), outputs);
+    partial_tx.unsigned_tx.output = reorder_outputs(partial_tx.unsigned_tx.output, outputs);
 
     wallet
         .sign(&mut partial_tx, SignOptions::default())

@@ -2,7 +2,6 @@
 
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
-use blockstack_lib::burnchains::bitcoin;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
 use blockstack_lib::vm::types::ASCIIData;
 use blockstack_lib::vm::types::PrincipalData;
@@ -47,7 +46,8 @@ use crate::task::Task;
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
     let client: LockedClient = StacksClient::new(config.clone(), reqwest::Client::new()).into();
-
+    let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key)
+        .expect("Failed to create bitcoin client");
     tracing::debug!("Starting replay of persisted events");
     let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
     tracing::debug!("Replay finished with state: {:?}", state);
@@ -55,7 +55,13 @@ pub async fn run(config: Config) {
     let bootstrap_task = state::bootstrap(&state);
 
     // Bootstrap
-    spawn(config.clone(), client.clone(), bootstrap_task, tx.clone());
+    spawn(
+        config.clone(),
+        client.clone(),
+        bitcoin_client.clone(),
+        bootstrap_task,
+        tx.clone(),
+    );
 
     while let Some(event) = rx.recv().await {
         storage.record(&event).await;
@@ -65,7 +71,13 @@ pub async fn run(config: Config) {
         trace!("State: {}", serde_json::to_string(&next_state).unwrap());
 
         for task in tasks {
-            spawn(config.clone(), client.clone(), task, tx.clone());
+            spawn(
+                config.clone(),
+                client.clone(),
+                bitcoin_client.clone(),
+                task,
+                tx.clone(),
+            );
         }
 
         state = next_state;
@@ -107,21 +119,29 @@ impl Storage {
 fn spawn(
     config: Config,
     client: LockedClient,
+    bitcoin_client: BitcoinClient,
     task: Task,
     result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
     debug!("Spawning task");
 
     tokio::task::spawn(async move {
-        let event = run_task(&config, client, task).await;
+        let event = run_task(&config, client, bitcoin_client, task).await;
         result.send(event).await.expect("Failed to return event");
     })
 }
 
-async fn run_task(config: &Config, client: LockedClient, task: Task) -> Event {
+async fn run_task(
+    config: &Config,
+    client: LockedClient,
+    bitcoin_client: BitcoinClient,
+    task: Task,
+) -> Event {
     match task {
         Task::CreateAssetContract => deploy_asset_contract(config, client).await,
-        Task::CreateMint(deposit_info) => mint_asset(config, client, deposit_info).await,
+        Task::CreateMint(deposit_info) => {
+            mint_asset(config, client, bitcoin_client, deposit_info).await
+        }
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
         }
@@ -159,8 +179,16 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     Event::AssetContractCreated(txid)
 }
 
-async fn mint_asset(config: &Config, client: LockedClient, bitcoin_client: BitcoinClient, deposit_info: DepositInfo) -> Event {
-    let block = bitcoin_client.fetch_block(deposit_info.block_height as u32).await.unwrap();
+async fn mint_asset(
+    config: &Config,
+    client: LockedClient,
+    bitcoin_client: BitcoinClient,
+    deposit_info: DepositInfo,
+) -> Event {
+    let block = bitcoin_client
+        .fetch_block(deposit_info.block_height as u32)
+        .await
+        .unwrap();
     let index = block
         .txdata
         .iter()
@@ -242,6 +270,8 @@ mod tests {
 
         let http_client = reqwest::Client::new();
         let client = StacksClient::new(config.clone(), http_client).into();
+        let bitcoin_client =
+            BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key).unwrap();
 
         let deposit_info = DepositInfo {
             txid: BitcoinTxId::from_hash(
@@ -260,6 +290,6 @@ mod tests {
             block_height: 2475303,
         };
 
-        mint_asset(&config, client, deposit_info).await;
+        mint_asset(&config, client, bitcoin_client, deposit_info).await;
     }
 }

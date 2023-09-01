@@ -1,3 +1,4 @@
+//! Proof
 use bdk::bitcoin::{Block, BlockHash, Transaction, Txid as BitcoinTxId};
 
 /// A proof for a bitcoin transaction used by clarity contracts
@@ -29,8 +30,8 @@ impl Proof {
 #[cfg(test)]
 // test from_block returns correct Proof
 mod tests {
-    use bdk::bitcoin::{consensus::deserialize, hashes::hex::FromHex, Block};
     use super::*;
+    use bdk::bitcoin::{consensus::deserialize, hashes::hex::FromHex, Block};
 
     #[test]
     fn should_create_correct_proof() {

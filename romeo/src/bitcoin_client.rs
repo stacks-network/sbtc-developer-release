@@ -111,7 +111,7 @@ mod tests {
             Config::from_path("./testing/config.json").expect("Failed to find config file");
 
         let bitcoin_client =
-            BitcoinClient::new("https://blockstream.info/testnet/api", config.private_key).unwrap();
+            BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key).unwrap();
 
         let block_height = bitcoin_client.get_height().await.unwrap();
         let block = bitcoin_client.fetch_block(block_height).await.unwrap();
