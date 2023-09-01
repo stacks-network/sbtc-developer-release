@@ -126,7 +126,7 @@ impl StacksClient {
         let res: Value = self
             .send_request(
                 self.http_client
-                    .get(self.get_transation_details_url(txid))
+                    .get(self.cachebust(self.get_transation_details_url(txid)))
                     .header("Accept", "application/json")
                     .build()?,
             )
@@ -147,7 +147,7 @@ impl StacksClient {
     async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
         Ok(self
             .http_client
-            .get(self.nonce_url())
+            .get(self.cachebust(self.nonce_url()))
             .send()
             .await?
             .json()
@@ -163,7 +163,8 @@ impl StacksClient {
             .json()
             .await?;
 
-        Ok(fee_rate * tx_len)
+        // TODO: Figure out what's the right multiplier #98
+        Ok(fee_rate * tx_len * 100)
     }
 
     fn transaction_url(&self) -> reqwest::Url {
@@ -180,15 +181,29 @@ impl StacksClient {
             .unwrap()
     }
 
-    fn nonce_url(&self) -> reqwest::Url {
+    fn cachebust(&self, mut url: reqwest::Url) -> reqwest::Url {
         let mut rng = thread_rng();
         let random_string: String = (0..16).map(|_| rng.sample(Alphanumeric) as char).collect();
 
-        // We need to make sure node returns the uncached nonce, so we add a cachebuster
+        let mut query = url
+            .query()
+            .map(|query| query.to_string())
+            .unwrap_or_default();
+
+        query = match query.is_empty() {
+            true => format!("cachebuster={}", random_string),
+            false => format!("{}&cachebuster={}", query, random_string),
+        };
+
+        url.set_query(Some(&query));
+
+        url
+    }
+
+    fn nonce_url(&self) -> reqwest::Url {
         let path = format!(
-            "/extended/v1/address/{}/nonces?cachebuster={}",
+            "/extended/v1/address/{}/nonces",
             self.config.stacks_address(),
-            random_string
         );
 
         self.config.stacks_node_url.join(&path).unwrap()
