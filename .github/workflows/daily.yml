@@ -1,6 +1,11 @@
 name: Daily Workflow
 
 on:
+
+  push:
+    branches: "fix-cargo-audit"
+    paths-ignore: ['**.md']
+    
   # Run every week day at 12 PM UTC
   schedule:
   - cron: "0 12 * * 1-5"
@@ -58,17 +63,16 @@ jobs:
         - name: Nextest with release
           run: cargo make test
 
-    publish:
-      needs: intense-tests
-      runs-on: ubuntu-latest
-      steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ env.BRANCH }}
-      - name: Publish
-        uses: katyo/publish-crates@v2
-        with:
-          args: "--verbose"
-          publish-delay: 1000 # Wait 1 second between publishing dependencies.
-          ignore-unpublished-changes: true
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+#    publish:
+#      needs: intense-tests
+#      runs-on: ubuntu-latest
+#      steps:
+#      - uses: actions/checkout@v3
+#        with:
+#          ref: ${{ env.BRANCH }}      - name: Publish
+#        uses: katyo/publish-crates@v2
+#        with:
+#          args: "--verbose"
+#          publish-delay: 1000 # Wait 1 second between publishing dependencies.
+#          ignore-unpublished-changes: true
+#          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
