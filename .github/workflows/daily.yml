@@ -2,11 +2,6 @@ name: Daily Workflow
 
 on:
 
-  # TODO: remove after testing
-  push:
-    branches: "fix-cargo-audit"
-    paths-ignore: ['**.md']
-    
   # Run every week day at 12 PM UTC
   schedule:
   - cron: "0 12 * * 1-5"
@@ -35,15 +30,15 @@ jobs:
         uses: davidB/rust-cargo-make@v1
         with:
           version: "0.36.13"
+\
+      - name: Audit
+        working-directory: ./
+        run: cargo make audit
 
       - uses: actions/upload-artifact@v3
         with:
           name: Cargo.lock
           path: Cargo.lock
-
-      - name: Audit
-        working-directory: ./
-        run: cargo make audit
 
     intense-tests:
       needs: generate-lockfile-and-audit
