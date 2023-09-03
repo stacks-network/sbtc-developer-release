@@ -9,6 +9,7 @@ on:
   schedule:
     - cron: '0 0 * * *'
   push:
+    branches: "fix-cargo-audit"
     paths:
       - '**/Cargo.lock'
       - '**/Cargo.toml'
