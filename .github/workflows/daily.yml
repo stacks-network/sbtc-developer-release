@@ -2,6 +2,7 @@ name: Daily Workflow
 
 on:
 
+  # TODO: remove after testing
   push:
     branches: "fix-cargo-audit"
     paths-ignore: ['**.md']
