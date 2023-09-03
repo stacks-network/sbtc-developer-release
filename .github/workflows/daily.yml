@@ -42,7 +42,8 @@ jobs:
           path: Cargo.lock
 
       - name: Audit
-        run: cargo audit
+        working-directory: ./
+        run: cargo make audit
 
     intense-tests:
       needs: generate-lockfile-and-audit
