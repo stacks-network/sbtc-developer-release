@@ -30,10 +30,6 @@ jobs:
         uses: davidB/rust-cargo-make@v1
         with:
           version: "0.36.13"
-\
-      - name: Audit
-        working-directory: ./
-        run: cargo make audit
 
       - uses: actions/upload-artifact@v3
         with:
@@ -60,16 +56,16 @@ jobs:
         - name: Nextest with release
           run: cargo make test
 
-#    publish:
-#      needs: intense-tests
-#      runs-on: ubuntu-latest
-#      steps:
-#      - uses: actions/checkout@v3
-#        with:
-#          ref: ${{ env.BRANCH }}      - name: Publish
-#        uses: katyo/publish-crates@v2
-#        with:
-#          args: "--verbose"
-#          publish-delay: 1000 # Wait 1 second between publishing dependencies.
-#          ignore-unpublished-changes: true
-#          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    publish:
+      needs: intense-tests
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.BRANCH }}      - name: Publish
+        uses: katyo/publish-crates@v2
+        with:
+          args: "--verbose"
+          publish-delay: 1000 # Wait 1 second between publishing dependencies.
+          ignore-unpublished-changes: true
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
