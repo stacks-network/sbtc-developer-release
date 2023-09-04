@@ -28,6 +28,7 @@ use std::{collections::HashMap, io};
 
 use bdk::{
     bitcoin::{
+        blockdata::{opcodes::all::OP_RETURN, script::Instruction},
         psbt::PartiallySignedTransaction,
         secp256k1::{ecdsa::RecoverableSignature, Message, Secp256k1},
         Address as BitcoinAddress, Amount, Network, PrivateKey, Transaction,
@@ -39,6 +40,7 @@ use stacks_core::{
     codec::Codec,
     crypto::{sha256::Sha256Hasher, Hashing},
 };
+use thiserror::Error;
 
 use crate::{
     operations::{
@@ -49,6 +51,79 @@ use crate::{
     },
     SBTCError, SBTCResult,
 };
+
+#[derive(Error, Debug)]
+/// Errors occuring during the parsing of the withdrawal request
+pub enum WithdrawalParseError {
+    /// Missing expected output
+    #[error("Missing an expected output")]
+    InvalidOutputs,
+
+    /// Doesn't contain an OP_RETURN with the right opcode
+    #[error("Not an sBTC operation")]
+    NotSbtcOp,
+
+    /// A recipient address error
+    #[error("Could not get recipient address from output")]
+    InvalidRecipientAddress,
+}
+
+/// Amount and a recipient for a withdrawal request
+pub struct WithdrawalRequest {
+    recipient_address: BitcoinAddress,
+    amount: Amount,
+    fulfillment_amount: Amount,
+    peg_wallet: BitcoinAddress,
+}
+
+impl WithdrawalRequest {
+    /// Parse a withdrawal request from a transaction
+    pub fn parse(network: Network, tx: Transaction) -> Result<Self, WithdrawalParseError> {
+        let mut output_iter = tx.output.into_iter();
+
+        let data_output = output_iter
+            .next()
+            .ok_or(WithdrawalParseError::InvalidOutputs)?;
+
+        let mut instructions_iter = data_output.script_pubkey.instructions();
+
+        let Some(Ok(Instruction::Op(OP_RETURN))) = instructions_iter.next() else {
+            return Err(WithdrawalParseError::NotSbtcOp);
+        };
+
+        let Some(Ok(Instruction::PushBytes(mut data))) = instructions_iter.next() else {
+            return Err(WithdrawalParseError::NotSbtcOp);
+        };
+
+        let withdrawal_data = WithdrawalRequestOutputData::codec_deserialize(&mut data)
+            .map_err(|_| WithdrawalParseError::NotSbtcOp)?;
+
+        let recipient_pubkey_output = output_iter
+            .next()
+            .ok_or(WithdrawalParseError::InvalidOutputs)?;
+
+        let recipient_address =
+            BitcoinAddress::from_script(&recipient_pubkey_output.script_pubkey, network)
+                .map_err(|_| WithdrawalParseError::InvalidRecipientAddress)?;
+
+        let fulfillment_fee_output = output_iter
+            .next()
+            .ok_or(WithdrawalParseError::InvalidOutputs)?;
+
+        let peg_wallet =
+            BitcoinAddress::from_script(&fulfillment_fee_output.script_pubkey, network)
+                .map_err(|_| WithdrawalParseError::InvalidRecipientAddress)?;
+
+        let fulfillment_amount = Amount::from_sat(fulfillment_fee_output.value);
+
+        Ok(Self {
+            recipient_address,
+            amount: withdrawal_data.amount,
+            fulfillment_amount,
+            peg_wallet,
+        })
+    }
+}
 
 #[derive(PartialEq, Eq, Debug)]
 /// Data for the sBTC OP_RETURN withdrawal request transaction output
@@ -116,18 +191,32 @@ impl Codec for WithdrawalRequestOutputData {
     }
 }
 
-fn sign_amount_and_recipient(
-    recipient: &BitcoinAddress,
+/// Construct a BTC transaction containing the provided sBTC withdrawal data
+pub fn build_withdrawal_tx(
+    withdrawer_bitcoin_private_key: PrivateKey,
+    withdrawer_stacks_private_key: PrivateKey,
+    receiver_address: BitcoinAddress,
     amount: Amount,
-    sender_private_key: &PrivateKey,
-) -> RecoverableSignature {
-    let mut msg = amount.to_sat().to_be_bytes().to_vec();
-    msg.extend_from_slice(recipient.script_pubkey().as_bytes());
+    fulfillment_fee: u64,
+    dkg_address: BitcoinAddress,
+) -> SBTCResult<Transaction> {
+    let wallet = setup_wallet(withdrawer_bitcoin_private_key)?;
 
-    let msg_hash = Sha256Hasher::hash(&msg);
-    let msg_ecdsa = Message::from_slice(msg_hash.as_ref()).unwrap();
+    let mut psbt = withdrawal_psbt(
+        &wallet,
+        &withdrawer_stacks_private_key,
+        &receiver_address,
+        &dkg_address,
+        amount,
+        fulfillment_fee,
+        withdrawer_bitcoin_private_key.network,
+    )?;
 
-    Secp256k1::new().sign_ecdsa_recoverable(&msg_ecdsa, &sender_private_key.inner)
+    wallet
+        .sign(&mut psbt, SignOptions::default())
+        .map_err(|err| SBTCError::BDKError("Could not sign withdrawal transaction", err))?;
+
+    Ok(psbt.extract_tx())
 }
 
 fn withdrawal_psbt(
@@ -187,30 +276,16 @@ fn withdrawal_psbt(
     Ok(partial_tx)
 }
 
-/// Construct a BTC transaction containing the provided sBTC withdrawal data
-pub fn build_withdrawal_tx(
-    withdrawer_bitcoin_private_key: PrivateKey,
-    withdrawer_stacks_private_key: PrivateKey,
-    receiver_address: BitcoinAddress,
+fn sign_amount_and_recipient(
+    recipient: &BitcoinAddress,
     amount: Amount,
-    fulfillment_fee: u64,
-    dkg_address: BitcoinAddress,
-) -> SBTCResult<Transaction> {
-    let wallet = setup_wallet(withdrawer_bitcoin_private_key)?;
+    sender_private_key: &PrivateKey,
+) -> RecoverableSignature {
+    let mut msg = amount.to_sat().to_be_bytes().to_vec();
+    msg.extend_from_slice(recipient.script_pubkey().as_bytes());
 
-    let mut psbt = withdrawal_psbt(
-        &wallet,
-        &withdrawer_stacks_private_key,
-        &receiver_address,
-        &dkg_address,
-        amount,
-        fulfillment_fee,
-        withdrawer_bitcoin_private_key.network,
-    )?;
+    let msg_hash = Sha256Hasher::hash(&msg);
+    let msg_ecdsa = Message::from_slice(msg_hash.as_ref()).unwrap();
 
-    wallet
-        .sign(&mut psbt, SignOptions::default())
-        .map_err(|err| SBTCError::BDKError("Could not sign withdrawal transaction", err))?;
-
-    Ok(psbt.extract_tx())
+    Secp256k1::new().sign_ecdsa_recoverable(&msg_ecdsa, &sender_private_key.inner)
 }
