@@ -12,6 +12,7 @@ use blockstack_lib::{
         C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
     },
     types::chainstate::{StacksAddress, StacksPrivateKey, StacksPublicKey},
+    vm::ContractName,
 };
 use clap::Parser;
 
@@ -47,6 +48,9 @@ pub struct Config {
 
     /// Fee to use for bitcoin transactions
     pub bitcoin_transaction_fee: u64,
+
+    /// sBTC asset contract name
+    pub contract_name: ContractName,
 }
 
 impl Config {
@@ -72,6 +76,7 @@ impl Config {
             stacks_node_url,
             stacks_transaction_fee: config_file.stacks_transaction_fee,
             bitcoin_transaction_fee: config_file.bitcoin_transaction_fee,
+            contract_name: ContractName::from(config_file.contract_name.as_str()),
         })
     }
 
@@ -151,6 +156,9 @@ struct ConfigFile {
 
     /// Fee to use for bitcoin transactions
     pub bitcoin_transaction_fee: u64,
+
+    /// sBTC asset contract name
+    pub contract_name: String,
 }
 
 impl ConfigFile {

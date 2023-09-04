@@ -1,11 +1,12 @@
 //! System
 
+use std::fs::create_dir_all;
+
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
 use blockstack_lib::vm::types::ASCIIData;
-use blockstack_lib::vm::types::PrincipalData;
-use blockstack_lib::vm::types::StandardPrincipalData;
+
 use blockstack_lib::vm::ClarityName;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -23,12 +24,12 @@ use blockstack_lib::chainstate::stacks::TransactionVersion;
 use blockstack_lib::vm::types::Value;
 
 use blockstack_lib::util_lib::strings::StacksString;
-use blockstack_lib::vm::ContractName;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
+use crate::bitcoin_client::BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
 use crate::stacks_client::LockedClient;
@@ -43,7 +44,10 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let client: LockedClient = StacksClient::new(config.clone(), reqwest::Client::new()).into();
+    let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key)
+        .expect("Failed to instantiate bitcoin client");
+    let stacks_client: LockedClient =
+        StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
     tracing::debug!("Starting replay of persisted events");
     let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
@@ -52,7 +56,13 @@ pub async fn run(config: Config) {
     let bootstrap_task = state::bootstrap(&state);
 
     // Bootstrap
-    spawn(config.clone(), client.clone(), bootstrap_task, tx.clone());
+    spawn(
+        config.clone(),
+        bitcoin_client.clone(),
+        stacks_client.clone(),
+        bootstrap_task,
+        tx.clone(),
+    );
 
     while let Some(event) = rx.recv().await {
         storage.record(&event).await;
@@ -62,7 +72,13 @@ pub async fn run(config: Config) {
         trace!("State: {}", serde_json::to_string(&next_state).unwrap());
 
         for task in tasks {
-            spawn(config.clone(), client.clone(), task, tx.clone());
+            spawn(
+                config.clone(),
+                bitcoin_client.clone(),
+                stacks_client.clone(),
+                task,
+                tx.clone(),
+            );
         }
 
         state = next_state;
@@ -73,6 +89,8 @@ struct Storage(BufWriter<File>);
 
 impl Storage {
     async fn load_and_replay(config: &Config, mut state: state::State) -> (Self, state::State) {
+        create_dir_all(&config.state_directory).unwrap();
+
         let mut file = OpenOptions::new()
             .create(true)
             .read(true)
@@ -100,32 +118,40 @@ impl Storage {
     }
 }
 
-#[tracing::instrument(skip(config, client, result))]
+#[tracing::instrument(skip(config, stacks_client, result))]
 fn spawn(
     config: Config,
-    client: LockedClient,
+    bitcoin_client: BitcoinClient,
+    stacks_client: LockedClient,
     task: Task,
     result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
     debug!("Spawning task");
 
     tokio::task::spawn(async move {
-        let event = run_task(&config, client, task).await;
+        let event = run_task(&config, bitcoin_client, stacks_client, task).await;
         result.send(event).await.expect("Failed to return event");
     })
 }
 
-async fn run_task(config: &Config, client: LockedClient, task: Task) -> Event {
+async fn run_task(
+    config: &Config,
+    bitcoin_client: BitcoinClient,
+    stacks_client: LockedClient,
+    task: Task,
+) -> Event {
     match task {
-        Task::CreateAssetContract => deploy_asset_contract(config, client).await,
-        Task::CreateMint(deposit_info) => mint_asset(config, client, deposit_info).await,
+        Task::CreateAssetContract => deploy_asset_contract(config, stacks_client).await,
+        Task::CreateMint(deposit_info) => mint_asset(config, stacks_client, deposit_info).await,
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
         }
         Task::CheckStacksTransactionStatus(txid) => {
-            check_stacks_transaction_status(client, txid).await
+            check_stacks_transaction_status(stacks_client, txid).await
         }
-        Task::FetchBitcoinBlock(block_height) => fetch_bitcoin_block(config, block_height).await,
+        Task::FetchBitcoinBlock(block_height) => {
+            fetch_bitcoin_block(bitcoin_client, block_height).await
+        }
         _ => panic!(),
     }
 }
@@ -138,7 +164,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     );
     let tx_payload = TransactionPayload::SmartContract(
         TransactionSmartContract {
-            name: ContractName::from("sbtc-alpha-romeo42"),
+            name: config.contract_name.clone(),
             code_body: StacksString::from_string(&contract_bytes).unwrap(),
         },
         None,
@@ -161,14 +187,9 @@ async fn mint_asset(config: &Config, client: LockedClient, deposit_info: Deposit
         TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
     );
 
-    let recipient = PrincipalData::Standard(StandardPrincipalData(
-        deposit_info.recipient.version,
-        *deposit_info.recipient.bytes.as_bytes(),
-    ));
-
     let function_args = vec![
         Value::UInt(deposit_info.amount as u128),
-        Value::from(recipient),
+        Value::from(deposit_info.recipient.clone()),
         Value::from(ASCIIData {
             data: deposit_info.txid.to_string().as_bytes().to_vec(),
         }),
@@ -176,7 +197,7 @@ async fn mint_asset(config: &Config, client: LockedClient, deposit_info: Deposit
 
     let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
         address: config.stacks_address(),
-        contract_name: deposit_info.contract_name.clone(),
+        contract_name: config.contract_name.clone(),
         function_name: ClarityName::from("mint"),
         function_args,
     });
@@ -208,8 +229,22 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(_config: &Config, _block_height: u64) -> Event {
-    todo!();
+async fn fetch_bitcoin_block(client: BitcoinClient, block_height: Option<u32>) -> Event {
+    let block_height = if let Some(height) = block_height {
+        height
+    } else {
+        client
+            .get_height()
+            .await
+            .expect("Failed to get bitcoin block height")
+    };
+
+    let block = client
+        .fetch_block(block_height)
+        .await
+        .expect("Failed to fetch block");
+
+    Event::BitcoinBlock(block)
 }
 
 #[cfg(test)]
@@ -220,6 +255,7 @@ mod tests {
     use blockstack_lib::{
         address::{AddressHashMode, C32_ADDRESS_VERSION_TESTNET_SINGLESIG},
         types::chainstate::StacksAddress,
+        vm::types::{PrincipalData, StandardPrincipalData},
     };
 
     use super::*;
@@ -232,20 +268,23 @@ mod tests {
         let http_client = reqwest::Client::new();
         let client = StacksClient::new(config.clone(), http_client).into();
 
+        let addr = StacksAddress::from_public_keys(
+            C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
+            &AddressHashMode::SerializeP2PKH,
+            1,
+            &vec![config.stacks_public_key()],
+        )
+        .unwrap();
+
+        let recipient = PrincipalData::Standard(StandardPrincipalData(addr.version, addr.bytes.0));
+
         let deposit_info = DepositInfo {
             txid: BitcoinTxId::from_hash(
                 Hash::from_str("7108a2826a070553e2b6c95b8c0a09d3a92100740c172754d68605495a4ed0cf")
                     .unwrap(),
             ),
             amount: 100,
-            recipient: StacksAddress::from_public_keys(
-                C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
-                &AddressHashMode::SerializeP2PKH,
-                1,
-                &vec![config.stacks_public_key()],
-            )
-            .unwrap(),
-            contract_name: ContractName::from("sbtc-alpha-romeo123"),
+            recipient,
             block_height: 2475303,
         };
 
