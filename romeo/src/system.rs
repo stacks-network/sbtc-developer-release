@@ -299,6 +299,16 @@ mod tests {
 
         let recipient = PrincipalData::Standard(StandardPrincipalData(addr.version, addr.bytes.0));
 
+        let addr = StacksAddress::from_public_keys(
+            C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
+            &AddressHashMode::SerializeP2PKH,
+            1,
+            &vec![config.stacks_public_key()],
+        )
+        .unwrap();
+
+        let recipient = PrincipalData::Standard(StandardPrincipalData(addr.version, addr.bytes.0));
+
         let deposit_info = DepositInfo {
             txid: BitcoinTxId::from_hash(
                 Hash::from_str("7108a2826a070553e2b6c95b8c0a09d3a92100740c172754d68605495a4ed0cf")
