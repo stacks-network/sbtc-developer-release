@@ -131,7 +131,7 @@ impl Deposit {
             return Err(DepositParseError::NotSbtcOp);
         };
 
-        let Some(Ok(Instruction::PushBytes(mut data))) =  instructions_iter.next() else {
+        let Some(Ok(Instruction::PushBytes(mut data))) = instructions_iter.next() else {
             return Err(DepositParseError::NotSbtcOp)
         };
 
