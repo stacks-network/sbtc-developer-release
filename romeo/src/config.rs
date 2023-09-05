@@ -36,6 +36,12 @@ pub struct Config {
     /// Directory to persist the state of the system to
     pub state_directory: PathBuf,
 
+    /// Stacks network
+    pub stacks_network: StacksNetwork,
+
+    /// Bitcoin network
+    pub bitcoin_network: BitcoinNetwork,
+
     /// Credentials used to interact with the Stacks network
     pub stacks_credentials: Credentials,
 
@@ -73,6 +79,8 @@ impl Config {
 
         Ok(Self {
             state_directory,
+            stacks_network: config_file.stacks_network,
+            bitcoin_network: config_file.bitcoin_network,
             stacks_credentials,
             bitcoin_credentials,
             stacks_node_url,

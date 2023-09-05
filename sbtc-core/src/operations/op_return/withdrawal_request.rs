@@ -70,10 +70,14 @@ pub enum WithdrawalParseError {
 
 /// Amount and a recipient for a withdrawal request
 pub struct WithdrawalRequest {
-    recipient_address: BitcoinAddress,
-    amount: Amount,
-    fulfillment_amount: Amount,
-    peg_wallet: BitcoinAddress,
+    /// Where to send the withdrawn BTC
+    pub recipient_address: BitcoinAddress,
+    /// How much to withdraw
+    pub amount: u64,
+    /// How much to pay the peg wallet for the fulfillment
+    pub fulfillment_amount: u64,
+    /// The address of the peg wallet
+    pub peg_wallet: BitcoinAddress,
 }
 
 impl WithdrawalRequest {
@@ -114,12 +118,10 @@ impl WithdrawalRequest {
             BitcoinAddress::from_script(&fulfillment_fee_output.script_pubkey, network)
                 .map_err(|_| WithdrawalParseError::InvalidRecipientAddress)?;
 
-        let fulfillment_amount = Amount::from_sat(fulfillment_fee_output.value);
-
         Ok(Self {
             recipient_address,
             amount: withdrawal_data.amount,
-            fulfillment_amount,
+            fulfillment_amount: fulfillment_fee_output.value,
             peg_wallet,
         })
     }
@@ -131,7 +133,7 @@ pub struct WithdrawalRequestOutputData {
     /// Network to be used for the transaction
     pub network: Network,
     /// Amount to withdraw
-    pub amount: Amount,
+    pub amount: u64,
     /// Signature of the withdrawal request amount and recipient address
     pub signature: RecoverableSignature,
 }
@@ -179,7 +181,7 @@ impl Codec for WithdrawalRequestOutputData {
             ));
         }
 
-        let amount = Amount::codec_deserialize(data)?;
+        let amount = u64::codec_deserialize(data)?;
         let signature = RecoverableSignature::codec_deserialize(data)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
 
@@ -196,7 +198,7 @@ pub fn build_withdrawal_tx(
     withdrawer_bitcoin_private_key: PrivateKey,
     withdrawer_stacks_private_key: PrivateKey,
     receiver_address: BitcoinAddress,
-    amount: Amount,
+    amount: u64,
     fulfillment_fee: u64,
     dkg_address: BitcoinAddress,
 ) -> SBTCResult<Transaction> {
@@ -224,7 +226,7 @@ fn withdrawal_psbt(
     sender_private_key: &PrivateKey,
     recipient: &BitcoinAddress,
     dkg_address: &BitcoinAddress,
-    amount: Amount,
+    amount: u64,
     fulfillment_fee: u64,
     network: Network,
 ) -> SBTCResult<PartiallySignedTransaction> {
@@ -278,10 +280,10 @@ fn withdrawal_psbt(
 
 fn sign_amount_and_recipient(
     recipient: &BitcoinAddress,
-    amount: Amount,
+    amount: u64,
     sender_private_key: &PrivateKey,
 ) -> RecoverableSignature {
-    let mut msg = amount.to_sat().to_be_bytes().to_vec();
+    let mut msg = amount.to_be_bytes().to_vec();
     msg.extend_from_slice(recipient.script_pubkey().as_bytes());
 
     let msg_hash = Sha256Hasher::hash(&msg);

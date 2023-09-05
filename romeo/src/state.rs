@@ -93,7 +93,6 @@ impl Deposit {
                 ..
             }) => {
                 panic!("Mint transaction rejected: {}", txid)
-
             }
         }
     }
@@ -207,7 +206,7 @@ fn process_bitcoin_block(
     block: Block,
 ) -> (State, Vec<Task>) {
     let deposits = parse_deposits(config, height, &block);
-    let withdrawals = parse_withdrawals(&block);
+    let withdrawals = parse_withdrawals(config, &block);
 
     state.deposits.extend_from_slice(&deposits);
     state.withdrawals.extend_from_slice(&withdrawals);
@@ -276,9 +275,35 @@ fn convert_principal_data(data: stacks_core::utils::PrincipalData) -> PrincipalD
     PrincipalData::consensus_deserialize(&mut Cursor::new(bytes)).unwrap()
 }
 
-fn parse_withdrawals(_block: &Block) -> Vec<Withdrawal> {
-    // TODO: #68
-    vec![]
+fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
+    let block_height = block
+        .bip34_block_height()
+        .expect("Failed to get block height") as u32;
+
+    block
+        .txdata
+        .iter()
+        .cloned()
+        .filter_map(|tx| {
+            let txid = tx.txid();
+
+            op_return::withdrawal_request::WithdrawalRequest::parse(config.bitcoin_network, tx)
+                .ok()
+                .map(|parsed_withdrawal_request| Withdrawal {
+                    info: WithdrawalInfo {
+                        txid,
+                        amount: parsed_withdrawal_request.amount,
+                        source: todo!(
+                            "How do we get the public key from the recoverable signature?"
+                        ),
+                        recipient: parsed_withdrawal_request.recipient_address,
+                        block_height,
+                    },
+                    burn: None,
+                    fulfillment: None,
+                })
+        })
+        .collect()
 }
 
 fn process_bitcoin_transaction_update(
