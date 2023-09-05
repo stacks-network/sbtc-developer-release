@@ -9,7 +9,7 @@
 
 ;; token definitions
 ;;
-(define-fungible-token sbtc u21000000)
+(define-fungible-token sbtc u21000000000)
 
 ;; constants
 ;;
