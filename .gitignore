@@ -2,3 +2,5 @@ target
 Cargo.lock
 coverage
 romeo/testing/
+romeo/asset-contract/.test
+romeo/asset-contract/.coverage

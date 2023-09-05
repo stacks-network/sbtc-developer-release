@@ -6,10 +6,15 @@ telemetry = true
 cache_dir = './.cache'
 
 [[project.requirements]]
-contract_id = "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard"
+contract_id = "ST1NXBK3K5YYMD6FD41MVNP3JS1GABZ8TRVX023PT.sip-010-trait-ft-standard"
 
 [contracts.asset]
 path = 'contracts/asset.clar'
+clarity_version = 2
+epoch = 2.4
+
+[contracts.asset_test]
+path = 'tests/asset_test.clar'
 clarity_version = 2
 epoch = 2.4
 
