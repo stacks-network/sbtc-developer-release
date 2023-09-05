@@ -16,8 +16,6 @@
 (define-constant err-invalid-caller (err u1))
 (define-constant err-not-token-owner (err u2))
 
-(define-constant err-invalid-block-header-length (err u100))
-
 ;; data vars
 ;;
 (define-data-var contract-owner principal tx-sender)
