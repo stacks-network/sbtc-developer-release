@@ -99,33 +99,17 @@ impl Codec for RecoverableSignature {
 }
 
 impl Codec for u64 {
-	fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
-		dest.write_all(&self.to_be_bytes())
-	}
+    fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
+        dest.write_all(&self.to_be_bytes())
+    }
 
-	fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
-	where
-		Self: Sized,
-	{
-		let mut bytes = [0; 8];
-		data.read_exact(&mut bytes)?;
+    fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+    {
+        let mut bytes = [0; 8];
+        data.read_exact(&mut bytes)?;
 
-		Ok(Self::from_be_bytes(bytes))
-	}
-}
-
-impl Codec for Script {
-	fn codec_serialize<W: io::Write>(&self, dest: &mut W) -> io::Result<()> {
-		dest.write_all(self.as_bytes())
-	}
-
-	fn codec_deserialize<R: io::Read>(data: &mut R) -> io::Result<Self>
-	where
-		Self: Sized,
-	{
-		let mut buffer = vec![];
-		data.read_to_end(&mut buffer)?;
-
-		Ok(Self::from(buffer))
-	}
+        Ok(Self::from_be_bytes(bytes))
+    }
 }

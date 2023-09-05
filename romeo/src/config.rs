@@ -37,14 +37,14 @@ pub struct Config {
 	/// Directory to persist the state of the system to
 	pub state_directory: PathBuf,
 
-	/// Stacks network
-	pub stacks_network: StacksNetwork,
+    /// Stacks network
+    pub stacks_network: StacksNetwork,
 
-	/// Bitcoin network
-	pub bitcoin_network: BitcoinNetwork,
+    /// Bitcoin network
+    pub bitcoin_network: BitcoinNetwork,
 
-	/// Credentials used to interact with the Stacks network
-	pub stacks_credentials: Credentials,
+    /// Credentials used to interact with the Stacks network
+    pub stacks_credentials: Credentials,
 
 	/// Credentials used to interact with the Bitcoin network
 	pub bitcoin_credentials: BitcoinCredentials,
@@ -85,20 +85,17 @@ impl Config {
 		let bitcoin_credentials =
 			wallet.bitcoin_credentials(config_file.bitcoin_network, 0)?;
 
-		Ok(Self {
-			state_directory,
-			stacks_network: config_file.stacks_network,
-			bitcoin_network: config_file.bitcoin_network,
-			stacks_credentials,
-			bitcoin_credentials,
-			stacks_node_url,
-			bitcoin_node_url,
-			electrum_node_url,
-			contract_name: ContractName::from(
-				config_file.contract_name.as_str(),
-			),
-		})
-	}
+        Ok(Self {
+            state_directory,
+            stacks_network: config_file.stacks_network,
+            bitcoin_network: config_file.bitcoin_network,
+            stacks_credentials,
+            bitcoin_credentials,
+            stacks_node_url,
+            bitcoin_node_url,
+            contract_name: ContractName::from(config_file.contract_name.as_str()),
+        })
+    }
 }
 
 fn normalize(root_dir: PathBuf, path: impl AsRef<Path>) -> PathBuf {

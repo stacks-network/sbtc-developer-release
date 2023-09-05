@@ -98,7 +98,6 @@ impl Deposit {
                 ..
             }) => {
                 panic!("Mint transaction rejected: {}", txid)
-
             }
         }
     }
@@ -268,11 +267,8 @@ fn process_bitcoin_block(
 	bitcoin_height: u32,
 	block: Block,
 ) -> (State, Vec<Task>) {
-	state
-		.deposits
-		.extend(parse_deposits(config, bitcoin_height, &block));
-	state.withdrawals.extend(parse_withdrawals(config, &block));
-	state.bitcoin_block_height = Some(bitcoin_height);
+    let deposits = parse_deposits(config, height, &block);
+    let withdrawals = parse_withdrawals(config, &block);
 
 	let mut tasks = vec![Task::FetchBitcoinBlock(bitcoin_height + 1)];
 	tasks.extend(get_bitcoin_status_checks(&mut state));
@@ -408,51 +404,34 @@ fn convert_principal_data(
 }
 
 fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
-	let block_height = block
-		.bip34_block_height()
-		.expect("Failed to get block height") as u32;
+    let block_height = block
+        .bip34_block_height()
+        .expect("Failed to get block height") as u32;
 
-	block
-		.txdata
-		.iter()
-		.cloned()
-		.filter_map(|tx| {
-			let txid = tx.txid();
+    block
+        .txdata
+        .iter()
+        .cloned()
+        .filter_map(|tx| {
+            let txid = tx.txid();
 
-			op_return::withdrawal_request::try_parse_withdrawal_request(
-				config.bitcoin_network,
-				tx,
-			)
-			.ok()
-			.map(
-				|WithdrawalRequestData {
-				     payee_bitcoin_address,
-				     drawee_stacks_address,
-				     amount,
-				     ..
-				 }| {
-					let blockstack_lib_address =
-						StacksAddress::consensus_deserialize(&mut Cursor::new(
-							drawee_stacks_address.serialize_to_vec(),
-						))
-						.unwrap();
-					let source = PrincipalData::from(blockstack_lib_address);
-
-					Withdrawal {
-						info: WithdrawalInfo {
-							txid,
-							amount,
-							source,
-							recipient: payee_bitcoin_address,
-							block_height,
-						},
-						burn: None,
-						fulfillment: None,
-					}
-				},
-			)
-		})
-		.collect()
+            op_return::withdrawal_request::WithdrawalRequest::parse(config.bitcoin_network, tx)
+                .ok()
+                .map(|parsed_withdrawal_request| Withdrawal {
+                    info: WithdrawalInfo {
+                        txid,
+                        amount: parsed_withdrawal_request.amount,
+                        source: todo!(
+                            "How do we get the public key from the recoverable signature?"
+                        ),
+                        recipient: parsed_withdrawal_request.recipient_address,
+                        block_height,
+                    },
+                    burn: None,
+                    fulfillment: None,
+                })
+        })
+        .collect()
 }
 
 fn process_bitcoin_transaction_update(
