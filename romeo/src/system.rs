@@ -32,7 +32,7 @@ use tracing::trace;
 use crate::bitcoin_client::BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
-use crate::proof::Proof;
+use crate::proof_data::ProofData;
 use crate::stacks_client::LockedClient;
 use crate::stacks_client::StacksClient;
 use crate::state;
@@ -200,7 +200,7 @@ async fn mint_asset(
         .iter()
         .position(|tx| tx.txid() == deposit_info.txid)
         .unwrap();
-    let _proof = Proof::from_block_and_index(&block, index);
+    let _proof_data = ProofData::from_block_and_index(&block, index);
 
     let tx_auth = TransactionAuth::Standard(
         TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
