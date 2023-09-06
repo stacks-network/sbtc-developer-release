@@ -5,7 +5,6 @@ use std::fs::create_dir_all;
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
-use blockstack_lib::vm::types::ASCIIData;
 
 use blockstack_lib::vm::ClarityName;
 use tokio::fs::File;
@@ -194,24 +193,28 @@ async fn mint_asset(
     let block = bitcoin_client
         .fetch_block(deposit_info.block_height)
         .await
-        .unwrap();
+        .expect("Failed to fetch block");
     let index = block
         .txdata
         .iter()
         .position(|tx| tx.txid() == deposit_info.txid)
-        .unwrap();
-    let _proof_data = ProofData::from_block_and_index(&block, index);
+        .expect("Failed to find transaction in block");
+    let proof_data = ProofData::from_block_and_index(&block, index).to_values();
 
     let tx_auth = TransactionAuth::Standard(
-        TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
+        TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key())
+            .expect("Can only handle single sig p2pkh spending conditions"),
     );
 
     let function_args = vec![
         Value::UInt(deposit_info.amount as u128),
         Value::from(deposit_info.recipient.clone()),
-        Value::from(ASCIIData {
-            data: deposit_info.txid.to_string().as_bytes().to_vec(),
-        }),
+        proof_data.txid,
+        proof_data.block_height,
+        proof_data.merkle_path,
+        proof_data.tx_index,
+        proof_data.merkle_tree_depth,
+        proof_data.block_header,
     ];
 
     let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
