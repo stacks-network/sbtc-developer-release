@@ -23,10 +23,10 @@ pub enum SBTCError {
     #[error("Data is malformed: {0}")]
     /// Malformed data
     MalformedData(&'static str),
-    #[error("{0}: {1}")]
+    #[error("Electrum error: {0}: {1}")]
     /// Electrum error
     ElectrumError(&'static str, ElectrumError),
-    #[error("{0}: {1}")]
+    #[error("BDK error: {0}: {1}")]
     /// BDK Error
     BDKError(&'static str, bdk::Error),
     #[error("Deposit amount {0} should be greater than dust amount {1}")]
@@ -38,6 +38,9 @@ pub enum SBTCError {
     /// Stacks error
     #[error("Stacks error: {0}")]
     StacksError(#[from] StacksError),
+    #[error("SECP error: {0}: {1}")]
+    /// SECP Error
+    SECPError(&'static str, bdk::bitcoin::secp256k1::Error),
 }
 
 /// A helper type for sBTC results

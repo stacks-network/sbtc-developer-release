@@ -8,6 +8,7 @@ use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::types::chainstate::StacksAddress;
 use blockstack_lib::vm::types::PrincipalData;
 use sbtc_core::operations::op_return;
+use sbtc_core::operations::op_return::withdrawal_request::WithdrawalRequest;
 use stacks_core::codec::Codec;
 use tracing::debug;
 
@@ -289,19 +290,32 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 
             op_return::withdrawal_request::WithdrawalRequest::parse(config.bitcoin_network, tx)
                 .ok()
-                .map(|parsed_withdrawal_request| Withdrawal {
-                    info: WithdrawalInfo {
-                        txid,
-                        amount: parsed_withdrawal_request.amount,
-                        source: todo!(
-                            "How do we get the public key from the recoverable signature?"
-                        ),
-                        recipient: parsed_withdrawal_request.recipient_address,
-                        block_height,
+                .map(
+                    |WithdrawalRequest {
+                         recipient,
+                         source,
+                         amount,
+                         fulfillment_amount,
+                         peg_wallet,
+                     }| {
+                        let blockstack_lib_address = StacksAddress::consensus_deserialize(
+                            &mut Cursor::new(source.serialize_to_vec()),
+                        )
+                        .unwrap();
+
+                        Withdrawal {
+                            info: WithdrawalInfo {
+                                txid,
+                                amount,
+                                source: blockstack_lib_address,
+                                recipient,
+                                block_height,
+                            },
+                            burn: None,
+                            fulfillment: None,
+                        }
                     },
-                    burn: None,
-                    fulfillment: None,
-                })
+                )
         })
         .collect()
 }
