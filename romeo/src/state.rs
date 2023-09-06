@@ -417,18 +417,17 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
         .filter_map(|tx| {
             let txid = tx.txid();
 
-            op_return::withdrawal_request::WithdrawalRequestData::parse(config.bitcoin_network, tx)
+            op_return::withdrawal_request::try_parse_withdrawal_request(config.bitcoin_network, tx)
                 .ok()
                 .map(
                     |WithdrawalRequestData {
-                         recipient,
-                         source,
+                         payee_bitcoin_address,
+                         drawee_stacks_address,
                          amount,
-                         fulfillment_amount,
-                         peg_wallet,
+                         ..
                      }| {
                         let blockstack_lib_address = StacksAddress::consensus_deserialize(
-                            &mut Cursor::new(source.serialize_to_vec()),
+                            &mut Cursor::new(drawee_stacks_address.serialize_to_vec()),
                         )
                         .unwrap();
 
@@ -437,7 +436,7 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
                                 txid,
                                 amount,
                                 source: blockstack_lib_address,
-                                recipient,
+                                recipient: payee_bitcoin_address,
                                 block_height,
                             },
                             burn: None,
