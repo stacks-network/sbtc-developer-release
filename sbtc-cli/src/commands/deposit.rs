@@ -80,13 +80,13 @@ pub fn build_deposit_tx(deposit: &DepositArgs) -> anyhow::Result<()> {
 		deposit.network,
 	)?;
 
-	serde_json::to_writer_pretty(
-		stdout(),
-		&utils::TransactionData {
-			id: tx.txid().to_string(),
-			hex: hex::encode(tx.serialize()),
-		},
-	)?;
+    serde_json::to_writer_pretty(
+        stdout(),
+        &utils::TransactionData {
+            id: tx.txid().to_string(),
+            hex: hex::encode(tx.serialize()),
+        },
+    )?;
 
 	Ok(())
 }
