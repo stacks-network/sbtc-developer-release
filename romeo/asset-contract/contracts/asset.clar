@@ -84,7 +84,7 @@
 )
 
 (define-read-only (get-token-uri)
-	(ok (some u"https://assets.stacks.co/sbtc.pdf"))
+	(ok (some u"https://gateway.pinata.cloud/ipfs/QmZWaVN9582UaXvvSgYEZvyafSv4jNdn4a2qpxQCDho85W?_gl=1*7vcfsd*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDAzOTYyNC4xLjEuMTY5NDAzOTczMi40OC4wLjA"))
 )
 
 ;; private functions
