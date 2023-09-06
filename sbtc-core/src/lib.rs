@@ -41,6 +41,9 @@ pub enum SBTCError {
     #[error("SECP error: {0}: {1}")]
     /// SECP Error
     SECPError(&'static str, bdk::bitcoin::secp256k1::Error),
+    /// Not an sBTC operation
+    #[error("Not an sBTC operation")]
+    NotSBTCOperation,
 }
 
 /// A helper type for sBTC results
