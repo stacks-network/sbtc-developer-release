@@ -1,6 +1,6 @@
 # sbtc
 
-![Daily Verification][daily-workflow-badge]
+[![Daily Verification][daily-workflow-badge]][daily-workflow-link]
 [![Code Coverage][coverage-badge]][coverage-link]
 [![License: MIT][mit-license-badge]][mit-license-link]
 [![Discord][discord-badge]][discord-link]
@@ -38,6 +38,8 @@ This repository uses the task runner cargo-make to manage its build scripts and 
 cargo install --version 0.36.13 cargo-make
 ```
 
+Also verify that openssl is install on your machine.
+
 [coverage-badge]: https://codecov.io/github/stacks-network/sbtc/branch/master/graph/badge.svg?token=2sbE9YLwT6
 [coverage-link]: https://codecov.io/github/stacks-network/sbtc
 [discord-badge]: https://img.shields.io/static/v1?logo=discord&label=discord&message=Join&color=blue
@@ -45,3 +47,4 @@ cargo install --version 0.36.13 cargo-make
 [mit-license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg
 [mit-license-link]: https://opensource.org/licenses/MIT
 [daily-workflow-badge]: https://github.com/stacks-network/sbtc/actions/workflows/daily.yml/badge.svg
+[daily-workflow-link]: https://github.com/stacks-network/sbtc/actions/workflows/daily.yml

@@ -132,7 +132,7 @@ impl Deposit {
         };
 
         let Some(Ok(Instruction::PushBytes(mut data))) = instructions_iter.next() else {
-            return Err(DepositParseError::NotSbtcOp)
+            return Err(DepositParseError::NotSbtcOp);
         };
 
         let deposit_data = DepositOutputData::codec_deserialize(&mut data)

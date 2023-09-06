@@ -198,7 +198,7 @@ async fn mint_asset(config: &Config, client: LockedClient, deposit_info: Deposit
     let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
         address: config.stacks_address(),
         contract_name: config.contract_name.clone(),
-        function_name: ClarityName::from("mint!"),
+        function_name: ClarityName::from("mint"),
         function_args,
     });
 
