@@ -8,7 +8,7 @@ use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::types::chainstate::StacksAddress;
 use blockstack_lib::vm::types::PrincipalData;
 use sbtc_core::operations::op_return;
-use sbtc_core::operations::op_return::withdrawal_request::WithdrawalRequest;
+use sbtc_core::operations::op_return::withdrawal_request::WithdrawalRequestData;
 use stacks_core::codec::Codec;
 use tracing::debug;
 
@@ -288,10 +288,10 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
         .filter_map(|tx| {
             let txid = tx.txid();
 
-            op_return::withdrawal_request::WithdrawalRequest::parse(config.bitcoin_network, tx)
+            op_return::withdrawal_request::WithdrawalRequestData::parse(config.bitcoin_network, tx)
                 .ok()
                 .map(
-                    |WithdrawalRequest {
+                    |WithdrawalRequestData {
                          recipient,
                          source,
                          amount,

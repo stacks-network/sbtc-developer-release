@@ -9,14 +9,12 @@ edition = "2021"
 anyhow.workspace = true
 bdk = { workspace = true, features = ["keys-bip39", "rpc"] }
 clap = { workspace = true, features = ["derive"] }
-dirs.workspace = true
 hex.workspace = true
 regex.workspace = true
 sbtc-core.path = "../sbtc-core"
 serde.workspace = true
 serde_json.workspace = true
 stacks-core.path = "../stacks-core"
-toml.workspace = true
 url = { workspace = true, features = ["serde"] }
 
 [[bin]]
