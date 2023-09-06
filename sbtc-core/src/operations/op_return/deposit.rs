@@ -303,13 +303,14 @@ pub fn deposit(
 
 #[cfg(test)]
 mod tests {
-	use bdk::bitcoin::secp256k1::Secp256k1;
-	use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
-	use stacks_core::{
-		address::{AddressVersion, StacksAddress},
-		contract_name::{ContractName, CONTRACT_MAX_NAME_LENGTH},
-		utils::{PrincipalData, StandardPrincipalData},
-	};
+    use bdk::bitcoin::secp256k1::Secp256k1;
+    use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
+    use stacks_core::{
+        address::{AddressVersion, StacksAddress},
+        contract_name::{ContractName, CONTRACT_MAX_NAME_LENGTH},
+        crypto::secp256k1::Secp256k1,
+        utils::{PrincipalData, StandardPrincipalData},
+    };
 
 	use super::*;
 

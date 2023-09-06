@@ -19,10 +19,36 @@ The data output should contain data in the following byte format:
 Where withdrawal request data should be in the following format:
 
 ```text
-3         11                                                            76    80
-|----------|-------------------------------------------------------------|-----|
-   amount                            signature                            extra
-                                                                          bytes
+0          8   9                                                              73
+|----------|---|---------------------------------------------------------------|
+   amount    ^                           signature
+             |
+        address type
+```
+
+The address type is a single byte that indicates the type of the address from
+where the sBTC will be withdrawn.
+
+The signature is a recoverable ECDSA signature produced by signing the following
+message:
+
+```text
+0                N                                                             M
+|---|------------|---|---------------------------------------------------------|
+  ^     prefix     ^                     message data
+  |                |
+ prefix length    message data length
+```
+
+This prefix is by convention always [`STACKS_SIGNATURE_PREFIX`]. Message data is
+a concatenation of the amount (BE bytes) and the pubkey script of the recipient
+Bitcoin address.
+
+```text
+0                8                                                             N
+|----------------|-------------------------------------------------------------|
+      amount                             pubkey script
+```
 */
 use std::{collections::HashMap, io, iter};
 
@@ -30,21 +56,22 @@ use bdk::{
     bitcoin::{
         blockdata::{opcodes::all::OP_RETURN, script::Instruction},
         psbt::PartiallySignedTransaction,
-        secp256k1::{self, ecdsa::RecoverableSignature, Message, Secp256k1},
+        secp256k1::{ecdsa::RecoverableSignature, Message, Secp256k1},
         Address as BitcoinAddress, Network as BitcoinNetwork, PrivateKey as BitcoinPrivateKey,
-        Transaction,
+        Script, Transaction,
     },
     database::BatchDatabase,
     SignOptions, Wallet,
 };
 use stacks_core::{
-    address::{AddressVersion, StacksAddress},
+    address::{
+        AddressKind as StacksAddressKind, AddressVersion as StacksAddressVersion, StacksAddress,
+    },
     codec::Codec,
     crypto::{
         sha256::Sha256Hasher, Hashing, PrivateKey as StacksPrivateKey, PublicKey as StacksPublicKey,
     },
 };
-use thiserror::Error;
 
 use crate::{
 	operations::{
@@ -59,109 +86,198 @@ use crate::{
 /// Signature prefix used by convention
 pub const STACKS_SIGNATURE_PREFIX: &[u8] = b"Stacks Signed Message:\n";
 
-#[derive(Error, Debug)]
-/// Errors occuring during the parsing of the withdrawal request
-pub enum WithdrawalParseError {
-    /// Missing expected output
-    #[error("Missing an expected output")]
-    InvalidOutputs,
+/// Tries to parse a Bitcoin transation into a withdrawal request
+pub fn try_parse_withdrawal_request(
+    network: BitcoinNetwork,
+    tx: Transaction,
+) -> SBTCResult<WithdrawalRequestData> {
+    let mut output_iter = tx.output.into_iter();
 
-    /// Doesn't contain an OP_RETURN with the right opcode
-    #[error("Not an sBTC operation")]
-    NotSbtcOp,
+    let data_output = output_iter.next().ok_or(SBTCError::NotSBTCOperation)?;
 
-    /// A recipient address error
-    #[error("Could not get recipient address from output")]
-    InvalidRecipientAddress,
+    let mut instructions_iter = data_output.script_pubkey.instructions();
+
+    let Some(Ok(Instruction::Op(OP_RETURN))) = instructions_iter.next() else {
+        return Err(SBTCError::NotSBTCOperation);
+    };
+
+    let Some(Ok(Instruction::PushBytes(mut data))) = instructions_iter.next() else {
+        return Err(SBTCError::NotSBTCOperation);
+    };
+
+    let withdrawal_data = WithdrawalRequestDataOutputData::codec_deserialize(&mut data)
+        .map_err(|_| SBTCError::NotSBTCOperation)?;
+
+    let recipient_pubkey_output = output_iter.next().ok_or(SBTCError::NotSBTCOperation)?;
+
+    let recipient_address =
+        BitcoinAddress::from_script(&recipient_pubkey_output.script_pubkey, network)
+            .map_err(|_| SBTCError::NotSBTCOperation)?;
+
+    let drawee_stacks_public_key = recover_signature(
+        withdrawal_data.amount(),
+        &recipient_address,
+        &withdrawal_data.signature(),
+    )?;
+    let drawee_stacks_address_version = match network {
+        BitcoinNetwork::Bitcoin => StacksAddressVersion::MainnetSingleSig,
+        _ => StacksAddressVersion::TestnetSingleSig,
+    };
+    let drawee_stacks_address = StacksAddress::from_components_single_sig(
+        drawee_stacks_address_version,
+        withdrawal_data.address_kind,
+        &drawee_stacks_public_key,
+    );
+
+    let fulfillment_fee_output = output_iter.next().ok_or(SBTCError::NotSBTCOperation)?;
+
+    let peg_wallet = BitcoinAddress::from_script(&fulfillment_fee_output.script_pubkey, network)
+        .map_err(|_| SBTCError::NotSBTCOperation)?;
+
+    Ok(WithdrawalRequestData {
+        payee_bitcoin_address: recipient_address,
+        drawee_stacks_address,
+        amount: withdrawal_data.amount(),
+        signature: withdrawal_data.signature(),
+        fulfillment_amount: fulfillment_fee_output.value,
+        peg_wallet,
+    })
 }
 
 /// Withdrawal request transaction data
 pub struct WithdrawalRequestData {
     /// Where to send the withdrawn BTC
-    pub recipient: BitcoinAddress,
+    pub payee_bitcoin_address: BitcoinAddress,
     /// Where to burn the sBTC from
-    pub source: StacksAddress,
+    pub drawee_stacks_address: StacksAddress,
     /// How much to withdraw
     pub amount: u64,
     /// How much to pay the peg wallet for the fulfillment
     pub fulfillment_amount: u64,
     /// The address of the peg wallet
     pub peg_wallet: BitcoinAddress,
+    /// Signature that authenticates the withdrawal request
+    pub signature: RecoverableSignature,
 }
 
 impl WithdrawalRequestData {
-    /// Parse a withdrawal request from a transaction
-    pub fn parse(network: BitcoinNetwork, tx: Transaction) -> Result<Self, WithdrawalParseError> {
-        let mut output_iter = tx.output.into_iter();
+    /// Recovers the signature and computes the Stacks address to be burned from
+    pub fn get_drawee_address(&self) -> StacksAddress {
+        todo!()
+    }
+}
 
-        let data_output = output_iter
-            .next()
-            .ok_or(WithdrawalParseError::InvalidOutputs)?;
+/// Construct a withdrawal request transaction
+pub fn build_withdrawal_tx(
+    broadcaster_bitcoin_private_key: BitcoinPrivateKey,
+    drawee_stacks_private_key: StacksPrivateKey,
+    drawee_stacks_address_kind: StacksAddressKind,
+    payee_bitcoin_address: BitcoinAddress,
+    peg_wallet_bitcoin_address: BitcoinAddress,
+    amount: u64,
+    fulfillment_fee: u64,
+) -> SBTCResult<Transaction> {
+    let wallet = setup_wallet(broadcaster_bitcoin_private_key)?;
 
-        let mut instructions_iter = data_output.script_pubkey.instructions();
+    let mut psbt = create_psbt(
+        &wallet,
+        &drawee_stacks_private_key,
+        drawee_stacks_address_kind,
+        &payee_bitcoin_address,
+        &peg_wallet_bitcoin_address,
+        amount,
+        fulfillment_fee,
+        broadcaster_bitcoin_private_key.network,
+    )?;
 
-        let Some(Ok(Instruction::Op(OP_RETURN))) = instructions_iter.next() else {
-            return Err(WithdrawalParseError::NotSbtcOp);
-        };
+    wallet
+        .sign(&mut psbt, SignOptions::default())
+        .map_err(|err| SBTCError::BDKError("Could not sign withdrawal transaction", err))?;
 
-        let Some(Ok(Instruction::PushBytes(mut data))) = instructions_iter.next() else {
-            return Err(WithdrawalParseError::NotSbtcOp);
-        };
+    Ok(psbt.extract_tx())
+}
 
-        let withdrawal_data = WithdrawalRequestDataOutputData::codec_deserialize(&mut data)
-            .map_err(|_| WithdrawalParseError::NotSbtcOp)?;
+/// Construct a withdrawal request partially signed transaction
+pub fn create_psbt<D: BatchDatabase>(
+    wallet: &Wallet<D>,
+    drawee_stacks_private_key: &StacksPrivateKey,
+    drawee_stacks_address_kind: StacksAddressKind,
+    payee_bitcoin_address: &BitcoinAddress,
+    peg_wallet_bitcoin_address: &BitcoinAddress,
+    amount: u64,
+    fulfillment_amount: u64,
+    network: BitcoinNetwork,
+) -> SBTCResult<PartiallySignedTransaction> {
+    let outputs = create_outputs(
+        drawee_stacks_private_key,
+        drawee_stacks_address_kind,
+        payee_bitcoin_address,
+        peg_wallet_bitcoin_address,
+        amount,
+        fulfillment_amount,
+        network,
+    )?;
 
-        let recipient_pubkey_output = output_iter
-            .next()
-            .ok_or(WithdrawalParseError::InvalidOutputs)?;
+    let mut tx_builder = wallet.build_tx();
 
-        let recipient_address =
-            BitcoinAddress::from_script(&recipient_pubkey_output.script_pubkey, network)
-                .map_err(|_| WithdrawalParseError::InvalidRecipientAddress)?;
-
-        let source_address_type = match network {
-            BitcoinNetwork::Bitcoin => AddressVersion::MainnetSingleSig,
-            _ => AddressVersion::TestnetSingleSig,
-        };
-        let source_public_key = withdrawal_data
-            .source_public_key(&recipient_address)
-            .map_err(|_| WithdrawalParseError::NotSbtcOp)?;
-        let source = StacksAddress::p2pkh(source_address_type, &source_public_key);
-
-        let fulfillment_fee_output = output_iter
-            .next()
-            .ok_or(WithdrawalParseError::InvalidOutputs)?;
-
-        let peg_wallet =
-            BitcoinAddress::from_script(&fulfillment_fee_output.script_pubkey, network)
-                .map_err(|_| WithdrawalParseError::InvalidRecipientAddress)?;
-
-        Ok(Self {
-            recipient: recipient_address,
-            source,
-            amount: withdrawal_data.amount(),
-            fulfillment_amount: fulfillment_fee_output.value,
-            peg_wallet,
-        })
+    for (script, amount) in outputs.clone() {
+        tx_builder.add_recipient(script, amount);
     }
 
-    /// Creates a new partially signed withdrawal request transaction from data
-    pub fn create_partially_signed_transaction<D: BatchDatabase>(
-        self,
-        wallet: &Wallet<D>,
-        network: BitcoinNetwork,
-        drawee_stacks_private_key: &StacksPrivateKey,
-    ) -> SBTCResult<PartiallySignedTransaction> {
-        withdrawal_psbt(
-            wallet,
+    let (mut partial_tx, _) = tx_builder.finish().map_err(|err| {
+        SBTCError::BDKError(
+            "Could not build partially signed withdrawal transaction",
+            err,
+        )
+    })?;
+
+    partial_tx.unsigned_tx.output = reorder_outputs(partial_tx.unsigned_tx.output, outputs);
+
+    Ok(partial_tx)
+}
+
+/// Generates the outputs for the withdrawal request transaction
+pub fn create_outputs(
+    drawee_stacks_private_key: &StacksPrivateKey,
+    drawee_stacks_address_kind: StacksAddressKind,
+    payee_bitcoin_address: &BitcoinAddress,
+    peg_wallet_bitcoin_address: &BitcoinAddress,
+    amount: u64,
+    fulfillment_amount: u64,
+    network: BitcoinNetwork,
+) -> SBTCResult<[(Script, u64); 3]> {
+    let recipient_script = payee_bitcoin_address.script_pubkey();
+    let dkg_wallet_script = peg_wallet_bitcoin_address.script_pubkey();
+
+    // Check that we have enough to cover dust
+    let recipient_dust_amount = recipient_script.dust_value().to_sat();
+    let dkg_wallet_dust_amount = dkg_wallet_script.dust_value().to_sat();
+
+    if fulfillment_amount < dkg_wallet_dust_amount {
+        return Err(SBTCError::AmountInsufficient(
+            fulfillment_amount,
+            dkg_wallet_dust_amount,
+        ));
+    }
+
+    let op_return_script = build_op_return_script(
+        &WithdrawalRequestDataOutputData::new(
+            payee_bitcoin_address,
             drawee_stacks_private_key,
-            &self.recipient,
-            &self.peg_wallet,
-            self.amount,
-            self.fulfillment_amount,
+            drawee_stacks_address_kind,
+            amount,
             network,
         )
-    }
+        .serialize_to_vec(),
+    );
+
+    let outputs = [
+        (op_return_script, 0),
+        (recipient_script, recipient_dust_amount),
+        (dkg_wallet_script, fulfillment_amount),
+    ];
+
+    Ok(outputs)
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -171,6 +287,8 @@ pub struct WithdrawalRequestDataOutputData {
     network: BitcoinNetwork,
     /// Amount to withdraw
     amount: u64,
+    /// Address kind of the Stacks account which owns sBTC to be withdrawn
+    address_kind: StacksAddressKind,
     /// Signature of the withdrawal request amount and recipient address
     signature: RecoverableSignature,
 }
@@ -178,33 +296,20 @@ pub struct WithdrawalRequestDataOutputData {
 impl WithdrawalRequestDataOutputData {
     /// Creates a new withdrawal request output data with signature
     pub fn new(
-        network: BitcoinNetwork,
-        amount: u64,
         payee_bitcoin_address: &BitcoinAddress,
         drawee_stacks_private_key: &StacksPrivateKey,
+        drawee_stacks_address_kind: StacksAddressKind,
+        amount: u64,
+        network: BitcoinNetwork,
     ) -> Self {
-        let signing_msg = create_withdrawal_request_signing_message(amount, payee_bitcoin_address);
-        let signature =
-            Secp256k1::new().sign_ecdsa_recoverable(&signing_msg, drawee_stacks_private_key);
+        let signature = create_signature(drawee_stacks_private_key, payee_bitcoin_address, amount);
 
         Self {
             network,
             amount,
+            address_kind: drawee_stacks_address_kind,
             signature,
         }
-    }
-
-    /// Computes withdrawal request source public key
-    pub fn source_public_key(
-        &self,
-        payee_bitcoin_address: &BitcoinAddress,
-    ) -> SBTCResult<secp256k1::PublicKey> {
-        let signing_msg =
-            create_withdrawal_request_signing_message(self.amount, payee_bitcoin_address);
-
-        Secp256k1::new()
-            .recover_ecdsa(&signing_msg, &self.signature)
-            .map_err(|err| SBTCError::SECPError("Could not recover public key from signature", err))
     }
 
     /// Returns the withdrawal request network
@@ -228,6 +333,7 @@ impl Codec for WithdrawalRequestDataOutputData {
         dest.write_all(&magic_bytes(self.network))?;
         dest.write_all(&[Opcode::WithdrawalRequest as u8])?;
         self.amount.codec_serialize(dest)?;
+        self.address_kind.codec_serialize(dest)?;
         self.signature.codec_serialize(dest)
     }
 
@@ -270,19 +376,32 @@ impl Codec for WithdrawalRequestDataOutputData {
 		}
 
         let amount = u64::codec_deserialize(data)?;
+        let address_kind = StacksAddressKind::codec_deserialize(data)?;
         let signature = RecoverableSignature::codec_deserialize(data)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
 
-		Ok(Self {
-			network,
-			amount,
-			signature,
-		})
-	}
+        Ok(Self {
+            network,
+            amount,
+            address_kind,
+            signature,
+        })
+    }
 }
 
-/// Computes a Stacks public key of the payee from the signature
-pub fn compute_withdrawal_request_sender_public_key(
+/// Creates the signature for the withdrawal request
+pub fn create_signature(
+    drawee_stacks_private_key: &StacksPrivateKey,
+    payee_bitcoin_address: &BitcoinAddress,
+    amount: u64,
+) -> RecoverableSignature {
+    let msg = create_withdrawal_request_signing_message(amount, payee_bitcoin_address);
+
+    Secp256k1::new().sign_ecdsa_recoverable(&msg, drawee_stacks_private_key)
+}
+
+/// Recovers a Stacks public key of the payee from the signature
+pub fn recover_signature(
     amount: u64,
     payee_bitcoin_address: &BitcoinAddress,
     signature: &RecoverableSignature,
@@ -322,105 +441,4 @@ pub fn create_signing_message(data: impl AsRef<[u8]>) -> Message {
 
     Message::from_slice(Sha256Hasher::new(msg_content).as_ref())
         .expect("Could not create secp message")
-}
-
-/// Construct a BTC transaction containing the provided sBTC withdrawal data
-pub fn build_withdrawal_tx(
-    payee_bitcoin_private_key: BitcoinPrivateKey,
-    drawee_stacks_private_key: StacksPrivateKey,
-    receiver_address: BitcoinAddress,
-    amount: u64,
-    fulfillment_fee: u64,
-    dkg_address: BitcoinAddress,
-) -> SBTCResult<Transaction> {
-    let wallet = setup_wallet(payee_bitcoin_private_key)?;
-
-    let mut psbt = withdrawal_psbt(
-        &wallet,
-        &drawee_stacks_private_key,
-        &receiver_address,
-        &dkg_address,
-        amount,
-        fulfillment_fee,
-        payee_bitcoin_private_key.network,
-    )?;
-
-    wallet
-        .sign(&mut psbt, SignOptions::default())
-        .map_err(|err| SBTCError::BDKError("Could not sign withdrawal transaction", err))?;
-
-    Ok(psbt.extract_tx())
-}
-
-fn withdrawal_psbt<D: BatchDatabase>(
-    wallet: &Wallet<D>,
-    drawee_stacks_private_key: &StacksPrivateKey,
-    payee_bitcoin_address: &BitcoinAddress,
-    peg_wallet_bitcoin_address: &BitcoinAddress,
-    amount: u64,
-    fulfillment_amount: u64,
-    network: BitcoinNetwork,
-) -> SBTCResult<PartiallySignedTransaction> {
-    let recipient_script = payee_bitcoin_address.script_pubkey();
-    let dkg_wallet_script = peg_wallet_bitcoin_address.script_pubkey();
-
-	// Check that we have enough to cover dust
-	let recipient_dust_amount = recipient_script.dust_value().to_sat();
-	let dkg_wallet_dust_amount = dkg_wallet_script.dust_value().to_sat();
-
-    if fulfillment_amount < dkg_wallet_dust_amount {
-        return Err(SBTCError::AmountInsufficient(
-            fulfillment_amount,
-            dkg_wallet_dust_amount,
-        ));
-    }
-
-    let signature =
-        sign_amount_and_recipient(payee_bitcoin_address, amount, drawee_stacks_private_key);
-    let op_return_script = build_op_return_script(
-        &WithdrawalRequestDataOutputData {
-            network,
-            amount,
-            signature,
-        }
-        .serialize_to_vec(),
-    );
-
-	let mut tx_builder = wallet.build_tx();
-
-    let outputs = [
-        (op_return_script, 0),
-        (recipient_script, recipient_dust_amount),
-        (dkg_wallet_script, fulfillment_amount),
-    ];
-
-	for (script, amount) in outputs.clone() {
-		tx_builder.add_recipient(script, amount);
-	}
-
-	let (mut partial_tx, _) = tx_builder.finish().map_err(|err| {
-		SBTCError::BDKError(
-			"Could not build partially signed withdrawal transaction",
-			err,
-		)
-	})?;
-
-	partial_tx.unsigned_tx.output =
-		reorder_outputs(partial_tx.unsigned_tx.output, outputs);
-
-	Ok(partial_tx)
-}
-
-fn sign_amount_and_recipient(
-    payee_bitcoin_address: &BitcoinAddress,
-    amount: u64,
-    sender_private_key: &StacksPrivateKey,
-) -> RecoverableSignature {
-    let mut msg = amount.serialize_to_vec();
-    msg.extend_from_slice(payee_bitcoin_address.script_pubkey().as_bytes());
-
-    let msg_hash = Sha256Hasher::hash(&msg);
-    let msg_ecdsa = Message::from_slice(msg_hash.as_ref()).unwrap();
-
-    Secp256k1::new().sign_ecdsa_recoverable(&msg_ecdsa, sender_private_key)
 }
