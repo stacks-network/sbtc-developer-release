@@ -220,6 +220,10 @@ fn create_transaction_status_update_tasks(state: &State) -> Vec<Task> {
 }
 
 fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
+    println!("Block: {:?}", block);
+    println!("BlockHash: {:?}", block.block_hash());
+    println!("coinbase: {:?}", block.coinbase());
+
     let block_height = block
         .bip34_block_height()
         .expect("Failed to get block height") as u32;

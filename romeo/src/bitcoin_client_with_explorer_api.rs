@@ -1,17 +1,23 @@
+//! Bitcoin client for bitcoinexplorer.org api
 use anyhow::anyhow;
 use bdk::bitcoin;
+use bdk::bitcoin::hashes::hex::FromHex;
 use bdk::bitcoin::schnorr;
 use bdk::bitcoin::secp256k1;
 use bdk::bitcoin::Block;
 use bdk::bitcoin::BlockHash;
 use bdk::bitcoin::BlockHeader;
+use bdk::bitcoin::Transaction;
 use bdk::bitcoin::TxMerkleNode;
+use bdk::bitcoin::{consensus::deserialize, consensus::encode::Error};
 use reqwest::{Client, Request, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing::trace;
 
 use crate::event;
+#[derive(Debug, Clone)]
+
 /// Bitcoin client for bitcoinexplorer.org api
 pub struct BitcoinExplorerApiClient {
     client: Client,
@@ -85,7 +91,7 @@ impl BitcoinExplorerApiClient {
     /// If the current block height is lower than the requested block height
     /// this function will poll the blockchain until that height is reached.
     #[tracing::instrument(skip(self))]
-    pub async fn fetch_block(&mut self, block_height: u32) -> anyhow::Result<bitcoin::Block> {
+    pub async fn fetch_block(mut self, block_height: u32) -> anyhow::Result<bitcoin::Block> {
         let mut current_height = self.get_height().await?;
 
         while current_height < block_height {
@@ -95,7 +101,6 @@ impl BitcoinExplorerApiClient {
         }
 
         let block = self.get_block_by_height(block_height).await?;
-
         tracing::debug!("Fetched block");
         Ok(block)
     }
@@ -122,6 +127,10 @@ impl BitcoinExplorerApiClient {
                     .build()?,
             )
             .await?;
+        let coinbase_str = response["coinbaseTx"]["hex"]
+            .as_str()
+            .expect("Could not get 'coinbase'");
+        let coinbase: Transaction = deserialize(coinbase_str.as_bytes()).unwrap();
         Ok(Block {
             header: BlockHeader {
                 version: response["version"]
@@ -145,7 +154,7 @@ impl BitcoinExplorerApiClient {
                 .expect("Invalid hex string"),
                 nonce: response["nonce"].as_u64().expect("Could not get 'nonce'") as u32,
             },
-            txdata: vec![],
+            txdata: vec![coinbase],
         })
     }
     /// Bitcoin taproot address associated with the private key
@@ -178,7 +187,7 @@ mod tests {
         let block_height = bitcoin_client.get_height().await.unwrap();
         let block = bitcoin_client.fetch_block(block_height).await.unwrap();
 
-        println!("Block: {:?}", block);
+        println!("Block: {:?}", block.block_hash());
 
         assert!(block.txdata.len() > 10);
     }

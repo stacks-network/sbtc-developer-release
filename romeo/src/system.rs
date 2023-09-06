@@ -28,7 +28,7 @@ use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
-use crate::bitcoin_client::BitcoinClient;
+use crate::bitcoin_client_with_explorer_api::BitcoinExplorerApiClient;
 use crate::config::Config;
 use crate::event::Event;
 use crate::proof_data::ProofData;
@@ -44,7 +44,7 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key)
+    let bitcoin_client = BitcoinExplorerApiClient::new(config.bitcoin_node_url.as_str(), config.private_key)
         .expect("Failed to instantiate bitcoin client");
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
@@ -121,7 +121,7 @@ impl Storage {
 #[tracing::instrument(skip(config, stacks_client, result))]
 fn spawn(
     config: Config,
-    bitcoin_client: BitcoinClient,
+    bitcoin_client: BitcoinExplorerApiClient,
     stacks_client: LockedClient,
     task: Task,
     result: mpsc::Sender<Event>,
@@ -136,7 +136,7 @@ fn spawn(
 
 async fn run_task(
     config: &Config,
-    bitcoin_client: BitcoinClient,
+    bitcoin_client: BitcoinExplorerApiClient,
     stacks_client: LockedClient,
     task: Task,
 ) -> Event {
@@ -186,7 +186,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
 
 async fn mint_asset(
     config: &Config,
-    bitcoin_client: BitcoinClient,
+    bitcoin_client: BitcoinExplorerApiClient,
     stacks_client: LockedClient,
     deposit_info: DepositInfo,
 ) -> Event {
@@ -251,7 +251,7 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(client: BitcoinClient, block_height: Option<u32>) -> Event {
+async fn fetch_bitcoin_block(mut client: BitcoinExplorerApiClient, block_height: Option<u32>) -> Event {
     let block_height = if let Some(height) = block_height {
         height
     } else {
@@ -264,7 +264,7 @@ async fn fetch_bitcoin_block(client: BitcoinClient, block_height: Option<u32>) -
     let block = client
         .fetch_block(block_height)
         .await
-        .expect("Failed to fetch block");
+        .expect("Failed to fetch block for height");
 
     Event::BitcoinBlock(block)
 }
@@ -289,7 +289,8 @@ mod tests {
 
         let http_client = reqwest::Client::new();
         let bitcoin_client =
-            BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key).unwrap();
+            BitcoinExplorerApiClient::new(config.bitcoin_node_url.as_str(), config.private_key)
+                .unwrap();
         let stacks_client = StacksClient::new(config.clone(), http_client).into();
 
         let addr = StacksAddress::from_public_keys(
