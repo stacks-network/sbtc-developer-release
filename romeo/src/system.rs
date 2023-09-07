@@ -5,7 +5,6 @@ use std::fs::create_dir_all;
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
-use blockstack_lib::vm::types::ASCIIData;
 
 use blockstack_lib::vm::ClarityName;
 use tokio::fs::File;
@@ -32,6 +31,7 @@ use tracing::trace;
 use crate::bitcoin_client::BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
+use crate::proof_data::ProofData;
 use crate::stacks_client::LockedClient;
 use crate::stacks_client::StacksClient;
 use crate::state;
@@ -142,7 +142,9 @@ async fn run_task(
 ) -> Event {
     match task {
         Task::CreateAssetContract => deploy_asset_contract(config, stacks_client).await,
-        Task::CreateMint(deposit_info) => mint_asset(config, stacks_client, deposit_info).await,
+        Task::CreateMint(deposit_info) => {
+            mint_asset(config, bitcoin_client, stacks_client, deposit_info).await
+        }
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
         }
@@ -182,29 +184,49 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     Event::AssetContractCreated(txid)
 }
 
-async fn mint_asset(config: &Config, client: LockedClient, deposit_info: DepositInfo) -> Event {
+async fn mint_asset(
+    config: &Config,
+    bitcoin_client: BitcoinClient,
+    stacks_client: LockedClient,
+    deposit_info: DepositInfo,
+) -> Event {
+    let block = bitcoin_client
+        .fetch_block(deposit_info.block_height)
+        .await
+        .expect("Failed to fetch block");
+    let index = block
+        .txdata
+        .iter()
+        .position(|tx| tx.txid() == deposit_info.txid)
+        .expect("Failed to find transaction in block");
+    let proof_data = ProofData::from_block_and_index(&block, index).to_values();
+
     let tx_auth = TransactionAuth::Standard(
-        TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
+        TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key())
+            .expect("Can only handle single sig p2pkh spending conditions"),
     );
 
     let function_args = vec![
         Value::UInt(deposit_info.amount as u128),
         Value::from(deposit_info.recipient.clone()),
-        Value::from(ASCIIData {
-            data: deposit_info.txid.to_string().as_bytes().to_vec(),
-        }),
+        proof_data.txid,
+        proof_data.block_height,
+        proof_data.merkle_path,
+        proof_data.tx_index,
+        proof_data.merkle_tree_depth,
+        proof_data.block_header,
     ];
 
     let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
         address: config.stacks_address(),
         contract_name: config.contract_name.clone(),
-        function_name: ClarityName::from("mint!"),
+        function_name: ClarityName::from("mint"),
         function_args,
     });
 
     let tx = StacksTransaction::new(TransactionVersion::Testnet, tx_auth, tx_payload);
 
-    let txid = client
+    let txid = stacks_client
         .lock()
         .await
         .sign_and_broadcast(tx)
@@ -266,7 +288,9 @@ mod tests {
         let config = Config::from_path("testing/config.json").expect("Failed to find config file");
 
         let http_client = reqwest::Client::new();
-        let client = StacksClient::new(config.clone(), http_client).into();
+        let bitcoin_client =
+            BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key).unwrap();
+        let stacks_client = StacksClient::new(config.clone(), http_client).into();
 
         let addr = StacksAddress::from_public_keys(
             C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
@@ -288,6 +312,6 @@ mod tests {
             block_height: 2475303,
         };
 
-        mint_asset(&config, client, deposit_info).await;
+        mint_asset(&config, bitcoin_client, stacks_client, deposit_info).await;
     }
 }

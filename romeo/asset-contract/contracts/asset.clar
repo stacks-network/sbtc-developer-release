@@ -1,20 +1,22 @@
-;; title: asset
-;; version:
+;; title: wrapped BTC on Stacks
+;; version: 0.1.0
 ;; summary: sBTC dev release asset contract
-;; description:
-
-;; traits
-;;
-(impl-trait 'SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sip-010-trait-ft-standard.sip-010-trait)
+;; description: sBTC is a wrapped BTC asset on Stacks.
+;; It is a fungible token (SIP-10) that is backed 1:1 by BTC
+;; For this version the wallet is controlled by a centralized entity.
+;; sBTC is minted when BTC is deposited into the wallet and
+;; burned when BTC is withdrawn from the wallet.
+;; Requests for minting and burning are made by the contract owner.
 
 ;; token definitions
 ;;
-(define-fungible-token sbtc u21000000)
+(define-fungible-token sbtc u21000000000000)
 
 ;; constants
 ;;
 (define-constant err-invalid-caller (err u1))
 (define-constant err-not-token-owner (err u2))
+(define-constant err-forbidden (err u403))
 
 ;; data vars
 ;;
@@ -51,7 +53,7 @@
     (begin
         (try! (is-contract-owner))
         (try! (verify-txid-exists-on-burn-chain deposit-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
-        (print deposit-txid)
+        (print {notification: "mint", payload: deposit-txid})
         (ft-mint? sbtc amount destination)
     )
 )
@@ -68,7 +70,7 @@
     (begin
         (try! (is-contract-owner))
         (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
-        (print withdraw-txid)
+        (print {notification: "burn", payload: withdraw-txid})
         (ft-burn? sbtc amount owner)
     )
 )
