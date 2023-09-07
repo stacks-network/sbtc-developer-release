@@ -1,7 +1,7 @@
 (define-constant wallet-1 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
 (define-constant wallet-2 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
 (define-constant test-mint-amount u10000000)
-(define-constant expected-total-supply (* u2 test-mint-amount))
+(define-constant expected-total-supply (* u3 test-mint-amount))
 (define-constant expected-token-uri (some u"https://assets.stacks.co/sbtc.pdf"))
 (define-constant expected-name "sBTC")
 (define-constant expected-symbol "sBTC")
@@ -46,6 +46,7 @@
 		(try! (prepare-insert-header-hash))
 		(unwrap! (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Mint to wallet-1 failed"))
 		(unwrap! (contract-call? .asset mint u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Mint to wallet-2 failed"))
+		(unwrap! (contract-call? .asset mint u10000000 (as-contract tx-sender) test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Mint to asset_test failed"))
 		(ok true)
 	)
 )
@@ -58,6 +59,16 @@
 ;; @caller deployer
 (define-public (test-protocol-mint)
 	(contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header)
+)
+
+;; @name Protocol can mint tokens several times with the same bitcoin transaction
+;; @prepare prepare-insert-header-hash
+;; @caller deployer
+(define-public (test-protocol-mint-twice)
+	(begin
+		(try! (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header))
+		(contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header)
+	)
 )
 
 ;; @name Non-protocol contracts cannot mint tokens
@@ -100,6 +111,16 @@
 ;; @caller wallet_1
 (define-public (test-transfer)
 	(contract-call? .asset transfer u100 tx-sender wallet-2 none)
+)
+
+;; @name User can transfer tokens owned by contract
+;; @caller wallet_1
+(define-public (test-transfer-contract)
+	(distribute-tokens u100 (as-contract tx-sender) wallet-2)
+)
+
+(define-public (distribute-tokens (amount uint) (from principal) (to principal))
+	(contract-call? .asset transfer u100 from to none)
 )
 
 ;; @name Cannot transfer someone else's tokens
