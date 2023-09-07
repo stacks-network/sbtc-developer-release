@@ -8,8 +8,9 @@
 (impl-trait 'ST1NXBK3K5YYMD6FD41MVNP3JS1GABZ8TRVX023PT.sip-010-trait-ft-standard.sip-010-trait)
 
 ;; token definitions
-;;
-(define-fungible-token sbtc u21000000000)
+;; 100 M sats = 1 sBTC
+;; 21 M sBTC supply = 2.1 Q sats total
+(define-fungible-token sbtc 2100000000000000)
 
 ;; constants
 ;;
