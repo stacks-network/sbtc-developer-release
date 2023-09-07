@@ -1,21 +1,22 @@
 //! Bitcoin client for bitcoinexplorer.org api
 use anyhow::anyhow;
+use async_trait::async_trait;
 use bdk::bitcoin;
-use bdk::bitcoin::hashes::hex::FromHex;
-use bdk::bitcoin::schnorr;
-use bdk::bitcoin::secp256k1;
+use bdk::bitcoin::consensus::deserialize;
 use bdk::bitcoin::Block;
 use bdk::bitcoin::BlockHash;
 use bdk::bitcoin::BlockHeader;
 use bdk::bitcoin::Transaction;
 use bdk::bitcoin::TxMerkleNode;
-use bdk::bitcoin::{consensus::deserialize, consensus::encode::Error};
 use reqwest::{Client, Request, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing::trace;
 
 use crate::event;
+
+use super::client::BitcoinClient;
+
 #[derive(Debug, Clone)]
 
 /// Bitcoin client for bitcoinexplorer.org api
@@ -61,8 +62,51 @@ impl BitcoinExplorerApiClient {
         }
     }
 
+    /// Get the current height of the Bitcoin chain
+    async fn get_block_by_height(&mut self, height: u32) -> anyhow::Result<Block> {
+        let response: Value = self
+            .send_request(
+                self.client
+                    .get(&format!("{}/block/{}", self.rest_url, height))
+                    .build()?,
+            )
+            .await?;
+        let coinbase_str = response["coinbaseTx"]["hex"]
+            .as_str()
+            .expect("Could not get 'coinbase'");
+        let coinbase: Transaction = deserialize(&hex::decode(coinbase_str).unwrap()).unwrap();
+        Ok(Block {
+            header: BlockHeader {
+                version: response["version"]
+                    .as_i64()
+                    .expect("Could not get 'version'") as i32,
+                prev_blockhash: response["previousblockhash"]
+                    .as_str()
+                    .expect("Could not get 'previousblockhash'")
+                    .parse::<BlockHash>()
+                    .expect("Could not parse 'previousblockhash'"),
+                merkle_root: response["merkleroot"]
+                    .as_str()
+                    .expect("Could not get 'merkleroot'")
+                    .parse::<TxMerkleNode>()
+                    .expect("Could not parse 'merkleroot'"),
+                time: response["time"].as_u64().expect("Could not get 'time'") as u32,
+                bits: u32::from_str_radix(
+                    response["bits"].as_str().expect("Could not get 'bits'"),
+                    16,
+                )
+                .expect("Invalid hex string"),
+                nonce: response["nonce"].as_u64().expect("Could not get 'nonce'") as u32,
+            },
+            txdata: vec![coinbase],
+        })
+    }
+}
+
+#[async_trait]
+impl BitcoinClient for BitcoinExplorerApiClient {
     /// Get the status of a transaction
-    pub async fn get_tx_status(
+    async fn get_tx_status(
         &mut self,
         txid: &bitcoin::Txid,
     ) -> anyhow::Result<event::TransactionStatus> {
@@ -91,7 +135,7 @@ impl BitcoinExplorerApiClient {
     /// If the current block height is lower than the requested block height
     /// this function will poll the blockchain until that height is reached.
     #[tracing::instrument(skip(self))]
-    pub async fn fetch_block(mut self, block_height: u32) -> anyhow::Result<bitcoin::Block> {
+    async fn fetch_block(&mut self, block_height: u32) -> anyhow::Result<bitcoin::Block> {
         let mut current_height = self.get_height().await?;
 
         while current_height < block_height {
@@ -106,7 +150,7 @@ impl BitcoinExplorerApiClient {
     }
 
     /// Get the current height of the Bitcoin chain
-    pub async fn get_height(&mut self) -> anyhow::Result<u32> {
+    async fn get_height(&mut self) -> anyhow::Result<u32> {
         let response: Value = self
             .send_request(
                 self.client
@@ -116,54 +160,6 @@ impl BitcoinExplorerApiClient {
             .await?;
         let height_str = response.as_u64().expect("Could not get 'height'");
         Ok(height_str as u32)
-    }
-
-    /// Get the current height of the Bitcoin chain
-    pub async fn get_block_by_height(&mut self, height: u32) -> anyhow::Result<Block> {
-        let response: Value = self
-            .send_request(
-                self.client
-                    .get(&format!("{}/block/{}", self.rest_url, height))
-                    .build()?,
-            )
-            .await?;
-        let coinbase_str = response["coinbaseTx"]["hex"]
-            .as_str()
-            .expect("Could not get 'coinbase'");
-        let coinbase: Transaction = deserialize(coinbase_str.as_bytes()).unwrap();
-        Ok(Block {
-            header: BlockHeader {
-                version: response["version"]
-                    .as_i64()
-                    .expect("Could not get 'version'") as i32,
-                prev_blockhash: response["previousblockhash"]
-                    .as_str()
-                    .expect("Could not get 'previousblockhash'")
-                    .parse::<BlockHash>()
-                    .expect("Could not parse 'previousblockhash'"),
-                merkle_root: response["merkleroot"]
-                    .as_str()
-                    .expect("Could not get 'merkleroot'")
-                    .parse::<TxMerkleNode>()
-                    .expect("Could not parse 'merkleroot'"),
-                time: response["time"].as_u64().expect("Could not get 'time'") as u32,
-                bits: u32::from_str_radix(
-                    response["bits"].as_str().expect("Could not get 'bits'"),
-                    16,
-                )
-                .expect("Invalid hex string"),
-                nonce: response["nonce"].as_u64().expect("Could not get 'nonce'") as u32,
-            },
-            txdata: vec![coinbase],
-        })
-    }
-    /// Bitcoin taproot address associated with the private key
-    pub async fn taproot_address(&self) -> bitcoin::Address {
-        let secp = secp256k1::Secp256k1::new();
-        let internal_key: schnorr::UntweakedPublicKey =
-            self.private_key.public_key(&secp).inner.into();
-
-        bitcoin::Address::p2tr(&secp, internal_key, None, self.private_key.network)
     }
 }
 

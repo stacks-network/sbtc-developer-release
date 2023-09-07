@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
-bdk = { workspace = true, features = ["esplora", "use-esplora-async"]}
+bdk = { workspace = true, features = ["esplora", "use-esplora-async", "rpc"]}
 blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }
 clap = { workspace = true, features = ["derive"] }
 derivative = { workspace = true }
@@ -20,3 +20,4 @@ stacks-core.path = "../stacks-core"
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber.workspace = true
 tracing.workspace = true
+async-trait.workspace = "0.1.73"

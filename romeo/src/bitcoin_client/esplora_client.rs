@@ -1,5 +1,6 @@
 //! Bitcoin client
 
+use async_trait::async_trait;
 use bdk::bitcoin;
 use bdk::bitcoin::schnorr;
 use bdk::bitcoin::secp256k1;
@@ -7,14 +8,16 @@ use bdk::esplora_client;
 
 use crate::event;
 
+use super::client::BitcoinClient;
+
 /// Facilitates communication with a Bitcoin esplora server
 #[derive(Debug, Clone)]
-pub struct BitcoinClient {
+pub struct EsploraClient {
     client: esplora_client::AsyncClient,
     private_key: bitcoin::PrivateKey,
 }
 
-impl BitcoinClient {
+impl EsploraClient {
     /// Construct a new bitcoin client
     pub fn new(esplora_url: &str, private_key: bitcoin::PrivateKey) -> anyhow::Result<Self> {
         let client = esplora_client::Builder::new(esplora_url).build_async()?;
@@ -30,9 +33,28 @@ impl BitcoinClient {
         Ok(self.client.broadcast(tx).await?)
     }
 
+    /// Sign relevant inputs of a bitcoin transaction
+    pub async fn sign(&self, _tx: bitcoin::Transaction) -> anyhow::Result<bitcoin::Transaction> {
+        // TODO #68
+        todo!()
+    }
+
+    /// Bitcoin taproot address associated with the private key
+    pub async fn taproot_address(&self) -> bitcoin::Address {
+        let secp = secp256k1::Secp256k1::new();
+        let internal_key: schnorr::UntweakedPublicKey =
+            self.private_key.public_key(&secp).inner.into();
+
+        bitcoin::Address::p2tr(&secp, internal_key, None, self.private_key.network)
+    }
+
+}
+
+#[async_trait]
+impl BitcoinClient for EsploraClient {
     /// Get the status of a transaction
-    pub async fn get_tx_status(
-        &self,
+    async fn get_tx_status(
+        &mut self,
         txid: &bitcoin::Txid,
     ) -> anyhow::Result<event::TransactionStatus> {
         let status = self.client.get_tx_status(txid).await?;
@@ -52,7 +74,7 @@ impl BitcoinClient {
     /// If the current block height is lower than the requested block height
     /// this function will poll the blockchain until that height is reached.
     #[tracing::instrument(skip(self))]
-    pub async fn fetch_block(&self, block_height: u32) -> anyhow::Result<bitcoin::Block> {
+    async fn fetch_block(&mut self, block_height: u32) -> anyhow::Result<bitcoin::Block> {
         let mut current_height = self.client.get_height().await?;
 
         while current_height < block_height {
@@ -77,23 +99,8 @@ impl BitcoinClient {
     }
 
     /// Get the current height of the Bitcoin chain
-    pub async fn get_height(&self) -> anyhow::Result<u32> {
+    async fn get_height(&mut self) -> anyhow::Result<u32> {
         Ok(self.client.get_height().await?)
-    }
-
-    /// Sign relevant inputs of a bitcoin transaction
-    pub async fn sign(&self, _tx: bitcoin::Transaction) -> anyhow::Result<bitcoin::Transaction> {
-        // TODO #68
-        todo!()
-    }
-
-    /// Bitcoin taproot address associated with the private key
-    pub async fn taproot_address(&self) -> bitcoin::Address {
-        let secp = secp256k1::Secp256k1::new();
-        let internal_key: schnorr::UntweakedPublicKey =
-            self.private_key.public_key(&secp).inner.into();
-
-        bitcoin::Address::p2tr(&secp, internal_key, None, self.private_key.network)
     }
 }
 
@@ -110,8 +117,8 @@ mod tests {
         let config =
             Config::from_path("./testing/config.json").expect("Failed to find config file");
 
-        let bitcoin_client =
-            BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key).unwrap();
+        let mut bitcoin_client =
+            EsploraClient::new(config.bitcoin_node_url.as_str(), config.private_key).unwrap();
 
         let block_height = bitcoin_client.get_height().await.unwrap();
         let block = bitcoin_client.fetch_block(block_height).await.unwrap();

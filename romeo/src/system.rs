@@ -1,7 +1,9 @@
 //! System
 
+use std::fmt::Debug;
 use std::fs::create_dir_all;
 
+use async_trait::async_trait;
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
@@ -28,7 +30,8 @@ use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
-use crate::bitcoin_client_with_explorer_api::BitcoinExplorerApiClient;
+use crate::bitcoin_client::client::BitcoinClient;
+use crate::bitcoin_client::rpc_client::BitcoinExplorerApiClient;
 use crate::config::Config;
 use crate::event::Event;
 use crate::proof_data::ProofData;
@@ -44,8 +47,9 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let bitcoin_client = BitcoinExplorerApiClient::new(config.bitcoin_node_url.as_str(), config.private_key)
-        .expect("Failed to instantiate bitcoin client");
+    let bitcoin_client =
+        BitcoinExplorerApiClient::new(config.bitcoin_node_url.as_str(), config.private_key)
+            .expect("Failed to instantiate bitcoin client");
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
@@ -121,7 +125,7 @@ impl Storage {
 #[tracing::instrument(skip(config, stacks_client, result))]
 fn spawn(
     config: Config,
-    bitcoin_client: BitcoinExplorerApiClient,
+    mut bitcoin_client: impl BitcoinClient + Debug + Send + Sync + 'static,
     stacks_client: LockedClient,
     task: Task,
     result: mpsc::Sender<Event>,
@@ -129,14 +133,14 @@ fn spawn(
     debug!("Spawning task");
 
     tokio::task::spawn(async move {
-        let event = run_task(&config, bitcoin_client, stacks_client, task).await;
+        let event = run_task(&config, &mut bitcoin_client, stacks_client, task).await;
         result.send(event).await.expect("Failed to return event");
     })
 }
 
 async fn run_task(
     config: &Config,
-    bitcoin_client: BitcoinExplorerApiClient,
+    bitcoin_client: &mut impl BitcoinClient,
     stacks_client: LockedClient,
     task: Task,
 ) -> Event {
@@ -186,7 +190,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
 
 async fn mint_asset(
     config: &Config,
-    bitcoin_client: BitcoinExplorerApiClient,
+    bitcoin_client: &mut impl BitcoinClient,
     stacks_client: LockedClient,
     deposit_info: DepositInfo,
 ) -> Event {
@@ -251,7 +255,10 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(mut client: BitcoinExplorerApiClient, block_height: Option<u32>) -> Event {
+async fn fetch_bitcoin_block(
+    client: &mut impl BitcoinClient,
+    block_height: Option<u32>,
+) -> Event {
     let block_height = if let Some(height) = block_height {
         height
     } else {
@@ -288,7 +295,7 @@ mod tests {
         let config = Config::from_path("testing/config.json").expect("Failed to find config file");
 
         let http_client = reqwest::Client::new();
-        let bitcoin_client =
+        let mut bitcoin_client =
             BitcoinExplorerApiClient::new(config.bitcoin_node_url.as_str(), config.private_key)
                 .unwrap();
         let stacks_client = StacksClient::new(config.clone(), http_client).into();
@@ -313,6 +320,6 @@ mod tests {
             block_height: 2475303,
         };
 
-        mint_asset(&config, bitcoin_client, stacks_client, deposit_info).await;
+        mint_asset(&config, &mut bitcoin_client, stacks_client, deposit_info).await;
     }
 }

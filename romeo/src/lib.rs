@@ -7,7 +7,6 @@
 #![forbid(missing_docs)]
 
 pub mod bitcoin_client;
-pub mod bitcoin_client_with_explorer_api;
 pub mod config;
 pub mod event;
 pub mod proof_data;
