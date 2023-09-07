@@ -3,7 +3,6 @@
 use std::fmt::Debug;
 use std::fs::create_dir_all;
 
-use async_trait::async_trait;
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
@@ -47,17 +46,16 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let bitcoin_client =
-        BitcoinExplorerApiClient::new(config.bitcoin_node_url.as_str(), config.private_key)
-            .expect("Failed to instantiate bitcoin client");
+    let bitcoin_client = BitcoinExplorerApiClient::new(config.bitcoin_node_url.as_str(), config.private_key)
+        .expect("Failed to instantiate bitcoin client");
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
-    tracing::debug!("Starting replay of persisted events");
-    let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
-    tracing::debug!("Replay finished with state: {:?}", state);
+    tracing::info!("Starting replay of persisted events");
+    let (mut storage, state) = Storage::load_and_replay(&config, state::State::default()).await;
+    tracing::info!("Replay finished with state: {:?}", state);
 
-    let bootstrap_task = state::bootstrap(&state);
+    let (mut state, bootstrap_task) = state::bootstrap(state);
 
     // Bootstrap
     spawn(
@@ -122,7 +120,7 @@ impl Storage {
     }
 }
 
-#[tracing::instrument(skip(config, stacks_client, result))]
+#[tracing::instrument(skip(config, bitcoin_client, stacks_client, result))]
 fn spawn(
     config: Config,
     mut bitcoin_client: impl BitcoinClient + Debug + Send + Sync + 'static,
@@ -185,7 +183,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
         .await
         .expect("Unable to sign and broadcast the asset contract deployment transaction");
 
-    Event::AssetContractCreated(txid)
+    Event::AssetContractBroadcasted(txid)
 }
 
 async fn mint_asset(
@@ -237,7 +235,7 @@ async fn mint_asset(
         .await
         .expect("Unable to sign and broadcast the mint transaction");
 
-    Event::MintCreated(deposit_info, txid)
+    Event::MintBroadcasted(deposit_info, txid)
 }
 
 async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {
@@ -255,10 +253,7 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(
-    client: &mut impl BitcoinClient,
-    block_height: Option<u32>,
-) -> Event {
+async fn fetch_bitcoin_block(client: &mut impl BitcoinClient, block_height: Option<u32>) -> Event {
     let block_height = if let Some(height) = block_height {
         height
     } else {
@@ -271,8 +266,9 @@ async fn fetch_bitcoin_block(
     let block = client
         .fetch_block(block_height)
         .await
-        .expect("Failed to fetch block for height");
+        .expect("Failed to fetch block");
 
+    println!("Fetched block: {:?}", block_height);
     Event::BitcoinBlock(block)
 }
 
@@ -286,6 +282,8 @@ mod tests {
         types::chainstate::StacksAddress,
         vm::types::{PrincipalData, StandardPrincipalData},
     };
+
+    use crate::bitcoin_client::rpc_client::BitcoinExplorerApiClient;
 
     use super::*;
 
