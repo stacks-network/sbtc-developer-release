@@ -14,9 +14,8 @@
 
 ;; constants
 ;;
-(define-constant err-invalid-caller (err u1))
+(define-constant err-invalid-caller (err u403))
 (define-constant err-not-token-owner (err u2))
-(define-constant err-forbidden (err u403))
 
 ;; data vars
 ;;
