@@ -84,7 +84,7 @@
 )
 
 (define-read-only (get-token-uri)
-	(ok (some u"https://gateway.pinata.cloud/ipfs/QmZWaVN9582UaXvvSgYEZvyafSv4jNdn4a2qpxQCDho85W?_gl=1*7vcfsd*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDAzOTYyNC4xLjEuMTY5NDAzOTczMi40OC4wLjA"))
+	(ok (some u"https://gateway.pinata.cloud/ipfs/QmTa7nS6skw171vRAM2Ea9Rng47s7SchT5hpdQbEQ5wj1f?_gl=1*1ddrtfr*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDA0ODM2NS4zLjAuMTY5NDA0ODM2NS42MC4wLjA"))
 )
 
 ;; private functions
