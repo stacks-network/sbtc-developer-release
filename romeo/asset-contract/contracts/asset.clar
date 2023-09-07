@@ -14,8 +14,6 @@
 
 ;; constants
 ;;
-(define-constant err-invalid-caller (err u1))
-(define-constant err-not-token-owner (err u2))
 (define-constant err-forbidden (err u403))
 
 ;; data vars
@@ -25,60 +23,34 @@
 
 ;; public functions
 ;;
-;; #[allow(unchecked_data)]
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
-        (try! (is-contract-owner))
+        (asserts! (is-contract-owner) err-forbidden)
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
     )
 )
 
-;; #[allow(unchecked_data)]
-(define-public (set-contract-owner (new-owner principal))
+(define-public (mint (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
     (begin
-        (try! (is-contract-owner))
-        (ok (var-set contract-owner new-owner))
-    )
-)
-
-;; #[allow(unchecked_data)]
-(define-public (mint (amount uint)
-    (destination principal)
-    (deposit-txid (buff 32))
-    (burn-chain-height uint)
-    (merkle-proof (list 14 (buff 32)))
-    (tx-index uint)
-    (tree-depth uint)
-    (block-header (buff 80)))
-    (begin
-        (try! (is-contract-owner))
-        (try! (verify-txid-exists-on-burn-chain deposit-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
+        (asserts! (is-contract-owner) err-forbidden)
+        ;; TODO #79: Assert deposit-txid exists on chain
         (print {notification: "mint", payload: deposit-txid})
-        (ft-mint? sbtc amount destination)
+        (ft-mint? sbtc amount dst)
     )
 )
 
-;; #[allow(unchecked_data)]
-(define-public (burn (amount uint)
-    (owner principal)
-    (withdraw-txid (buff 32))
-    (burn-chain-height uint)
-    (merkle-proof (list 14 (buff 32)))
-    (tx-index uint)
-    (tree-depth uint)
-    (block-header (buff 80)))
+(define-public (burn (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
     (begin
-        (try! (is-contract-owner))
-        (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
+        (asserts! (is-contract-owner) err-forbidden)
+        ;; TODO #79: Assert withdraw-txid exists on chain
         (print {notification: "burn", payload: withdraw-txid})
-        (ft-burn? sbtc amount owner)
+        (ft-burn? sbtc amount src)
     )
 )
 
-;; #[allow(unchecked_data)]
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-		(asserts! (or (is-eq tx-sender sender) (is-eq contract-caller sender)) err-not-token-owner)
+		(asserts! (is-eq tx-sender sender) err-forbidden)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
@@ -118,9 +90,5 @@
 ;; private functions
 ;;
 (define-private (is-contract-owner)
-    (ok (asserts! (is-eq (var-get contract-owner) contract-caller) err-invalid-caller))
-)
-
-(define-read-only (verify-txid-exists-on-burn-chain (txid (buff 32)) (burn-chain-height uint) (merkle-proof (list 14 (buff 32))) (tx-index uint) (tree-depth uint) (block-header (buff 80)))
-    (contract-call? .clarity-bitcoin-mini was-txid-mined burn-chain-height txid block-header { tx-index: tx-index, hashes: merkle-proof, tree-depth: tree-depth})
+    (is-eq (var-get contract-owner) tx-sender)
 )
