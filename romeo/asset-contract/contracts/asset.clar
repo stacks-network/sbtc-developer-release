@@ -11,7 +11,7 @@
 ;; token definitions
 ;; 100 M sats = 1 sBTC
 ;; 21 M sBTC supply = 2.1 Q sats total
-(define-fungible-token sbtc 2100000000000000)
+(define-fungible-token sbtc u2100000000000000)
 
 ;; constants
 ;;
