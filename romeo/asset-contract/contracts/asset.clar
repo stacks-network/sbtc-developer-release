@@ -42,7 +42,7 @@
 )
 
 ;; #[allow(unchecked_data)]
-(define-public (mint! (amount uint)
+(define-public (mint (amount uint)
     (destination principal)
     (deposit-txid (buff 32))
     (burn-chain-height uint)
@@ -59,7 +59,7 @@
 )
 
 ;; #[allow(unchecked_data)]
-(define-public (burn! (amount uint)
+(define-public (burn (amount uint)
     (owner principal)
     (withdraw-txid (buff 32))
     (burn-chain-height uint)
