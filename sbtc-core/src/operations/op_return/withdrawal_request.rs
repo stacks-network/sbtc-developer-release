@@ -29,21 +29,16 @@ The data output should contain data in the following byte format:
 Where withdrawal request data should be in the following format:
 
 ```text
-0          8   9                                                              73
-|----------|---|---------------------------------------------------------------|
-   amount    ^                           signature
-             |
-        address type
+0          8                                                                  72
+|----------|-------------------------------------------------------------------|
+   amount                                signature
 ```
-
-The address type is a single byte that indicates the type of the address from
-where the sBTC will be withdrawn.
 
 The signature is a recoverable ECDSA signature produced by signing the following
 message:
 
 ```text
-0                N                                                             M
+0   1            N   N + 1                                             M + N + 1
 |---|------------|---|---------------------------------------------------------|
   ^     prefix     ^                     message data
   |                |
@@ -59,6 +54,9 @@ Bitcoin address.
 |----------------|-------------------------------------------------------------|
       amount                             pubkey script
 ```
+
+It is also by convention that we always produce a P2PKH Stacks address from the
+recovered public key.
 */
 use std::{collections::HashMap, io, iter};
 
@@ -74,9 +72,7 @@ use bdk::{
     SignOptions, Wallet,
 };
 use stacks_core::{
-    address::{
-        AddressKind as StacksAddressKind, AddressVersion as StacksAddressVersion, StacksAddress,
-    },
+    address::{AddressVersion as StacksAddressVersion, StacksAddress},
     codec::Codec,
     crypto::{
         sha256::Sha256Hasher, Hashing, PrivateKey as StacksPrivateKey, PublicKey as StacksPublicKey,
@@ -133,11 +129,8 @@ pub fn try_parse_withdrawal_request(
         BitcoinNetwork::Bitcoin => StacksAddressVersion::MainnetSingleSig,
         _ => StacksAddressVersion::TestnetSingleSig,
     };
-    let drawee_stacks_address = StacksAddress::from_components_single_sig(
-        drawee_stacks_address_version,
-        withdrawal_data.address_kind,
-        &drawee_stacks_public_key,
-    );
+    let drawee_stacks_address =
+        StacksAddress::from_public_key(drawee_stacks_address_version, &drawee_stacks_public_key);
 
     let fulfillment_fee_output = output_iter.next().ok_or(SBTCError::NotSBTCOperation)?;
 
@@ -181,7 +174,6 @@ impl WithdrawalRequestData {
 pub fn build_withdrawal_tx(
     broadcaster_bitcoin_private_key: BitcoinPrivateKey,
     drawee_stacks_private_key: StacksPrivateKey,
-    drawee_stacks_address_kind: StacksAddressKind,
     payee_bitcoin_address: BitcoinAddress,
     peg_wallet_bitcoin_address: BitcoinAddress,
     amount: u64,
@@ -192,7 +184,6 @@ pub fn build_withdrawal_tx(
     let mut psbt = create_psbt(
         &wallet,
         &drawee_stacks_private_key,
-        drawee_stacks_address_kind,
         &payee_bitcoin_address,
         &peg_wallet_bitcoin_address,
         amount,
@@ -211,7 +202,6 @@ pub fn build_withdrawal_tx(
 pub fn create_psbt<D: BatchDatabase>(
     wallet: &Wallet<D>,
     drawee_stacks_private_key: &StacksPrivateKey,
-    drawee_stacks_address_kind: StacksAddressKind,
     payee_bitcoin_address: &BitcoinAddress,
     peg_wallet_bitcoin_address: &BitcoinAddress,
     amount: u64,
@@ -220,7 +210,6 @@ pub fn create_psbt<D: BatchDatabase>(
 ) -> SBTCResult<PartiallySignedTransaction> {
     let outputs = create_outputs(
         drawee_stacks_private_key,
-        drawee_stacks_address_kind,
         payee_bitcoin_address,
         peg_wallet_bitcoin_address,
         amount,
@@ -249,7 +238,6 @@ pub fn create_psbt<D: BatchDatabase>(
 /// Generates the outputs for the withdrawal request transaction
 pub fn create_outputs(
     drawee_stacks_private_key: &StacksPrivateKey,
-    drawee_stacks_address_kind: StacksAddressKind,
     payee_bitcoin_address: &BitcoinAddress,
     peg_wallet_bitcoin_address: &BitcoinAddress,
     amount: u64,
@@ -274,7 +262,6 @@ pub fn create_outputs(
         &WithdrawalRequestDataOutputData::new(
             payee_bitcoin_address,
             drawee_stacks_private_key,
-            drawee_stacks_address_kind,
             amount,
             network,
         )
@@ -297,8 +284,6 @@ pub struct WithdrawalRequestDataOutputData {
     network: BitcoinNetwork,
     /// Amount to withdraw
     amount: u64,
-    /// Address kind of the Stacks account which owns sBTC to be withdrawn
-    address_kind: StacksAddressKind,
     /// Signature of the withdrawal request amount and recipient address
     signature: RecoverableSignature,
 }
@@ -308,7 +293,6 @@ impl WithdrawalRequestDataOutputData {
     pub fn new(
         payee_bitcoin_address: &BitcoinAddress,
         drawee_stacks_private_key: &StacksPrivateKey,
-        drawee_stacks_address_kind: StacksAddressKind,
         amount: u64,
         network: BitcoinNetwork,
     ) -> Self {
@@ -317,7 +301,6 @@ impl WithdrawalRequestDataOutputData {
         Self {
             network,
             amount,
-            address_kind: drawee_stacks_address_kind,
             signature,
         }
     }
@@ -343,7 +326,6 @@ impl Codec for WithdrawalRequestDataOutputData {
         dest.write_all(&magic_bytes(self.network))?;
         dest.write_all(&[Opcode::WithdrawalRequest as u8])?;
         self.amount.codec_serialize(dest)?;
-        self.address_kind.codec_serialize(dest)?;
         self.signature.codec_serialize(dest)
     }
 
@@ -383,14 +365,12 @@ impl Codec for WithdrawalRequestDataOutputData {
         }
 
         let amount = u64::codec_deserialize(data)?;
-        let address_kind = StacksAddressKind::codec_deserialize(data)?;
         let signature = RecoverableSignature::codec_deserialize(data)
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
 
         Ok(Self {
             network,
             amount,
-            address_kind,
             signature,
         })
     }
@@ -416,7 +396,7 @@ pub fn recover_signature(
     let signing_msg = create_withdrawal_request_signing_message(amount, payee_bitcoin_address);
 
     Secp256k1::new()
-        .recover_ecdsa(&signing_msg, &signature)
+        .recover_ecdsa(&signing_msg, signature)
         .map_err(|err| SBTCError::SECPError("Could not recover public key from signature", err))
 }
 
