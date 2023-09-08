@@ -69,7 +69,7 @@ pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
         stdout(),
         &TransactionData {
             tx_id: tx.txid().to_string(),
-            tx_hex: array_bytes::bytes2hex("", tx.serialize()),
+            tx_hex: hex::encode(tx.serialize()),
         },
     )?;
 
@@ -136,7 +136,7 @@ fn withdrawal_data(
     msg.extend_from_slice(recipient.script_pubkey().as_bytes());
 
     let msg_hash = Sha256Hasher::new(msg.as_slice());
-    let msg_hash_bytes = array_bytes::hex2bytes(msg_hash).unwrap();
+    let msg_hash_bytes = hex::decode(msg_hash).unwrap();
     let msg_ecdsa = Message::from_slice(&msg_hash_bytes).unwrap();
 
     let (recovery_id, signature) = Secp256k1::new()

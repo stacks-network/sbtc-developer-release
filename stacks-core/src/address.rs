@@ -7,6 +7,7 @@ use bdk::bitcoin::{
     blockdata::{opcodes::all::OP_CHECKMULTISIG, script::Builder},
     secp256k1::PublicKey,
 };
+use serde::Serialize;
 use strum::{EnumIter, FromRepr};
 
 use crate::{
@@ -43,7 +44,8 @@ impl TryFrom<u8> for AddressVersion {
 }
 
 /// A Stacks address
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(into = "String")]
 pub struct StacksAddress {
     version: AddressVersion,
     hash: Hash160Hasher,
@@ -115,8 +117,8 @@ impl Codec for StacksAddress {
     }
 }
 
-impl From<&StacksAddress> for String {
-    fn from(address: &StacksAddress) -> Self {
+impl From<StacksAddress> for String {
+    fn from(address: StacksAddress) -> Self {
         encode_address(address.version, address.hash.as_ref())
     }
 }

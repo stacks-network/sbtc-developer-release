@@ -15,6 +15,7 @@ website = "https://www.stacks.co"
 bdk = { workspace = true, features = ["keys-bip39", "bip39"] }
 hex.workspace = true
 once_cell.workspace = true
+rand.workspace = true
 regex.workspace = true
 ripemd.workspace = true
 serde = { workspace = true, features = ["derive"] }

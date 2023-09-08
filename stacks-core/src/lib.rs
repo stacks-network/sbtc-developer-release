@@ -7,7 +7,8 @@
 use std::{array::TryFromSliceError, io};
 
 use codec::{Codec, CodecError};
-use strum::{EnumIter, FromRepr};
+use serde::{Deserialize, Serialize};
+use strum::{Display, EnumIter, EnumString, FromRepr};
 use thiserror::Error;
 use uint::Uint256;
 
@@ -17,13 +18,13 @@ pub mod address;
 pub mod c32;
 pub mod codec;
 pub mod contract_name;
-pub mod credentials;
 /// Module for crypto functions
 pub mod crypto;
 /// Module for creating large integers and performing basic arithmetic
 pub mod uint;
 /// Module for utility functions
 pub mod utils;
+pub mod wallet;
 
 /// Error type for the stacks-core library
 #[derive(Error, Debug)]
@@ -88,13 +89,43 @@ impl Codec for BlockId {
 
 /// Stacks network kind
 #[repr(u8)]
-#[derive(FromRepr, EnumIter, strum::EnumString, PartialEq, Eq, Copy, Clone, Debug)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    EnumString,
+    Display,
+    EnumIter,
+    FromRepr,
+    Serialize,
+    Deserialize,
+)]
 #[strum(ascii_case_insensitive)]
+#[strum(serialize_all = "lowercase")]
+#[serde(try_from = "String", into = "String")]
 pub enum Network {
-    /// Mainner
+    /// Mainnet
     Mainnet = 0,
     /// Testnet
     Testnet = 1,
+}
+
+impl TryFrom<String> for Network {
+    type Error = strum::ParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
+// Other way around is fallible, so we don't implement it
+#[allow(clippy::from_over_into)]
+impl Into<String> for Network {
+    fn into(self) -> String {
+        self.to_string()
+    }
 }
 
 /// Stacks private key
