@@ -7,10 +7,9 @@ use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use reqwest::{Request, StatusCode};
+use reqwest::Request;
 use serde_json::Value;
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::trace;
 
 use serde::de::DeserializeOwned;
 
@@ -18,6 +17,7 @@ use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::{
     StacksTransaction, StacksTransactionSigner, TransactionAnchorMode, TransactionPostConditionMode,
 };
+use tracing::debug;
 
 use crate::config::Config;
 use crate::event::TransactionStatus;
@@ -63,23 +63,32 @@ impl StacksClient {
         T: DeserializeOwned,
     {
         let request_url = req.url().to_string();
+
         let res = self.http_client.execute(req).await?;
+        let status = res.status();
+        let body = res.text().await?;
 
-        if res.status() == StatusCode::OK {
-            Ok(res.json::<T>().await?)
-        } else {
-            let details = res.json::<Value>().await?;
+        serde_json::from_str(&body).map_err(|err| {
+            let error_details = serde_json::from_str::<Value>(&body)
+                .ok()
+                .and_then(|details| {
+                    details["error"]
+                        .as_str()
+                        .map(|description| format!(" {}", description))
+                });
 
-            trace!(
-                "Request failure details: {:?}",
-                serde_json::to_string(&details)?
-            );
+            if error_details.is_none() {
+                debug!("Failed request response body: {:?}", body);
+            }
 
-            Err(anyhow!(format!(
-                "Request not 200: {}: {}",
-                request_url, details["error"]
-            )))
-        }
+            anyhow!(
+                "Could not parse response JSON, URL is {}, status is {}: {:?}{}",
+                request_url,
+                status,
+                err,
+                error_details.unwrap_or_default()
+            )
+        })
     }
 
     /// Sign and broadcast an unsigned stacks transaction

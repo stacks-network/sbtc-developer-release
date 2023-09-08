@@ -44,16 +44,16 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key)
+    let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str())
         .expect("Failed to instantiate bitcoin client");
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
-    tracing::debug!("Starting replay of persisted events");
-    let (mut storage, mut state) = Storage::load_and_replay(&config, state::State::default()).await;
-    tracing::debug!("Replay finished with state: {:?}", state);
+    tracing::info!("Starting replay of persisted events");
+    let (mut storage, state) = Storage::load_and_replay(&config, state::State::default()).await;
+    tracing::info!("Replay finished with state: {:?}", state);
 
-    let bootstrap_task = state::bootstrap(&state);
+    let (mut state, bootstrap_task) = state::bootstrap(state);
 
     // Bootstrap
     spawn(
@@ -118,7 +118,7 @@ impl Storage {
     }
 }
 
-#[tracing::instrument(skip(config, stacks_client, result))]
+#[tracing::instrument(skip(config, bitcoin_client, stacks_client, result))]
 fn spawn(
     config: Config,
     bitcoin_client: BitcoinClient,
@@ -179,7 +179,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
         .await
         .expect("Unable to sign and broadcast the asset contract deployment transaction");
 
-    Event::AssetContractCreated(txid)
+    Event::AssetContractBroadcasted(txid)
 }
 
 async fn mint_asset(config: &Config, client: LockedClient, deposit_info: DepositInfo) -> Event {
@@ -211,7 +211,7 @@ async fn mint_asset(config: &Config, client: LockedClient, deposit_info: Deposit
         .await
         .expect("Unable to sign and broadcast the mint transaction");
 
-    Event::MintCreated(deposit_info, txid)
+    Event::MintBroadcasted(deposit_info, txid)
 }
 
 async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {
