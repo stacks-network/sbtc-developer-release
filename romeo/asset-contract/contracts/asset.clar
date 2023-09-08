@@ -15,6 +15,7 @@
 ;; constants
 ;;
 (define-constant err-forbidden (err u403))
+(define-constant err-amount-zero (err u404))
 
 ;; data vars
 ;;
@@ -23,6 +24,13 @@
 
 ;; public functions
 ;;
+(define-public (set-new-owner (new-owner principal))
+  (begin
+    (asserts! (is-contract-owner) err-forbidden)
+    (var-set contract-owner new-owner)
+    (ok true))
+)
+
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
@@ -33,24 +41,29 @@
 (define-public (mint (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
+        (asserts! (> amount u0) err-amount-zero)
         ;; TODO #79: Assert deposit-txid exists on chain
+        (try! (ft-mint? sbtc amount dst))
         (print {notification: "mint", payload: deposit-txid})
-        (ft-mint? sbtc amount dst)
+        (ok true)
     )
 )
 
 (define-public (burn (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
+        (asserts! (> amount u0) err-amount-zero)
         ;; TODO #79: Assert withdraw-txid exists on chain
+        (try! (ft-burn? sbtc amount src))
         (print {notification: "burn", payload: withdraw-txid})
-        (ft-burn? sbtc amount src)
+		(ok true)
     )
 )
 
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-		(asserts! (is-eq tx-sender sender) err-forbidden)
+		(asserts! (is-eq contract-caller sender) err-forbidden)
+        (asserts! (> amount u0) err-amount-zero)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
@@ -90,5 +103,5 @@
 ;; private functions
 ;;
 (define-private (is-contract-owner)
-    (is-eq (var-get contract-owner) tx-sender)
+    (is-eq (var-get contract-owner) contract-caller)
 )
