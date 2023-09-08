@@ -288,8 +288,7 @@ mod tests {
         let config = Config::from_path("testing/config.json").expect("Failed to find config file");
 
         let http_client = reqwest::Client::new();
-        let bitcoin_client =
-            BitcoinClient::new(config.bitcoin_node_url.as_str(), config.private_key).unwrap();
+        let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str()).unwrap();
         let stacks_client = StacksClient::new(config.clone(), http_client).into();
 
         let addr = StacksAddress::from_public_keys(
