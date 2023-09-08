@@ -78,6 +78,7 @@ INIT_BTC_BLOCKS: <number of blocks to initially mine>
 ```
 BTC_BLOCK_GEN_TIME: <number of seconds before the next block is mined>
 ```
+If you need the BTC wallet private key, it is listed in the stacks Config.toml
 
 ### Bitcoin
 You can access the [Bitcoin Explorer](https://github.com/janoside/btc-rpc-explorer)
@@ -92,8 +93,9 @@ You can access the [Stacks Explorer](https://github.com/hirosystems/explorer)
 at:
 
 ```
-http://127.0.0.1:3000
+http://127.0.0.1:3000/?chain=testnet
 ```
+It's important to use the above URL, as it can parse blocks properly.
 
 The Stacks API service is running on port 3999.
 
@@ -138,4 +140,5 @@ easy to add persistent storage volumes if needed.
 - Why does it take stacks so long to start mining blocks?
 - Deploy Romeo to devnet, and document
 - Investigate Docker Compose Fragment and Extensions.
+- Add Bridge webapp and API
 
