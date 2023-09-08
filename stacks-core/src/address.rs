@@ -127,18 +127,12 @@ impl StacksAddress {
         Self::new(version, hash_p2wsh(keys, signature_threshold))
     }
 
-    /// Create a Stacks address from version, kind, and key components.
-    pub fn from_components_single_sig(
-        version: AddressVersion,
-        kind: AddressKind,
-        key: &PublicKey,
-    ) -> Self {
-        match kind {
-            AddressKind::P2PKH => Self::p2pkh(version, key),
-            AddressKind::P2SH => Self::p2sh(version, Some(key), 1),
-            AddressKind::P2WPKH => Self::p2wpkh(version, key),
-            AddressKind::P2WSH => Self::p2wsh(version, Some(key), 1),
-        }
+    /**
+    Create a Stacks address from the public key. This is always a P2PKH address,
+    by convention.
+    */
+    pub fn from_public_key(version: AddressVersion, key: &PublicKey) -> Self {
+        Self::p2pkh(version, key)
     }
 }
 
