@@ -3,7 +3,10 @@ use std::{
     io::{self, Read, Write},
 };
 
-use bitcoin::blockdata::{opcodes::all::OP_CHECKMULTISIG, script::Builder};
+use bdk::bitcoin::{
+    blockdata::{opcodes::all::OP_CHECKMULTISIG, script::Builder},
+    secp256k1::PublicKey,
+};
 use strum::{EnumIter, FromRepr};
 
 use crate::{
@@ -12,7 +15,7 @@ use crate::{
     crypto::{
         hash160::{Hash160Hasher, HASH160_LENGTH},
         sha256::Sha256Hasher,
-        Hashing, PublicKey,
+        Hashing,
     },
     StacksError, StacksResult,
 };

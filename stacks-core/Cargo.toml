@@ -12,13 +12,11 @@ version = "0.1.0"
 website = "https://www.stacks.co"
 
 [dependencies]
-bdk.workspace = true
-bitcoin.workspace = true
+bdk = { workspace = true, features = ["keys-bip39", "bip39"] }
 hex.workspace = true
 once_cell.workspace = true
 regex.workspace = true
 ripemd.workspace = true
-secp256k1 = { workspace = true, features = ["global-context", "rand"] }
 serde = { workspace = true, features = ["derive"] }
 sha2.workspace = true
 strum = { workspace = true, features = ["derive"] }

@@ -7,6 +7,7 @@
 use std::{array::TryFromSliceError, io};
 
 use codec::{Codec, CodecError};
+use strum::{EnumIter, FromRepr};
 use thiserror::Error;
 use uint::Uint256;
 
@@ -16,6 +17,7 @@ pub mod address;
 pub mod c32;
 pub mod codec;
 pub mod contract_name;
+pub mod credentials;
 /// Module for crypto functions
 pub mod crypto;
 /// Module for creating large integers and performing basic arithmetic
@@ -50,6 +52,12 @@ pub enum StacksError {
     #[error("Invalid data: {0}")]
     /// Invalid data
     InvalidData(&'static str),
+    /// BIP32 Error
+    #[error("BIP32 error: {0}")]
+    BIP32(#[from] bdk::bitcoin::util::bip32::Error),
+    /// BIP32 Error
+    #[error("BIP39 error: {0}")]
+    BIP39(#[from] bdk::keys::bip39::Error),
 }
 
 /// Result type for the stacks-core library
@@ -77,3 +85,20 @@ impl Codec for BlockId {
         Ok(Self(Uint256::codec_deserialize(data)?))
     }
 }
+
+/// Stacks network kind
+#[repr(u8)]
+#[derive(FromRepr, EnumIter, strum::EnumString, PartialEq, Eq, Copy, Clone, Debug)]
+#[strum(ascii_case_insensitive)]
+pub enum Network {
+    /// Mainner
+    Mainnet = 0,
+    /// Testnet
+    Testnet = 1,
+}
+
+/// Stacks private key
+pub type PrivateKey = bdk::bitcoin::secp256k1::SecretKey;
+
+/// Stacks public key
+pub type PublicKey = bdk::bitcoin::secp256k1::PublicKey;
