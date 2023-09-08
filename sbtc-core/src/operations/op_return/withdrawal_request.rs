@@ -2,7 +2,17 @@
 Tools for the construction and parsing of the sBTC OP_RETURN withdrawal request
 transactions.
 
-Withdrawal request is a Bitcoin transaction with the output structure as below:
+
+Withdrawal request is a Bitcoin transaction with three counterparties:
+
+1. broadcaster - broadcasts the transaction
+2. drawee - burns sBTC
+3. payee - gets BTC
+
+From the perspective of private keys the broadcaster and payee can be the same
+party, while drawee is generally a different private key.
+
+Its output structure is as below:
 
 1. data output
 2. Bitcoin address to send the BTC to
