@@ -10,4 +10,5 @@ services:
         SBTC_VERSION: 'Alpha Romeo'
         GIT_URI: 'https://github.com/Trust-Machines/stacks-sbtc.git'
         GIT_BRANCH: 'master'
-    command: /bin/sh
+    volumes:
+      - $PWD/docker/config.json:/src/romeo/src/config.json

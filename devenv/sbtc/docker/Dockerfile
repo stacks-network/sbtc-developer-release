@@ -18,4 +18,8 @@ RUN RUSTFLAGS="-C target-feature=-crt-static" cargo install --path sbtc-cli
 
 RUN RUSTFLAGS="-C target-feature=-crt-static" cargo install --path romeo
 
+WORKDIR /src/romeo/src
+
+ENTRYPOINT ["/usr/local/cargo/bin/romeo", "-c", "config.json"]
+
 

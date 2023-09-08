@@ -103,7 +103,7 @@ services:
     environment:
       INIT_BTC_BLOCKS: 100
       BTC_BLOCK_GEN_TIME: 10
-  explorer:
+  bitcoin-explorer:
     image: bitcoin-explorer:latest
     container_name: bitcoin-explorer
     build:
@@ -127,3 +127,20 @@ services:
       BTCEXP_BITCOIND_URI: bitcoin://devnet:devnet@bitcoin:18443?timeout=10000
       BTCEXP_SLOW_DEVICE_MODE: false
       BTCEXP_UI_THEME: dark
+  sbtc:
+    image: sbtc:latest
+    container_name: sbtc
+    build:
+      context: ./docker
+      args:
+        SBTC_VERSION: 'Alpha Romeo'
+        GIT_URI: 'https://github.com/Trust-Machines/stacks-sbtc.git'
+        GIT_BRANCH: 'master'
+    depends_on:
+      - bitcoin
+      - stacks
+      - stacks-api
+      - bitcoin-explorer
+      - miner
+    volumes:
+      - $PWD/sbtc/docker/config.json:/src/romeo/src/config.json

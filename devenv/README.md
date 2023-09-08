@@ -58,6 +58,7 @@ There is a helper script at the top level directory to facilitate logging:
 ./log stacks-explorer
 ./log postgres
 ./log miner
+./log sbtc
 ```
 ## Services
 
@@ -100,18 +101,31 @@ It's important to use the above URL, as it can parse blocks properly.
 The Stacks API service is running on port 3999.
 
 ## sBTC Development
-
-First build the sBTC container
-
-```
-cd devenv/sbtc
-./build
-```
-
-Now you can use the sbtc cli by calling
+If you would like to build sbtc standalone:
 
 ```
-./devenv/sbtc/bin/sbtc <args>
+cd /devenv/sbtc
+./build.sh
+```
+
+After the deployment is up, generate a new private key:
+
+```
+./devenv/sbtc/bin/sbtc generate-from new
+```
+
+Take the WIF and update the sbtc config:
+
+```
+cd /devenv/sbtc/docker/
+vim config.json
+```
+
+Now bring the service down and up:
+
+```
+docker compose down sbtc
+docker compose up -d sbtc
 ```
 
 ## Stopping Containers
@@ -138,7 +152,7 @@ easy to add persistent storage volumes if needed.
 ## TODO
 
 - Why does it take stacks so long to start mining blocks?
-- Deploy Romeo to devnet, and document
+- Write a wrapper to wait for the stacks API to 
+  populate before running romeo
 - Investigate Docker Compose Fragment and Extensions.
 - Add Bridge webapp and API
-
