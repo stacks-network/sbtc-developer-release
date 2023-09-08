@@ -45,6 +45,7 @@ struct Credentials {
     bitcoin_taproot_address_tweaked: String,
     bitcoin_taproot_address_untweaked: String,
     bitcoin_p2pkh_address: String,
+    bitcoin_p2wpkh_address: String,
 }
 
 pub fn generate(generate_args: &GenerateArgs) -> anyhow::Result<()> {
@@ -136,5 +137,7 @@ fn generate_credentials(
         bitcoin_taproot_address_tweaked,
         bitcoin_taproot_address_untweaked,
         bitcoin_p2pkh_address: BitcoinAddress::p2pkh(&public_key, private_key.network).to_string(),
+        bitcoin_p2wpkh_address: BitcoinAddress::p2wpkh(&public_key, private_key.network)?
+            .to_string(),
     })
 }
