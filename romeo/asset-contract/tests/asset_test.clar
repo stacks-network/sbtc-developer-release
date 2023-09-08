@@ -8,6 +8,7 @@
 (define-constant expected-decimals u8)
 
 (define-constant err-forbidden (err u403))
+(define-constant err-amount-zero (err u404))
 
 (define-private (assert-eq (result (response bool uint)) (compare (response bool uint)) (message (string-ascii 100)))
 	(ok (asserts! (is-eq result compare) (err message)))
@@ -116,4 +117,21 @@
 ;; @name Can get token URI
 (define-public (test-get-token-uri)
 	(ok (asserts! (is-eq (contract-call? .asset get-token-uri) (ok expected-token-uri)) (err "Token uri does not match")))
+)
+
+;; @name Set valid new owner
+;; @caller deployer
+(define-public (test-set-valid-owner)
+(begin
+    (try! (contract-call? .asset set-new-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y))
+    ;; Check new owner set
+    (asserts! (is-eq (contract-call? .asset get-contract-owner) 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y) (err u100))
+	(ok true)
+	)
+)
+
+;; @name Try to set owner without being current owner
+;; @caller wallet_1 
+(define-public (test-set-invalid-owner)
+	(assert-eq (contract-call? .asset set-new-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y) err-forbidden "Should have failed")
 )

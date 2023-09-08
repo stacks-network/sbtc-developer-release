@@ -76,6 +76,10 @@
     (var-get bitcoin-wallet-public-key)
 )
 
+(define-read-only (get-contract-owner)
+    (var-get contract-owner)
+)
+
 (define-read-only (get-name)
 	(ok "sBTC")
 )
