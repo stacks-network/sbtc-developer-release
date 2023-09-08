@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker run -it --rm sbtc:latest sbtc $@
+#docker exec -it sbtc sbtc $@

@@ -1,0 +1,20 @@
+version: '3.2'
+
+services:
+  bitcoin:
+    image: bitcoin:latest
+    container_name: bitcoin
+    build:
+      context: ./docker
+      args:
+        VERSION: '25.0'
+    ports:
+      - 18444:18444
+      - 18443:18443
+    environment:
+      - 'BTC_NETWORK=regtest'
+      - 'BTC_DISABLEWALLET=0'
+      - 'BTC_TXINDEX=1'
+      - 'BTC_RPCALLOWIP=::/0'
+      - 'BTC_RPCPASSWORD=devnet'
+      - 'BTC_RPCUSER=devnet'

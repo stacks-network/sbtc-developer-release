@@ -1,0 +1,16 @@
+version: '3.2'
+
+services:
+  explorer:
+    image: stacks-explorer
+    container_name: stacks-explorer
+    build:
+      context: ./docker
+      args:
+        STACKS_EXPLORER_VERSION: 'v1.119.0'
+        GIT_URI: https://github.com/hirosystems/explorer.git
+        GIT_BRANCH: v1.119.0
+    ports:
+      - 3000:3000
+    environment:
+      - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999

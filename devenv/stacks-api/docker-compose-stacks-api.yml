@@ -1,0 +1,41 @@
+version: '3.2'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+  stacks-api:
+    image: stacks-api:latest
+    container_name: stacks-api
+    build:
+      context: ./docker
+      args:
+        GIT_URI: 'https://github.com/hirosystems/stacks-blockchain-api.git'
+        GIT_BRANCH: 'v7.3.0'
+    ports:
+      - 3999:3999
+      - 3700:3700
+    depends_on:
+      - postgres
+    environment:
+      - NODE_ENV=production
+      - GIT_TAG=master
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_USER=postgres
+      - PG_PASSWORD=postgres
+      - PG_DATABASE=postgres
+      - STACKS_CHAIN_ID=0x80000000
+      - V2_POX_MIN_AMOUNT_USTX=90000000260
+      - STACKS_CORE_EVENT_PORT=3700
+      - STACKS_CORE_EVENT_HOST=0.0.0.0
+      - STACK_BLOCKCHAIN_API_PORT=3999
+      - STACKS_BLOCKCHAIN_API_HOST=0.0.0.0
+      - STACKS_CORE_RPC_HOST=stacks
+      - STACKS_CORE_RPC_PORT=20443
+      - API_DOCS_URL=http://localhost:3999/doc
