@@ -371,7 +371,12 @@ fn process_stacks_transaction_update(
     }
 
     let tasks = {
-        let Some(TransactionRequest::Acknowledged{ txid: contract_txid, status: contract_status, ..} ) = state.contract.as_ref() else  {
+        let Some(TransactionRequest::Acknowledged {
+            txid: contract_txid,
+            status: contract_status,
+            ..
+        }) = state.contract.as_ref()
+        else {
             panic!("Contract transaction should be acknowledged and broadcasted first");
         };
 

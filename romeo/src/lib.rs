@@ -9,6 +9,7 @@
 pub mod bitcoin_client;
 pub mod config;
 pub mod event;
+pub mod proof_data;
 pub mod stacks_client;
 pub mod state;
 pub mod system;
