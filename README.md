@@ -40,7 +40,7 @@ cargo install --version 0.36.13 cargo-make
 
 Also verify that openssl is install on your machine.
 
-[coverage-badge]: https://codecov.io/github/stacks-network/sbtc/branch/master/graph/badge.svg?token=2sbE9YLwT6
+[coverage-badge]: https://codecov.io/github/stacks-network/sbtc/branch/main/graph/badge.svg?token=2sbE9YLwT6
 [coverage-link]: https://codecov.io/github/stacks-network/sbtc
 [discord-badge]: https://img.shields.io/static/v1?logo=discord&label=discord&message=Join&color=blue
 [discord-link]: https://discord.gg/WPWZPppr
