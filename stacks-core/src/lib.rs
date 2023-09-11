@@ -6,6 +6,7 @@
 
 use std::{array::TryFromSliceError, io};
 
+use bdk::bitcoin::Network as BitcoinNetwork;
 use codec::{Codec, CodecError};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, FromRepr};
@@ -62,6 +63,9 @@ pub enum StacksError {
     /// SECP Error
     #[error("SECP error: {0}")]
     SECP(#[from] bdk::bitcoin::secp256k1::Error),
+    /// Base58 Error
+    #[error("Base58 error: {0}")]
+    Base58(#[from] bdk::bitcoin::util::base58::Error),
 }
 
 /// Result type for the stacks-core library
@@ -128,5 +132,23 @@ impl TryFrom<String> for Network {
 impl Into<String> for Network {
     fn into(self) -> String {
         self.to_string()
+    }
+}
+
+impl Into<Network> for BitcoinNetwork {
+    fn into(self) -> Network {
+        match self {
+            BitcoinNetwork::Bitcoin => Network::Mainnet,
+            _ => Network::Testnet,
+        }
+    }
+}
+
+impl Into<BitcoinNetwork> for Network {
+    fn into(self) -> BitcoinNetwork {
+        match self {
+            Network::Mainnet => BitcoinNetwork::Bitcoin,
+            Network::Testnet => BitcoinNetwork::Testnet,
+        }
     }
 }

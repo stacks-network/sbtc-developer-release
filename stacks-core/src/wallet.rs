@@ -14,6 +14,7 @@ use rand::random;
 use serde::{Deserialize, Serialize};
 
 use crate::address::{AddressVersion, StacksAddress};
+use crate::crypto::wif::WIF;
 use crate::StacksError;
 use crate::{
     crypto::{PrivateKey, PublicKey},
@@ -58,14 +59,6 @@ pub fn derive_key(master_key: ExtendedPrivKey, path: DerivationPath) -> Extended
     master_key.derive_priv(&Secp256k1::new(), &path).unwrap()
 }
 
-/// Converts a Stacks Network to a Bitcoin Network
-pub fn bitcoin_network(network: Network) -> BitcoinNetwork {
-    match network {
-        Network::Mainnet => BitcoinNetwork::Bitcoin,
-        Network::Testnet => BitcoinNetwork::Testnet,
-    }
-}
-
 /// Wallet of credentials
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Wallet {
@@ -79,8 +72,7 @@ impl Wallet {
     pub fn new(network: Network, mnemonic: impl AsRef<str>) -> StacksResult<Self> {
         let mnemonic = Mnemonic::from_str(mnemonic.as_ref())?;
 
-        let bitcoin_network = bitcoin_network(network);
-        let master_key = ExtendedPrivKey::new_master(bitcoin_network, &mnemonic.to_seed(""))?;
+        let master_key = ExtendedPrivKey::new_master(network.into(), &mnemonic.to_seed(""))?;
 
         Ok(Self {
             network,
@@ -112,6 +104,11 @@ impl Wallet {
         self.master_key.private_key
     }
 
+    /// Returns the WIF of the wallet
+    pub fn wif(&self) -> WIF {
+        WIF::new(self.network(), self.master_key())
+    }
+
     /// Returns the credentials at the given index
     pub fn credentials(&self, index: u32) -> StacksResult<Credentials> {
         Credentials::new(self.network(), self.master_key, index)
@@ -119,9 +116,7 @@ impl Wallet {
 
     /// Returns the Bitcoin credentials at the given index
     pub fn bitcoin_credentials(&self, index: u32) -> StacksResult<BitcoinCredentials> {
-        let bitcoin_network = bitcoin_network(self.network);
-
-        BitcoinCredentials::new(bitcoin_network, self.master_key, index)
+        BitcoinCredentials::new(self.network.into(), self.master_key, index)
     }
 }
 
@@ -168,6 +163,11 @@ impl Credentials {
         };
 
         StacksAddress::p2pkh(version, &self.public_key())
+    }
+
+    /// Returns the WIF
+    pub fn wif(&self) -> WIF {
+        WIF::new(self.network(), self.private_key())
     }
 }
 
@@ -276,5 +276,20 @@ impl BitcoinCredentials {
             None,
             self.network(),
         )
+    }
+
+    /// Returns the WIF for P2PKH
+    pub fn wif_p2pkh(&self) -> WIF {
+        WIF::new(self.network().into(), self.private_key_p2pkh())
+    }
+
+    /// Returns the WIF for P2WPKH
+    pub fn wif_p2wpkh(&self) -> WIF {
+        WIF::new(self.network().into(), self.private_key_p2wpkh())
+    }
+
+    /// Returns the WIF for P2TR
+    pub fn wif_p2tr(&self) -> WIF {
+        WIF::new(self.network().into(), self.private_key_p2tr())
     }
 }
