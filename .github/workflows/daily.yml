@@ -31,7 +31,7 @@ jobs:
           version: "0.36.13"
 
       - name: Audit
-        run: cargo make audit
+        run: cargo make --profile github-actions audit
 
       - uses: actions/upload-artifact@v3
         with:
@@ -55,8 +55,8 @@ jobs:
           with:
             ref: ${{ env.BRANCH }}
 
-        - name: Nextest with release
-          run: cargo make test
+        - name: Test with release
+          run: cargo make --profile github-actions test
 
     publish:
       needs: intense-tests
