@@ -31,39 +31,65 @@
     (ok true))
 )
 
+;; #[allow(unchecked_data)]
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
-        (asserts! (is-contract-owner) err-forbidden)
+        (try! (is-contract-owner))
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
     )
 )
 
-(define-public (mint (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
+;; #[allow(unchecked_data)]
+(define-public (set-contract-owner (new-owner principal))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
         (asserts! (> amount u0) err-bad-request)
-        ;; TODO #79: Assert deposit-txid exists on chain
-        (try! (ft-mint? sbtc amount dst))
+        (ok (var-set contract-owner new-owner))
+    )
+)
+
+;; #[allow(unchecked_data)]
+(define-public (mint (amount uint)
+    (destination principal)
+    (deposit-txid (buff 32))
+    (burn-chain-height uint)
+    (merkle-proof (list 14 (buff 32)))
+    (tx-index uint)
+    (tree-depth uint)
+    (block-header (buff 80)))
+    (begin
+        (asserts! (is-contract-owner) err-forbidden)
+        (try! (verify-txid-exists-on-burn-chain deposit-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
+        (ft-mint? sbtc amount destination)
         (print {notification: "mint", payload: deposit-txid})
         (ok true)
     )
 )
 
-(define-public (burn (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
+;; #[allow(unchecked_data)]
+(define-public (burn (amount uint)
+    (owner principal)
+    (withdraw-txid (buff 32))
+    (burn-chain-height uint)
+    (merkle-proof (list 14 (buff 32)))
+    (tx-index uint)
+    (tree-depth uint)
+    (block-header (buff 80)))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
         (asserts! (> amount u0) err-bad-request)
-        ;; TODO #79: Assert withdraw-txid exists on chain
-        (try! (ft-burn? sbtc amount src))
+        (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
+        (ft-burn? sbtc amount owner)
         (print {notification: "burn", payload: withdraw-txid})
-		(ok true)
+    		(ok true)
     )
 )
 
+;; #[allow(unchecked_data)]
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-		(asserts! (is-eq contract-caller sender) err-forbidden)
-        (asserts! (> amount u0) err-bad-request)
+		(asserts! (is-contract-owner) err-forbidden)
+    (asserts! (> amount u0) err-bad-request)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
@@ -108,4 +134,8 @@
 ;;
 (define-private (is-contract-owner)
     (is-eq (var-get contract-owner) contract-caller)
+)
+
+(define-read-only (verify-txid-exists-on-burn-chain (txid (buff 32)) (burn-chain-height uint) (merkle-proof (list 14 (buff 32))) (tx-index uint) (tree-depth uint) (block-header (buff 80)))
+    (contract-call? .clarity-bitcoin-mini was-txid-mined burn-chain-height txid block-header { tx-index: tx-index, hashes: merkle-proof, tree-depth: tree-depth})
 )
