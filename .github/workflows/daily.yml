@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  BRANCH: "master" # TODO: Change main branch to main
+  BRANCH: "main"
   CARGO_TERM_COLOR: always
 
 jobs:
