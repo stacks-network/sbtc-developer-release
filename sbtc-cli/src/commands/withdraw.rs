@@ -136,8 +136,7 @@ fn withdrawal_data(
     msg.extend_from_slice(recipient.script_pubkey().as_bytes());
 
     let msg_hash = Sha256Hasher::new(msg.as_slice());
-    let msg_hash_bytes = hex::decode(msg_hash).unwrap();
-    let msg_ecdsa = Message::from_slice(&msg_hash_bytes).unwrap();
+    let msg_ecdsa = Message::from_slice(msg_hash.as_bytes()).unwrap();
 
     let (recovery_id, signature) = Secp256k1::new()
         .sign_ecdsa_recoverable(&msg_ecdsa, &sender_private_key.inner)
