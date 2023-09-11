@@ -12,9 +12,14 @@ pub struct GenerateArgs {
     /// Specify how to generate the credentials
     #[command(subcommand)]
     subcommand: GenerateSubcommand,
+
     /// The network to broadcast to
     #[clap(short, long, default_value_t = Network::Testnet)]
     network: Network,
+
+    /// How many accounts to generate
+    #[clap(short, long, default_value_t = 1)]
+    accounts: usize,
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]
@@ -28,12 +33,18 @@ pub fn generate(generate_args: &GenerateArgs) -> anyhow::Result<()> {
         GenerateSubcommand::New => {
             let wallet = Wallet::random(generate_args.network)?;
 
-            serde_json::to_writer_pretty(stdout(), &value_from_wallet(&wallet, 10))?;
+            serde_json::to_writer_pretty(
+                stdout(),
+                &value_from_wallet(&wallet, generate_args.accounts),
+            )?;
         }
         GenerateSubcommand::Mnemonic { mnemonic } => {
             let wallet = Wallet::new(generate_args.network, mnemonic)?;
 
-            serde_json::to_writer_pretty(stdout(), &value_from_wallet(&wallet, 10))?;
+            serde_json::to_writer_pretty(
+                stdout(),
+                &value_from_wallet(&wallet, generate_args.accounts),
+            )?;
         }
     };
 
