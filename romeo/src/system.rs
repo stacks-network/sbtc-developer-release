@@ -1,12 +1,17 @@
 //! System
 
 use std::fs::create_dir_all;
+use std::io::Cursor;
 
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::TransactionContractCall;
+use blockstack_lib::codec::StacksMessageCodec;
+use blockstack_lib::types::chainstate::StacksAddress;
+use blockstack_lib::types::chainstate::StacksPublicKey;
 
 use blockstack_lib::vm::ClarityName;
+use stacks_core::codec::Codec;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncBufReadExt;
@@ -161,8 +166,13 @@ async fn run_task(
 async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     let contract_bytes = tokio::fs::read_to_string(&config.contract).await.unwrap();
 
+    dbg!(config.stacks_credentials.address().to_string());
+
+    let public_key =
+        StacksPublicKey::from_slice(&config.stacks_credentials.public_key().serialize()).unwrap();
+
     let tx_auth = TransactionAuth::Standard(
-        TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key()).unwrap(),
+        TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
     );
     let tx_payload = TransactionPayload::SmartContract(
         TransactionSmartContract {
@@ -201,9 +211,11 @@ async fn mint_asset(
         .expect("Failed to find transaction in block");
     let proof_data = ProofData::from_block_and_index(&block, index).to_values();
 
+    let public_key =
+        StacksPublicKey::from_slice(&config.stacks_credentials.public_key().serialize()).unwrap();
+
     let tx_auth = TransactionAuth::Standard(
-        TransactionSpendingCondition::new_singlesig_p2pkh(config.stacks_public_key())
-            .expect("Can only handle single sig p2pkh spending conditions"),
+        TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
     );
 
     let function_args = vec![
@@ -217,8 +229,13 @@ async fn mint_asset(
         proof_data.block_header,
     ];
 
+    let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
+        config.stacks_credentials.address().serialize_to_vec(),
+    ))
+    .unwrap();
+
     let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
-        address: config.stacks_address(),
+        address: addr,
         contract_name: config.contract_name.clone(),
         function_name: ClarityName::from("mint"),
         function_args,
@@ -275,7 +292,6 @@ mod tests {
 
     use bdk::bitcoin::hashes::sha256d::Hash;
     use blockstack_lib::{
-        address::{AddressHashMode, C32_ADDRESS_VERSION_TESTNET_SINGLESIG},
         types::chainstate::StacksAddress,
         vm::types::{PrincipalData, StandardPrincipalData},
     };
@@ -291,12 +307,9 @@ mod tests {
         let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str()).unwrap();
         let stacks_client = StacksClient::new(config.clone(), http_client).into();
 
-        let addr = StacksAddress::from_public_keys(
-            C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
-            &AddressHashMode::SerializeP2PKH,
-            1,
-            &vec![config.stacks_public_key()],
-        )
+        let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
+            config.stacks_credentials.address().serialize_to_vec(),
+        ))
         .unwrap();
 
         let recipient = PrincipalData::Standard(StandardPrincipalData(addr.version, addr.bytes.0));
