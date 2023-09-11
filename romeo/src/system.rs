@@ -166,8 +166,6 @@ async fn run_task(
 async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
     let contract_bytes = tokio::fs::read_to_string(&config.contract).await.unwrap();
 
-    dbg!(config.stacks_credentials.address().to_string());
-
     let public_key =
         StacksPublicKey::from_slice(&config.stacks_credentials.public_key().serialize()).unwrap();
 
