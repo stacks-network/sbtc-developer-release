@@ -59,6 +59,9 @@ pub enum StacksError {
     /// BIP32 Error
     #[error("BIP39 error: {0}")]
     BIP39(#[from] bdk::keys::bip39::Error),
+    /// SECP Error
+    #[error("SECP error: {0}")]
+    SECP(#[from] bdk::bitcoin::secp256k1::Error),
 }
 
 /// Result type for the stacks-core library
@@ -127,9 +130,3 @@ impl Into<String> for Network {
         self.to_string()
     }
 }
-
-/// Stacks private key
-pub type PrivateKey = bdk::bitcoin::secp256k1::SecretKey;
-
-/// Stacks public key
-pub type PublicKey = bdk::bitcoin::secp256k1::PublicKey;

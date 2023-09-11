@@ -5,21 +5,66 @@ Exposes tools to create and manage Stacks credentials.
 use std::str::FromStr;
 
 use bdk::bitcoin::secp256k1::Secp256k1;
-use bdk::bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey};
-use bdk::bitcoin::{Address as BitcoinAddress, Network as BitcoinNetwork};
+use bdk::bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
+use bdk::bitcoin::{
+    Address as BitcoinAddress, AddressType as BitcoinAddressType, Network as BitcoinNetwork,
+};
 use bdk::keys::bip39::Mnemonic;
 use rand::random;
 use serde::{Deserialize, Serialize};
 
 use crate::address::{AddressVersion, StacksAddress};
-use crate::{Network, PrivateKey, PublicKey, StacksResult};
+use crate::StacksError;
+use crate::{
+    crypto::{PrivateKey, PublicKey},
+    Network, StacksResult,
+};
 
-/// Derivation path used by the Stacks ecosystem to derive keys
-pub const STACKS_DERIVATION_PATH: &str = "m/44'/5757'/0'/0";
-/// Derivation path used for mainnet Bitcoin segwit addresses
-pub const BITCOIN_SEGWIT_MAINNET_DERIVATION_PATH: &str = "m/84'/0'/0'/0";
-/// Derivation path used for testnet Bitcoin segwit addresses
-pub const BITCOIN_SEGWIT_TESTNET_DERIVATION_PATH: &str = "m/84'/1'/0'/0";
+/// Computes Stacks derivation paths
+pub fn stacks_derivation_path(index: u32) -> StacksResult<DerivationPath> {
+    Ok(DerivationPath::from_str(&format!(
+        "m/44'/5757'/0'/0/{}",
+        index
+    ))?)
+}
+
+/// Computes Bitcoin derivation paths
+pub fn bitcoin_derivation_path(
+    network: BitcoinNetwork,
+    kind: BitcoinAddressType,
+    index: u32,
+) -> StacksResult<DerivationPath> {
+    let mut path = "m/".to_string();
+
+    match kind {
+        BitcoinAddressType::P2pkh => path.push_str("44'/"),
+        BitcoinAddressType::P2wpkh => path.push_str("84'/"),
+        BitcoinAddressType::P2tr => path.push_str("86'/"),
+        _ => return Err(StacksError::InvalidArguments("Invalid Bitcoin addres type")),
+    };
+
+    match network {
+        BitcoinNetwork::Bitcoin => path.push_str("0'/"),
+        _ => path.push_str("1'/"),
+    }
+
+    path.push_str(&format!("{}'/0/0", index));
+
+    Ok(DerivationPath::from_str(&path)?)
+}
+
+/// Derives a key from a master key and a derivation path
+pub fn derive_key(master_key: ExtendedPrivKey, path: DerivationPath) -> ExtendedPrivKey {
+    master_key.derive_priv(&Secp256k1::new(), &path).unwrap()
+}
+
+/// Converts a Stacks Network to a Bitcoin Network
+pub fn bitcoin_network(network: Network) -> BitcoinNetwork {
+    match network {
+        Network::Mainnet => BitcoinNetwork::Bitcoin,
+        Network::Testnet => BitcoinNetwork::Testnet,
+    }
+}
 
 /// Wallet of credentials
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,11 +79,7 @@ impl Wallet {
     pub fn new(network: Network, mnemonic: impl AsRef<str>) -> StacksResult<Self> {
         let mnemonic = Mnemonic::from_str(mnemonic.as_ref())?;
 
-        let bitcoin_network = match network {
-            Network::Mainnet => bdk::bitcoin::Network::Bitcoin,
-            Network::Testnet => bdk::bitcoin::Network::Testnet,
-        };
-
+        let bitcoin_network = bitcoin_network(network);
         let master_key = ExtendedPrivKey::new_master(bitcoin_network, &mnemonic.to_seed(""))?;
 
         Ok(Self {
@@ -71,52 +112,16 @@ impl Wallet {
         self.master_key.private_key
     }
 
-    /// Returns the Stacks master key of the wallet
-    pub fn stacks_master_key(&self) -> StacksResult<ExtendedPrivKey> {
-        Ok(self.master_key.derive_priv(
-            &Secp256k1::new(),
-            &DerivationPath::from_str(STACKS_DERIVATION_PATH).unwrap(),
-        )?)
-    }
-
-    /// Returns the Bitcoin master key of the wallet
-    pub fn bitcoin_master_key(&self) -> StacksResult<ExtendedPrivKey> {
-        let derivation_path = match self.network() {
-            Network::Mainnet => BITCOIN_SEGWIT_MAINNET_DERIVATION_PATH,
-            Network::Testnet => BITCOIN_SEGWIT_TESTNET_DERIVATION_PATH,
-        };
-
-        Ok(self.master_key.derive_priv(
-            &Secp256k1::new(),
-            &DerivationPath::from_str(derivation_path).unwrap(),
-        )?)
-    }
-
     /// Returns the credentials at the given index
     pub fn credentials(&self, index: u32) -> StacksResult<Credentials> {
-        let key = self
-            .stacks_master_key()?
-            .ckd_priv(&Secp256k1::new(), ChildNumber::Normal { index })?
-            .to_priv()
-            .inner;
-
-        Ok(Credentials::new(self.network(), key))
+        Credentials::new(self.network(), self.master_key, index)
     }
 
     /// Returns the Bitcoin credentials at the given index
     pub fn bitcoin_credentials(&self, index: u32) -> StacksResult<BitcoinCredentials> {
-        let key = self
-            .bitcoin_master_key()?
-            .ckd_priv(&Secp256k1::new(), ChildNumber::Normal { index })?
-            .to_priv()
-            .inner;
+        let bitcoin_network = bitcoin_network(self.network);
 
-        let bitcoin_network = match self.network() {
-            Network::Mainnet => BitcoinNetwork::Bitcoin,
-            Network::Testnet => BitcoinNetwork::Testnet,
-        };
-
-        Ok(BitcoinCredentials::new(bitcoin_network, key))
+        BitcoinCredentials::new(bitcoin_network, self.master_key, index)
     }
 }
 
@@ -124,23 +129,20 @@ impl Wallet {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credentials {
     network: Network,
-    stacks_private_key: PrivateKey,
+    private_key: PrivateKey,
 }
 
 impl Credentials {
     /// Creates credentials from the network and private key
-    pub fn new(network: Network, stacks_private_key: PrivateKey) -> Self {
-        Self {
+    pub fn new(network: Network, master_key: ExtendedPrivKey, index: u32) -> StacksResult<Self> {
+        let private_key = derive_key(master_key, stacks_derivation_path(index)?)
+            .to_priv()
+            .inner;
+
+        Ok(Self {
             network,
-            stacks_private_key,
-        }
-    }
-
-    /// Creates random credentials
-    pub fn random(network: Network) -> Self {
-        let key = Secp256k1::new().generate_keypair(&mut rand::thread_rng()).0;
-
-        Self::new(network, key)
+            private_key,
+        })
     }
 
     /// Returns the Stacks network
@@ -150,12 +152,12 @@ impl Credentials {
 
     /// Returns the private key
     pub fn private_key(&self) -> PrivateKey {
-        self.stacks_private_key
+        self.private_key
     }
 
     /// Returns the public key
     pub fn public_key(&self) -> PublicKey {
-        self.stacks_private_key.public_key(&Secp256k1::new())
+        self.private_key.public_key(&Secp256k1::new())
     }
 
     /// Returns the Stacks P2PKH address
@@ -173,23 +175,45 @@ impl Credentials {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BitcoinCredentials {
     network: BitcoinNetwork,
-    bitcoin_private_key: PrivateKey,
+    private_key_p2pkh: PrivateKey,
+    private_key_p2wpkh: PrivateKey,
+    private_key_p2tr: PrivateKey,
 }
 
 impl BitcoinCredentials {
     /// Creates Bitcoin credentials from the Bitcoin network and private key
-    pub fn new(network: BitcoinNetwork, bitcoin_private_key: PrivateKey) -> Self {
-        Self {
+    pub fn new(
+        network: BitcoinNetwork,
+        master_key: ExtendedPrivKey,
+        index: u32,
+    ) -> StacksResult<Self> {
+        let private_key_p2pkh = derive_key(
+            master_key,
+            bitcoin_derivation_path(network, BitcoinAddressType::P2pkh, index)?,
+        )
+        .to_priv()
+        .inner;
+
+        let private_key_p2wpkh = derive_key(
+            master_key,
+            bitcoin_derivation_path(network, BitcoinAddressType::P2wpkh, index)?,
+        )
+        .to_priv()
+        .inner;
+
+        let private_key_p2tr = derive_key(
+            master_key,
+            bitcoin_derivation_path(network, BitcoinAddressType::P2tr, index)?,
+        )
+        .to_priv()
+        .inner;
+
+        Ok(Self {
             network,
-            bitcoin_private_key,
-        }
-    }
-
-    /// Creates random Bitcoin credentials
-    pub fn random(network: BitcoinNetwork) -> Self {
-        let key = Secp256k1::new().generate_keypair(&mut rand::thread_rng()).0;
-
-        Self::new(network, key)
+            private_key_p2pkh,
+            private_key_p2wpkh,
+            private_key_p2tr,
+        })
     }
 
     /// Returns the Bitcoin network
@@ -197,79 +221,60 @@ impl BitcoinCredentials {
         self.network
     }
 
-    /// Returns the Bitcoin private key
-    pub fn private_key(&self) -> PrivateKey {
-        self.bitcoin_private_key
+    /// Returns the Bitcoin P2PKH private key
+    pub fn private_key_p2pkh(&self) -> PrivateKey {
+        self.private_key_p2pkh
     }
 
-    /// Returns the Bitcoin public key
-    pub fn public_key(&self) -> PublicKey {
-        self.bitcoin_private_key.public_key(&Secp256k1::new())
+    /// Returns the Bitcoin P22PKH private key
+    pub fn private_key_p2wpkh(&self) -> PrivateKey {
+        self.private_key_p2wpkh
+    }
+
+    /// Returns the Bitcoin P2TR private key
+    pub fn private_key_p2tr(&self) -> PrivateKey {
+        self.private_key_p2tr
+    }
+
+    /// Returns the Bitcoin P2PKH public key
+    pub fn public_key_p2pkh(&self) -> PublicKey {
+        self.private_key_p2pkh.public_key(&Secp256k1::new())
+    }
+
+    /// Returns the Bitcoin P2WPKH public key
+    pub fn public_key_p2wpkh(&self) -> PublicKey {
+        self.private_key_p2wpkh.public_key(&Secp256k1::new())
+    }
+
+    /// Returns the Bitcoin P2TR public key
+    pub fn public_key_p2tr(&self) -> PublicKey {
+        self.private_key_p2tr.public_key(&Secp256k1::new())
     }
 
     /// Returns the Bitcoin P2PKH address
-    pub fn p2pkh_address(&self) -> BitcoinAddress {
+    pub fn address_p2pkh(&self) -> BitcoinAddress {
         BitcoinAddress::p2pkh(
-            &bdk::bitcoin::PublicKey::new(self.public_key()),
+            &bdk::bitcoin::PublicKey::new(self.public_key_p2pkh()),
             self.network(),
         )
     }
 
     /// Returns the Bitcoin P2WPKH address
-    pub fn p2wpkh_address(&self) -> BitcoinAddress {
+    pub fn address_p2wpkh(&self) -> BitcoinAddress {
         BitcoinAddress::p2wpkh(
-            &bdk::bitcoin::PublicKey::new(self.public_key()),
+            &bdk::bitcoin::PublicKey::new(self.public_key_p2wpkh()),
             self.network(),
         )
         .unwrap()
     }
 
-    /// Returns the Bitcoin taproot address
-    pub fn taproot_address(&self) -> BitcoinAddress {
+    /// Returns the Bitcoin P2TR address
+    pub fn address_p2tr(&self) -> BitcoinAddress {
         BitcoinAddress::p2tr(
             &Secp256k1::new(),
-            self.public_key().x_only_public_key().0,
+            self.public_key_p2tr().x_only_public_key().0,
             None,
             self.network(),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn check_hiro_addresses() {
-        let wallet = Wallet::new(
-            Network::Testnet,
-            "apart spin rich leader siren foil dish sausage fee pipe ethics bundle",
-        )
-        .unwrap();
-
-        for i in 0..7 {
-            let creds = wallet.credentials(i).unwrap();
-            println!("STX address: {}", creds.address());
-
-            let bitcoin_creds = wallet.bitcoin_credentials(i).unwrap();
-            println!("Bitcoin P2PKH address: {}", bitcoin_creds.p2pkh_address());
-            println!("Bitcoin P2WPKH address: {}", bitcoin_creds.p2wpkh_address());
-            println!(
-                "Bitcoin Taproot address: {}",
-                bitcoin_creds.taproot_address()
-            );
-        }
-    }
-
-    #[test]
-    fn taproot() {
-        let wallet = Wallet::new(
-            Network::Testnet,
-            "apart spin rich leader siren foil dish sausage fee pipe ethics bundle",
-        )
-        .unwrap();
-
-        let creds = wallet.credentials(0).unwrap();
-        println!("STX {}", creds.address());
     }
 }
