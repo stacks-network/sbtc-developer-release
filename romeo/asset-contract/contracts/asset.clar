@@ -15,7 +15,7 @@
 ;; constants
 ;;
 (define-constant err-forbidden (err u403))
-(define-constant err-amount-zero (err u404))
+(define-constant err-bad-request (err u400))
 
 ;; data vars
 ;;
@@ -41,7 +41,7 @@
 (define-public (mint (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
-        (asserts! (> amount u0) err-amount-zero)
+        (asserts! (> amount u0) err-bad-request)
         ;; TODO #79: Assert deposit-txid exists on chain
         (try! (ft-mint? sbtc amount dst))
         (print {notification: "mint", payload: deposit-txid})
@@ -52,7 +52,7 @@
 (define-public (burn (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
-        (asserts! (> amount u0) err-amount-zero)
+        (asserts! (> amount u0) err-bad-request)
         ;; TODO #79: Assert withdraw-txid exists on chain
         (try! (ft-burn? sbtc amount src))
         (print {notification: "burn", payload: withdraw-txid})
@@ -63,7 +63,7 @@
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
 		(asserts! (is-eq contract-caller sender) err-forbidden)
-        (asserts! (> amount u0) err-amount-zero)
+        (asserts! (> amount u0) err-bad-request)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
