@@ -135,6 +135,8 @@ impl Into<String> for Network {
     }
 }
 
+// For some reason From impl fails to compile
+#[allow(clippy::from_over_into)]
 impl Into<Network> for BitcoinNetwork {
     fn into(self) -> Network {
         match self {
@@ -144,6 +146,8 @@ impl Into<Network> for BitcoinNetwork {
     }
 }
 
+// For some reason From impl fails to compile
+#[allow(clippy::from_over_into)]
 impl Into<BitcoinNetwork> for Network {
     fn into(self) -> BitcoinNetwork {
         match self {
