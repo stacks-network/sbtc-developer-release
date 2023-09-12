@@ -114,14 +114,27 @@ After the deployment is up, generate a new private key:
 ./devenv/sbtc/bin/sbtc generate-from new
 ```
 
-Take the WIF and update the sbtc config:
+Take the WIF + mnemonic phrase and update the sbtc config:
 
 ```
 cd /devenv/sbtc/docker/
 vim config.json
 ```
+In order to deploy the sBTC contract you must first fund your STX address listed above in the `config.json` file.
 
-Now bring the service down and up:
+Download a wallet client:
+
+  - [Leather Wallet Browser Extension](https://leather.io/install-extension)
+  - [Leather Wallet Desktop Client](https://github.com/leather-wallet/desktop/releases)
+
+If you wish to use the desktop client, you *MUST* download the testnet version of the executable.
+
+You can use any one of the wallet mnemonic phrases in the 
+`../romeo/asset-contract/settings/Devnet.toml` file for the client.
+
+Now send 100 STX to your STX address you generated with the `sbtc-cli` above.
+
+Lastly, bring the service down and up:
 
 ```
 docker compose down sbtc
