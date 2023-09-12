@@ -44,7 +44,7 @@ pub fn build_deposit_tx(deposit: &DepositArgs) -> anyhow::Result<()> {
         stdout(),
         &utils::TransactionData {
             tx_id: tx.txid().to_string(),
-            tx_hex: array_bytes::bytes2hex("", tx.serialize()),
+            tx_hex: hex::encode(tx.serialize()),
         },
     )?;
 

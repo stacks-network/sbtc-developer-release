@@ -284,7 +284,7 @@ fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
         .filter_map(|tx| {
             let txid = tx.txid();
 
-            op_return::deposit::Deposit::parse(config.private_key.network, tx)
+            op_return::deposit::Deposit::parse(config.bitcoin_credentials.network(), tx)
                 .ok()
                 .map(|parsed_deposit| Deposit {
                     info: DepositInfo {

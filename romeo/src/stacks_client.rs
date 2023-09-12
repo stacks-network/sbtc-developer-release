@@ -5,6 +5,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
+use blockstack_lib::types::chainstate::StacksPrivateKey;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::Request;
@@ -69,20 +70,24 @@ impl StacksClient {
         let body = res.text().await?;
 
         serde_json::from_str(&body).map_err(|err| {
-            let error_details = serde_json::from_str::<Value>(&body)
-                .ok()
-                .and_then(|details| {
-                    details["error"]
-                        .as_str()
-                        .map(|description| format!(" {}", description))
-                });
+            let error_details = serde_json::from_str::<Value>(&body).ok().map(|details| {
+                let error = details["error"].as_str();
+
+                let reason = details["reason"].as_str();
+
+                format!(
+                    "{}: {}",
+                    error.unwrap_or_default(),
+                    reason.unwrap_or_default()
+                )
+            });
 
             if error_details.is_none() {
                 debug!("Failed request response body: {:?}", body);
             }
 
             anyhow!(
-                "Could not parse response JSON, URL is {}, status is {}: {:?}{}",
+                "Could not parse response JSON, URL is {}, status is {}: {:?}: {}",
                 request_url,
                 status,
                 err,
@@ -106,7 +111,12 @@ impl StacksClient {
         let mut signer = StacksTransactionSigner::new(&tx);
 
         signer
-            .sign_origin(&self.config.stacks_private_key())
+            .sign_origin(
+                &StacksPrivateKey::from_slice(
+                    &self.config.stacks_credentials.private_key().secret_bytes(),
+                )
+                .unwrap(),
+            )
             .unwrap();
 
         tx = signer.get_tx().unwrap();
@@ -212,7 +222,7 @@ impl StacksClient {
     fn nonce_url(&self) -> reqwest::Url {
         let path = format!(
             "/extended/v1/address/{}/nonces",
-            self.config.stacks_address(),
+            self.config.stacks_credentials.address(),
         );
 
         self.config.stacks_node_url.join(&path).unwrap()

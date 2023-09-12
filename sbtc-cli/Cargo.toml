@@ -7,14 +7,14 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
-array-bytes.workspace = true
 bdk = { workspace = true, features = ["keys-bip39"] }
 clap = { workspace = true, features = ["derive"] }
+hex.workspace = true
+regex.workspace = true
+sbtc-core.path = "../sbtc-core"
 serde.workspace = true
 serde_json.workspace = true
-regex.workspace = true
 stacks-core.path = "../stacks-core"
-sbtc-core.path = "../sbtc-core"
 
 [[bin]]
 name = "sbtc"

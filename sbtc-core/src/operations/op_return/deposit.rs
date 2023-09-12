@@ -286,11 +286,11 @@ pub fn deposit(
 
 #[cfg(test)]
 mod tests {
+    use bdk::bitcoin::secp256k1::Secp256k1;
     use rand::{distributions::Alphanumeric, rngs::StdRng, Rng, SeedableRng};
     use stacks_core::{
         address::{AddressVersion, StacksAddress},
         contract_name::{ContractName, CONTRACT_MAX_NAME_LENGTH},
-        crypto::generate_keypair,
         utils::{PrincipalData, StandardPrincipalData},
     };
 
@@ -301,7 +301,7 @@ mod tests {
     }
 
     fn generate_address(rng: &mut impl Rng) -> StacksAddress {
-        let pk = generate_keypair(rng).1;
+        let pk = Secp256k1::new().generate_keypair(rng).1;
 
         StacksAddress::p2pkh(AddressVersion::TestnetSingleSig, &pk)
     }
