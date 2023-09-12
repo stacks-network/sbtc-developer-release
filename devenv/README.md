@@ -100,6 +100,13 @@ It's important to use the above URL, as it can parse blocks properly.
 
 The Stacks API service is running on port 3999.
 
+### sBTC Bridge App
+The sBTC bridge app is running at:
+
+```
+http://127.0.0.1:4137/
+```
+
 ## sBTC Development
 If you would like to build sbtc standalone:
 

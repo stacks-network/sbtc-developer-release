@@ -1,0 +1,10 @@
+version: "3.2"
+
+services:
+  sbtc-bridge-app:
+    image: sbtc-bridge-app:latest
+    container_name: sbtc-bridge-app    
+    build:
+      context: ./docker
+    ports:
+      - 4137:4137

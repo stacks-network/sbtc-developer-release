@@ -139,6 +139,7 @@ services:
     depends_on:
       - bitcoin
       - stacks
+      - stacks-explorer
       - stacks-api
       - bitcoin-explorer
       - miner
@@ -146,3 +147,18 @@ services:
       RUST_BACKTRACE: 1
     volumes:
       - $PWD/sbtc/docker/config.json:/src/romeo/src/config.json
+  sbtc-bridge-app:
+    image: sbtc-bridge-app:latest
+    container_name: sbtc-bridge-app
+    build:
+      context: ./sbtc-bridge-app/docker
+    depends_on:
+      - bitcoin
+      - stacks
+      - stacks-explorer
+      - stacks-api
+      - bitcoin-explorer
+      - miner
+      - sbtc
+    ports:
+      - 4137:4137
