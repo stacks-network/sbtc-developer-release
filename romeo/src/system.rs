@@ -33,6 +33,7 @@ use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
+use crate::bitcoin_client::esplora::EsploraClient;
 use crate::bitcoin_client::BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
@@ -49,7 +50,7 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str())
+    let bitcoin_client = EsploraClient::new(config.bitcoin_node_url.as_str())
         .expect("Failed to instantiate bitcoin client");
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
@@ -126,7 +127,7 @@ impl Storage {
 #[tracing::instrument(skip(config, bitcoin_client, stacks_client, result))]
 fn spawn(
     config: Config,
-    bitcoin_client: BitcoinClient,
+    bitcoin_client: impl BitcoinClient + 'static,
     stacks_client: LockedClient,
     task: Task,
     result: mpsc::Sender<Event>,
@@ -141,7 +142,7 @@ fn spawn(
 
 async fn run_task(
     config: &Config,
-    bitcoin_client: BitcoinClient,
+    bitcoin_client: impl BitcoinClient,
     stacks_client: LockedClient,
     task: Task,
 ) -> Event {
@@ -194,7 +195,7 @@ async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
 
 async fn mint_asset(
     config: &Config,
-    bitcoin_client: BitcoinClient,
+    bitcoin_client: impl BitcoinClient,
     stacks_client: LockedClient,
     deposit_info: DepositInfo,
 ) -> Event {
@@ -266,7 +267,7 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(client: BitcoinClient, block_height: Option<u32>) -> Event {
+async fn fetch_bitcoin_block(client: impl BitcoinClient, block_height: Option<u32>) -> Event {
     let block_height = if let Some(height) = block_height {
         height
     } else {
@@ -302,7 +303,7 @@ mod tests {
         let config = Config::from_path("testing/config.json").expect("Failed to find config file");
 
         let http_client = reqwest::Client::new();
-        let bitcoin_client = BitcoinClient::new(config.bitcoin_node_url.as_str()).unwrap();
+        let bitcoin_client = EsploraClient::new(config.bitcoin_node_url.as_str()).unwrap();
         let stacks_client = StacksClient::new(config.clone(), http_client).into();
 
         let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
