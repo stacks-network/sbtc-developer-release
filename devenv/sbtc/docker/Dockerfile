@@ -2,7 +2,7 @@ FROM rust:alpine
 
 ARG SBTC_VERSION='Alpha Romeo'
 ARG SBTC_GIT_URI='https://github.com/stacks-network/sbtc.git'
-ARG SBTC_GIT_BRANCH='master'
+ARG SBTC_GIT_BRANCH='main'
 
 WORKDIR /src
 
