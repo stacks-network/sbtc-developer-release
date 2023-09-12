@@ -9,8 +9,9 @@
 ;; Requests for minting and burning are made by the contract owner.
 
 ;; token definitions
-;;
-(define-fungible-token sbtc u21000000000000)
+;; 100 M sats = 1 sBTC
+;; 21 M sBTC supply = 2.1 Q sats total
+(define-fungible-token sbtc u2100000000000000)
 
 ;; constants
 ;;
@@ -111,7 +112,7 @@
 )
 
 (define-read-only (get-token-uri)
-	(ok (some u"https://assets.stacks.co/sbtc.pdf"))
+	(ok (some u"https://gateway.pinata.cloud/ipfs/Qma5P7LFGQAXt7gzkNZGxet5qJcVxgeXsenDXwu9y45hpr?_gl=1*1mxodt*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDA4MzA3OC40LjEuMTY5NDA4MzQzOC42MC4wLjA"))
 )
 
 ;; private functions
