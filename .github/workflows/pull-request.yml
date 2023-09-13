@@ -2,10 +2,10 @@ name: Pull Request
 
 on:
   pull_request:
-    branches: "master"
+    branches: "main"
     paths-ignore: ['**.md']
   push:
-    branches: "master"
+    branches: "main"
     paths-ignore: ['**.md']
 
 env:
@@ -52,3 +52,39 @@ jobs:
       with:
         files: ./coverage/lcov.info
         fail_ci_if_error: true
+
+  clarinet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt
+          override: true
+
+      - name: Install clarinet develop version
+        run: chmod +x ./romeo/asset-contract/scripts/install_clarinet_action.sh && ./romeo/asset-contract/scripts/install_clarinet_action.sh
+
+      - name: Run unit tests for romeo
+        working-directory: ./romeo/asset-contract
+        run: ./scripts/test.sh
+
+      - name: Print coverage report
+        working-directory: ./romeo/asset-contract
+        run: sudo apt-get install -qq -y lcov html2text > /dev/null && genhtml --branch-coverage .coverage/lcov.info -o .coverage/ && html2text .coverage/contracts/index.html
+
+      - name: "Export romeo code coverage"
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./romeo/asset-contract/.coverage/
+          files: lcov.info
+          verbose: false
+          flags: unittests
+          ignore: tests

@@ -5,12 +5,12 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
+use blockstack_lib::types::chainstate::StacksPrivateKey;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use reqwest::{Request, StatusCode};
+use reqwest::Request;
 use serde_json::Value;
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::trace;
 
 use serde::de::DeserializeOwned;
 
@@ -18,6 +18,7 @@ use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::{
     StacksTransaction, StacksTransactionSigner, TransactionAnchorMode, TransactionPostConditionMode,
 };
+use tracing::debug;
 
 use crate::config::Config;
 use crate::event::TransactionStatus;
@@ -63,23 +64,36 @@ impl StacksClient {
         T: DeserializeOwned,
     {
         let request_url = req.url().to_string();
+
         let res = self.http_client.execute(req).await?;
+        let status = res.status();
+        let body = res.text().await?;
 
-        if res.status() == StatusCode::OK {
-            Ok(res.json::<T>().await?)
-        } else {
-            let details = res.json::<Value>().await?;
+        serde_json::from_str(&body).map_err(|err| {
+            let error_details = serde_json::from_str::<Value>(&body).ok().map(|details| {
+                let error = details["error"].as_str();
 
-            trace!(
-                "Request failure details: {:?}",
-                serde_json::to_string(&details)?
-            );
+                let reason = details["reason"].as_str();
 
-            Err(anyhow!(format!(
-                "Request not 200: {}: {}",
-                request_url, details["error"]
-            )))
-        }
+                format!(
+                    "{}: {}",
+                    error.unwrap_or_default(),
+                    reason.unwrap_or_default()
+                )
+            });
+
+            if error_details.is_none() {
+                debug!("Failed request response body: {:?}", body);
+            }
+
+            anyhow!(
+                "Could not parse response JSON, URL is {}, status is {}: {:?}: {}",
+                request_url,
+                status,
+                err,
+                error_details.unwrap_or_default()
+            )
+        })
     }
 
     /// Sign and broadcast an unsigned stacks transaction
@@ -97,7 +111,12 @@ impl StacksClient {
         let mut signer = StacksTransactionSigner::new(&tx);
 
         signer
-            .sign_origin(&self.config.stacks_private_key())
+            .sign_origin(
+                &StacksPrivateKey::from_slice(
+                    &self.config.stacks_credentials.private_key().secret_bytes(),
+                )
+                .unwrap(),
+            )
             .unwrap();
 
         tx = signer.get_tx().unwrap();
@@ -126,7 +145,7 @@ impl StacksClient {
         let res: Value = self
             .send_request(
                 self.http_client
-                    .get(self.get_transation_details_url(txid))
+                    .get(self.cachebust(self.get_transation_details_url(txid)))
                     .header("Accept", "application/json")
                     .build()?,
             )
@@ -147,7 +166,7 @@ impl StacksClient {
     async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
         Ok(self
             .http_client
-            .get(self.nonce_url())
+            .get(self.cachebust(self.nonce_url()))
             .send()
             .await?
             .json()
@@ -163,7 +182,8 @@ impl StacksClient {
             .json()
             .await?;
 
-        Ok(fee_rate * tx_len)
+        // TODO: Figure out what's the right multiplier #98
+        Ok(fee_rate * tx_len * 100)
     }
 
     fn transaction_url(&self) -> reqwest::Url {
@@ -180,15 +200,29 @@ impl StacksClient {
             .unwrap()
     }
 
-    fn nonce_url(&self) -> reqwest::Url {
+    fn cachebust(&self, mut url: reqwest::Url) -> reqwest::Url {
         let mut rng = thread_rng();
         let random_string: String = (0..16).map(|_| rng.sample(Alphanumeric) as char).collect();
 
-        // We need to make sure node returns the uncached nonce, so we add a cachebuster
+        let mut query = url
+            .query()
+            .map(|query| query.to_string())
+            .unwrap_or_default();
+
+        query = match query.is_empty() {
+            true => format!("cachebuster={}", random_string),
+            false => format!("{}&cachebuster={}", query, random_string),
+        };
+
+        url.set_query(Some(&query));
+
+        url
+    }
+
+    fn nonce_url(&self) -> reqwest::Url {
         let path = format!(
-            "/extended/v1/address/{}/nonces?cachebuster={}",
-            self.config.stacks_address(),
-            random_string
+            "/extended/v1/address/{}/nonces",
+            self.config.stacks_credentials.address(),
         );
 
         self.config.stacks_node_url.join(&path).unwrap()

@@ -1,4 +1,4 @@
-pub use secp256k1::*;
+pub use bdk::bitcoin::secp256k1;
 use serde::{Deserialize, Serialize};
 
 use crate::{StacksError, StacksResult};
@@ -7,6 +7,7 @@ use crate::{StacksError, StacksResult};
 pub mod hash160;
 /// Module for sha256 hashing
 pub mod sha256;
+pub mod wif;
 
 const CHECKSUM_LENGTH: usize = 4;
 
@@ -132,3 +133,9 @@ where
         Self::from_bytes(&hex::decode(value.0)?)
     }
 }
+
+/// Stacks private key
+pub type PrivateKey = bdk::bitcoin::secp256k1::SecretKey;
+
+/// Stacks public key
+pub type PublicKey = bdk::bitcoin::secp256k1::PublicKey;

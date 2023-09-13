@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  BRANCH: "master" # TODO: Change main branch to main
+  BRANCH: "main"
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -30,6 +30,9 @@ jobs:
         uses: davidB/rust-cargo-make@v1
         with:
           version: "0.36.13"
+
+      - name: Audit
+        run: cargo make --profile github-actions audit
 
       - uses: actions/upload-artifact@v3
         with:
@@ -53,8 +56,8 @@ jobs:
           with:
             ref: ${{ env.BRANCH }}
 
-        - name: Nextest with release
-          run: cargo make test
+        - name: Test with release
+          run: cargo make --profile github-actions test
 
     publish:
       needs: intense-tests

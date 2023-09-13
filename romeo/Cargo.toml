@@ -5,15 +5,19 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
+backoff = { workspace = true, features = ["tokio"] }
 bdk = { workspace = true, features = ["esplora", "use-esplora-async"]}
 blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }
 clap = { workspace = true, features = ["derive"] }
+derivative = { workspace = true }
 futures.workspace = true
 hex.workspace = true
 rand.workspace = true
 reqwest = { workspace = true, features = ["json"] }
+sbtc-core.path = "../sbtc-core"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+stacks-core.path = "../stacks-core"
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber.workspace = true
 tracing.workspace = true

@@ -1,4 +1,4 @@
-pub use secp256k1::*;
+pub use bdk::bitcoin::secp256k1;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

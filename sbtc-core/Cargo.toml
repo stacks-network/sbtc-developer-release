@@ -18,7 +18,6 @@ log.workspace = true
 once_cell.workspace = true
 p256k1.workspace = true
 regex.workspace = true
-secp256k1.workspace = true
 stacks-core.path = "../stacks-core"
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true

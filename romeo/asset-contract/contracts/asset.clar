@@ -1,20 +1,22 @@
-;; title: asset
-;; version:
+;; title: wrapped BTC on Stacks
+;; version: 0.1.0
 ;; summary: sBTC dev release asset contract
-;; description:
-
-;; traits
-;;
-(impl-trait 'ST1NXBK3K5YYMD6FD41MVNP3JS1GABZ8TRVX023PT.sip-010-trait-ft-standard.sip-010-trait)
+;; description: sBTC is a wrapped BTC asset on Stacks.
+;; It is a fungible token (SIP-10) that is backed 1:1 by BTC
+;; For this version the wallet is controlled by a centralized entity.
+;; sBTC is minted when BTC is deposited into the wallet and
+;; burned when BTC is withdrawn from the wallet.
+;; Requests for minting and burning are made by the contract owner.
 
 ;; token definitions
-;;
-(define-fungible-token sbtc u21000000)
+;; 100 M sats = 1 sBTC
+;; 21 M sBTC supply = 2.1 Q sats total
+(define-fungible-token sbtc u2100000000000000)
 
 ;; constants
 ;;
-(define-constant err-invalid-caller u1)
-(define-constant err-not-token-owner u2)
+(define-constant err-invalid-caller (err u403))
+(define-constant err-not-token-owner (err u2))
 
 ;; data vars
 ;;
@@ -23,34 +25,60 @@
 
 ;; public functions
 ;;
+;; #[allow(unchecked_data)]
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
-        (asserts! (is-contract-owner) (err err-invalid-caller))
+        (try! (is-contract-owner))
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
     )
 )
 
-(define-public (mint! (amount uint) (dst principal) (deposit-txid (string-ascii 72)))
+;; #[allow(unchecked_data)]
+(define-public (set-contract-owner (new-owner principal))
     (begin
-        (asserts! (is-contract-owner) (err err-invalid-caller))
-        ;; TODO #79: Assert deposit-txid exists on chain
-        (print deposit-txid)
-        (ft-mint? sbtc amount dst)
+        (try! (is-contract-owner))
+        (ok (var-set contract-owner new-owner))
     )
 )
 
-(define-public (burn! (amount uint) (src principal) (withdraw-txid (string-ascii 72)))
+;; #[allow(unchecked_data)]
+(define-public (mint (amount uint)
+    (destination principal)
+    (deposit-txid (buff 32))
+    (burn-chain-height uint)
+    (merkle-proof (list 14 (buff 32)))
+    (tx-index uint)
+    (tree-depth uint)
+    (block-header (buff 80)))
     (begin
-        (asserts! (is-contract-owner) (err err-invalid-caller))
-        ;; TODO #79: Assert withdraw-txid exists on chain
-        (print withdraw-txid)
-        (ft-burn? sbtc amount src)
+        (try! (is-contract-owner))
+        (try! (verify-txid-exists-on-burn-chain deposit-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
+        (print {notification: "mint", payload: deposit-txid})
+        (ft-mint? sbtc amount destination)
     )
 )
 
+;; #[allow(unchecked_data)]
+(define-public (burn (amount uint)
+    (owner principal)
+    (withdraw-txid (buff 32))
+    (burn-chain-height uint)
+    (merkle-proof (list 14 (buff 32)))
+    (tx-index uint)
+    (tree-depth uint)
+    (block-header (buff 80)))
+    (begin
+        (try! (is-contract-owner))
+        (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
+        (print {notification: "burn", payload: withdraw-txid})
+        (ft-burn? sbtc amount owner)
+    )
+)
+
+;; #[allow(unchecked_data)]
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-		(asserts! (is-eq tx-sender sender) (err err-not-token-owner))
+		(asserts! (or (is-eq tx-sender sender) (is-eq contract-caller sender)) err-not-token-owner)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
@@ -84,11 +112,15 @@
 )
 
 (define-read-only (get-token-uri)
-	(ok (some u"https://assets.stacks.co/sbtc.pdf"))
+	(ok (some u"https://gateway.pinata.cloud/ipfs/Qma5P7LFGQAXt7gzkNZGxet5qJcVxgeXsenDXwu9y45hpr?_gl=1*1mxodt*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDA4MzA3OC40LjEuMTY5NDA4MzQzOC42MC4wLjA"))
 )
 
 ;; private functions
 ;;
 (define-private (is-contract-owner)
-    (is-eq (var-get contract-owner) tx-sender)
+    (ok (asserts! (is-eq (var-get contract-owner) contract-caller) err-invalid-caller))
+)
+
+(define-read-only (verify-txid-exists-on-burn-chain (txid (buff 32)) (burn-chain-height uint) (merkle-proof (list 14 (buff 32))) (tx-index uint) (tree-depth uint) (block-header (buff 80)))
+    (contract-call? .clarity-bitcoin-mini was-txid-mined burn-chain-height txid block-header { tx-index: tx-index, hashes: merkle-proof, tree-depth: tree-depth})
 )

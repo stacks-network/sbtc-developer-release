@@ -5,15 +5,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use bdk::bitcoin::{self, PrivateKey};
-use blockstack_lib::{
-    address::{
-        AddressHashMode, C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
-        C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
-    },
-    types::chainstate::{StacksAddress, StacksPrivateKey, StacksPublicKey},
-};
+use blockstack_lib::vm::ContractName;
 use clap::Parser;
+use stacks_core::{
+    wallet::{BitcoinCredentials, Credentials, Wallet},
+    Network,
+};
 
 /// sBTC Alpha Romeo
 #[derive(Debug, Parser)]
@@ -33,8 +30,11 @@ pub struct Config {
     /// Path to the contract file
     pub contract: PathBuf,
 
-    /// Private key used for Bitcoin and Stacks transactions
-    pub private_key: PrivateKey,
+    /// Credentials used to interact with the Stacks network
+    pub stacks_credentials: Credentials,
+
+    /// Credentials used to interact with the Bitcoin network
+    pub bitcoin_credentials: BitcoinCredentials,
 
     /// Address of a bitcoin node
     pub bitcoin_node_url: reqwest::Url,
@@ -42,11 +42,8 @@ pub struct Config {
     /// Address of a stacks node
     pub stacks_node_url: reqwest::Url,
 
-    /// Fee to use for stacks transactions
-    pub stacks_transaction_fee: u64,
-
-    /// Fee to use for bitcoin transactions
-    pub bitcoin_transaction_fee: u64,
+    /// sBTC asset contract name
+    pub contract_name: ContractName,
 }
 
 impl Config {
@@ -60,55 +57,22 @@ impl Config {
         let config_file = ConfigFile::from_path(&path)?;
         let state_directory = normalize(config_root.clone(), config_file.state_directory);
         let contract = normalize(config_root, config_file.contract);
-        let private_key = PrivateKey::from_wif(&config_file.wif)?;
         let bitcoin_node_url = reqwest::Url::parse(&config_file.bitcoin_node_url)?;
         let stacks_node_url = reqwest::Url::parse(&config_file.stacks_node_url)?;
+
+        let wallet = Wallet::new(config_file.network, &config_file.mnemonic)?;
+        let bitcoin_credentials = wallet.bitcoin_credentials(0)?;
+        let stacks_credentials = wallet.credentials(0)?;
 
         Ok(Self {
             state_directory,
             contract,
-            private_key,
+            bitcoin_credentials,
+            stacks_credentials,
             bitcoin_node_url,
             stacks_node_url,
-            stacks_transaction_fee: config_file.stacks_transaction_fee,
-            bitcoin_transaction_fee: config_file.bitcoin_transaction_fee,
+            contract_name: ContractName::from(config_file.contract_name.as_str()),
         })
-    }
-
-    /// Stacks version of the private key
-    pub fn stacks_private_key(&self) -> StacksPrivateKey {
-        let mut pk = StacksPrivateKey::from_slice(&self.private_key.to_bytes()).unwrap();
-        pk.set_compress_public(self.private_key.compressed);
-
-        pk
-    }
-
-    /// Stacks public key corresponding to the private key
-    pub fn stacks_public_key(&self) -> StacksPublicKey {
-        StacksPublicKey::from_private(&self.stacks_private_key())
-    }
-
-    /// Stacks address version corresponding to the network
-    fn address_version(&self) -> u8 {
-        match self.private_key.network {
-            bitcoin::Network::Bitcoin => C32_ADDRESS_VERSION_MAINNET_SINGLESIG,
-            bitcoin::Network::Testnet => C32_ADDRESS_VERSION_TESTNET_SINGLESIG,
-            _ => panic!("Unsupported network"),
-        }
-    }
-
-    /// Stacks address corresponding to the private key
-    pub fn stacks_address(&self) -> StacksAddress {
-        let address_version = self.address_version();
-        let hash_mode = AddressHashMode::SerializeP2PKH;
-
-        StacksAddress::from_public_keys(
-            address_version,
-            &hash_mode,
-            1,
-            &vec![self.stacks_public_key()],
-        )
-        .unwrap()
     }
 }
 
@@ -120,15 +84,6 @@ fn normalize(root_dir: PathBuf, path: impl AsRef<Path>) -> PathBuf {
     }
 }
 
-/// Network
-#[derive(Debug, Clone, Copy)]
-pub enum Network {
-    /// Mainnet
-    Mainnet,
-    /// Testnet
-    Testnet,
-}
-
 #[derive(Debug, Clone, serde::Deserialize)]
 struct ConfigFile {
     /// Directory to persist the state of the system to
@@ -137,8 +92,11 @@ struct ConfigFile {
     /// Path to the contract file
     pub contract: PathBuf,
 
-    /// Private key used for Bitcoin and Stacks transactions
-    pub wif: String,
+    /// Stacks network
+    pub network: Network,
+
+    /// Seed mnemonic
+    pub mnemonic: String,
 
     /// Address of a bitcoin node
     pub bitcoin_node_url: String,
@@ -146,11 +104,8 @@ struct ConfigFile {
     /// Address of a stacks node
     pub stacks_node_url: String,
 
-    /// Fee to use for stacks transactions
-    pub stacks_transaction_fee: u64,
-
-    /// Fee to use for bitcoin transactions
-    pub bitcoin_transaction_fee: u64,
+    /// sBTC asset contract name
+    pub contract_name: String,
 }
 
 impl ConfigFile {

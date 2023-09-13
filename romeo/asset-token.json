@@ -1,0 +1,8 @@
+{
+    "name":	"sBTC Romeo Token",
+    "description":	"sBTC Romeo is a developer release of the sBTC (decentralized two-way peg) stable token, which is pegged to the price of BTC.",
+    "image":    "https://gateway.pinata.cloud/ipfs/QmZF4DCgVzuhSTAjyx33fG4M5sKWT3zomzXX8Cfzkiqsth?_gl=1*1f4aw3i*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDA0NTI0Ni4yLjAuMTY5NDA0NTI0Ni42MC4wLjA",
+    "sip": 16,
+    "decimals": 8,
+    "symbol": "sBTC"
+}

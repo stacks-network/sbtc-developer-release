@@ -36,7 +36,7 @@ install_crate = { crate_name = "cargo-llvm-cov", version = "0.5.25", binary = "c
 
 [tasks._install-audit]
 private = true
-install_crate = { crate_name = "cargo-audit", version = "0.17.6", binary = "cargo", "test_arg" = ["audit" , "--help"]}
+install_crate = { crate_name = "cargo-audit", version = "0.18.1", binary = "cargo", "test_arg" = ["audit" , "--help"]}
 
 [tasks.install]
 dependencies = [
@@ -149,6 +149,7 @@ command = "cargo"
 args = ["build", "--release"]
 
 [tasks.test]
+workspace = false
 dependencies = ["_install-test-framework"]
 command = "cargo"
 args = ["${TEST_FRAMEWORK}", "run", "--release"]
@@ -161,6 +162,7 @@ args = ["doc"]
 # ------
 
 [tasks.audit]
+workspace = false # Audit must run in workspace root.
 dependencies = ["_install-audit"]
 command = "cargo"
 args = ["audit", "-D", "warnings"]
