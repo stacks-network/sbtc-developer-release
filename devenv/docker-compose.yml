@@ -128,6 +128,19 @@ services:
       BTCEXP_BITCOIND_URI: bitcoin://devnet:devnet@bitcoin:18443?timeout=10000
       BTCEXP_SLOW_DEVICE_MODE: false
       BTCEXP_UI_THEME: dark
+  electrs:
+    image: electrs:latest
+    container_name: electrs
+    build:
+      context: ./electrs/docker
+    ports:
+      - 60401:60401
+    command: electrs
+    depends_on:
+      - bitcoin
+      - miner
+    environment:
+      RUST_BACKTRACE: 1
   sbtc:
     image: sbtc:latest
     container_name: sbtc
