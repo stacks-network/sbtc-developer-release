@@ -2,6 +2,7 @@
 
 use std::time::Duration;
 
+use anyhow::anyhow;
 use async_trait::async_trait;
 use bdk::{
     bitcoin::{Block, Transaction, Txid},
@@ -76,7 +77,7 @@ impl BitcoinClient for RPCClient {
         }
     }
 
-    async fn fetch_block(&self, block_height: u32) -> anyhow::Result<Block> {
+    async fn fetch_block(&self, block_height: u32) -> anyhow::Result<(u32, Block)> {
         let block_hash = loop {
             let res = self
                 .execute(move |client| client.get_block_hash(block_height as u64))
@@ -87,7 +88,14 @@ impl BitcoinClient for RPCClient {
                     trace!("Got block hash: {}", hash);
                     break hash;
                 }
-                Err(err) => trace!("Failed to get block hash: {}", err),
+                Err(bitcoincore_rpc::Error::JsonRpc(bitcoincore_rpc::jsonrpc::Error::Rpc(err))) => {
+                    if err.code == -8 {
+                        trace!("Block not found, retrying...");
+                    } else {
+                        Err(anyhow!("Error fetching block: {:?}", err))?;
+                    }
+                }
+                Err(err) => Err(anyhow!("Error fetching block: {:?}", err))?,
             };
 
             sleep(BLOCK_POLLING_INTERVAL).await;
@@ -97,7 +105,7 @@ impl BitcoinClient for RPCClient {
             .execute(move |client| client.get_block(&block_hash))
             .await??;
 
-        Ok(block)
+        Ok((block_height, block))
     }
 
     async fn get_height(&self) -> anyhow::Result<u32> {

@@ -28,9 +28,6 @@ pub struct Config {
     /// Directory to persist the state of the system to
     pub state_directory: PathBuf,
 
-    /// Path to the contract file
-    pub contract: PathBuf,
-
     /// Credentials used to interact with the Stacks network
     pub stacks_credentials: Credentials,
 
@@ -57,7 +54,6 @@ impl Config {
 
         let config_file = ConfigFile::from_path(&path)?;
         let state_directory = normalize(config_root.clone(), config_file.state_directory);
-        let contract = normalize(config_root, config_file.contract);
 
         let bitcoin_node_url = Url::parse(&config_file.bitcoin_node_url)?;
         let stacks_node_url = Url::parse(&config_file.stacks_node_url)?;
@@ -68,7 +64,6 @@ impl Config {
 
         Ok(Self {
             state_directory,
-            contract,
             bitcoin_credentials,
             stacks_credentials,
             bitcoin_node_url,
@@ -90,9 +85,6 @@ fn normalize(root_dir: PathBuf, path: impl AsRef<Path>) -> PathBuf {
 struct ConfigFile {
     /// Directory to persist the state of the system to
     pub state_directory: PathBuf,
-
-    /// Path to the contract file
-    pub contract: PathBuf,
 
     /// Stacks network
     pub network: Network,

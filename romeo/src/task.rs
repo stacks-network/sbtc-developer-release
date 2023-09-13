@@ -15,8 +15,8 @@ pub enum Task {
     /// Create and broadcast a fulfill bitcoin transaction
     CreateFulfill(state::WithdrawalInfo),
 
-    /// Create and broadcast the asset contract deploy transaction
-    CreateAssetContract,
+    /// Get the block height of the contract deployment
+    GetContractBlockHeight,
 
     /// Poll a bitcoin node for the status of a transaction
     CheckBitcoinTransactionStatus(BitcoinTxId),
@@ -26,5 +26,5 @@ pub enum Task {
 
     /// Fetch a bitcoin block for the given block height from the current canonical bitcoin fork
     /// If the block height is not provided, fetch the latest block
-    FetchBitcoinBlock(Option<u32>),
+    FetchBitcoinBlock(u32),
 }

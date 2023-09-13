@@ -22,12 +22,10 @@ use tokio::io::BufWriter;
 use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::chainstate::stacks::TransactionAuth;
 use blockstack_lib::chainstate::stacks::TransactionPayload;
-use blockstack_lib::chainstate::stacks::TransactionSmartContract;
 use blockstack_lib::chainstate::stacks::TransactionSpendingCondition;
 use blockstack_lib::chainstate::stacks::TransactionVersion;
 use blockstack_lib::vm::types::Value;
 
-use blockstack_lib::util_lib::strings::StacksString;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::debug;
@@ -147,7 +145,7 @@ async fn run_task(
     task: Task,
 ) -> Event {
     match task {
-        Task::CreateAssetContract => deploy_asset_contract(config, stacks_client).await,
+        Task::GetContractBlockHeight => get_contract_block_height(config, stacks_client).await,
         Task::CreateMint(deposit_info) => {
             mint_asset(config, bitcoin_client, stacks_client, deposit_info).await
         }
@@ -164,33 +162,15 @@ async fn run_task(
     }
 }
 
-async fn deploy_asset_contract(config: &Config, client: LockedClient) -> Event {
-    let contract_bytes = tokio::fs::read_to_string(&config.contract).await.unwrap();
-
-    let public_key =
-        StacksPublicKey::from_slice(&config.stacks_credentials.public_key().serialize()).unwrap();
-
-    let tx_auth = TransactionAuth::Standard(
-        TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
-    );
-    let tx_payload = TransactionPayload::SmartContract(
-        TransactionSmartContract {
-            name: config.contract_name.clone(),
-            code_body: StacksString::from_string(&contract_bytes).unwrap(),
-        },
-        None,
-    );
-
-    let tx = StacksTransaction::new(TransactionVersion::Testnet, tx_auth, tx_payload);
-
-    let txid = client
+async fn get_contract_block_height(config: &Config, client: LockedClient) -> Event {
+    let block_height = client
         .lock()
         .await
-        .sign_and_broadcast(tx)
+        .get_contract_block_height(config.contract_name.clone())
         .await
-        .expect("Unable to sign and broadcast the asset contract deployment transaction");
+        .expect("Could not get ");
 
-    Event::AssetContractBroadcasted(txid)
+    Event::ContractBlockHeight(block_height)
 }
 
 async fn mint_asset(
@@ -199,7 +179,7 @@ async fn mint_asset(
     stacks_client: LockedClient,
     deposit_info: DepositInfo,
 ) -> Event {
-    let block = bitcoin_client
+    let (_, block) = bitcoin_client
         .fetch_block(deposit_info.block_height)
         .await
         .expect("Failed to fetch block");
@@ -267,20 +247,11 @@ async fn check_stacks_transaction_status(client: LockedClient, txid: StacksTxId)
     Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_bitcoin_block(client: impl BitcoinClient, block_height: Option<u32>) -> Event {
-    let block_height = if let Some(height) = block_height {
-        height
-    } else {
-        client
-            .get_height()
-            .await
-            .expect("Failed to get bitcoin block height")
-    };
-
-    let block = client
+async fn fetch_bitcoin_block(client: impl BitcoinClient, block_height: u32) -> Event {
+    let (height, block) = client
         .fetch_block(block_height)
         .await
         .expect("Failed to fetch block");
 
-    Event::BitcoinBlock(block)
+    Event::BitcoinBlock(height, block)
 }

@@ -6,6 +6,8 @@ use anyhow::anyhow;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
 use blockstack_lib::types::chainstate::StacksPrivateKey;
+use blockstack_lib::vm::types::{QualifiedContractIdentifier, StandardPrincipalData};
+use blockstack_lib::vm::ContractName;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::Request;
@@ -173,6 +175,28 @@ impl StacksClient {
             .await?)
     }
 
+    /// Get the block height of the contract
+    pub async fn get_contract_block_height(&mut self, name: ContractName) -> anyhow::Result<u32> {
+        let addr = self.config.stacks_credentials.address();
+        let id = QualifiedContractIdentifier::new(
+            StandardPrincipalData(
+                addr.version() as u8,
+                addr.hash().as_ref().try_into().unwrap(),
+            ),
+            name,
+        );
+
+        let res: Value = self
+            .http_client
+            .get(self.contract_info_url(id.to_string()))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        Ok(res["block_height"].as_u64().unwrap() as u32)
+    }
+
     async fn calculate_fee(&self, tx_len: u64) -> anyhow::Result<u64> {
         let fee_rate: u64 = self
             .http_client
@@ -190,6 +214,13 @@ impl StacksClient {
         self.config
             .stacks_node_url
             .join("/v2/transactions")
+            .unwrap()
+    }
+
+    fn contract_info_url(&self, id: impl AsRef<str>) -> reqwest::Url {
+        self.config
+            .stacks_node_url
+            .join(&format!("/extended/v1/contract/{}", id.as_ref()))
             .unwrap()
     }
 
