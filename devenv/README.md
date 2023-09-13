@@ -67,7 +67,7 @@ There is a BTC mining service which will create a legacy wallet,
 importaddress for UXTO monitoring that is defined in the stacks 
 Config.toml.
 
-By default it automatically mines 100 blocks initially, and 
+By default it automatically mines 200 blocks initially, and 
 generates 1 block every ten seconds from there on.
 
 If you want to customize these values you can, update the 

@@ -27,6 +27,16 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+  miner:
+    image: miner:latest
+    container_name: miner
+    build:
+      context: ./miner/docker
+    depends_on:
+      - bitcoin
+    environment:
+      INIT_BTC_BLOCKS: 200
+      BTC_BLOCK_GEN_TIME: 10
   stacks:
     image: stacks:latest
     container_name: stacks
@@ -41,6 +51,7 @@ services:
       - 20443:20443
     depends_on:
       - bitcoin
+      - miner
     environment:
       - STACKS_LOG_DEBUG=0
       - STACKS_LOG_JSON=0
@@ -93,16 +104,6 @@ services:
       - postgres
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
-  miner:
-    image: miner:latest
-    container_name: miner
-    build:
-      context: ./miner/docker
-    depends_on:
-      - bitcoin
-    environment:
-      INIT_BTC_BLOCKS: 100
-      BTC_BLOCK_GEN_TIME: 10
   bitcoin-explorer:
     image: bitcoin-explorer:latest
     container_name: bitcoin-explorer
