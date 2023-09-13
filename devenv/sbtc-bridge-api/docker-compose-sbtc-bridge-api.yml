@@ -1,0 +1,12 @@
+version: "3.2"
+
+services:
+  sbtc-bridge-api:
+    image: sbtc-bridge-api:latest   
+    container_name: sbtc-bridge-api   
+    build:
+      context: ./docker
+    environment:
+      - PORT=80
+    ports:
+      - "80:80"

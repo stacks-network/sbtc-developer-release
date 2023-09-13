@@ -107,6 +107,9 @@ The sBTC bridge app is running at:
 ```
 http://127.0.0.1:4137/
 ```
+### sBTC Bridge API
+TBD
+
 ### Electrs (Electrum Rust Server)
 The electrs service is running at:
 
