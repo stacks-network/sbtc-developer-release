@@ -32,7 +32,7 @@ plan:
         - contract-publish:
             contract-name: asset
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 36480
+            cost: 38610
             path: contracts/asset.clar
             anchor-block-only: true
             clarity-version: 2
