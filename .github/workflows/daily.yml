@@ -65,7 +65,9 @@ jobs:
       steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ env.BRANCH }}      - name: Publish
+          ref: ${{ env.BRANCH }}
+          
+      - name: Publish
         uses: katyo/publish-crates@v2
         with:
           args: "--verbose"
