@@ -49,7 +49,7 @@ impl RPCClient {
         url.set_username("").unwrap();
         url.set_password(None).unwrap();
 
-        let client = Client::new(&url.to_string(), Auth::UserPass(username, password))?;
+        let client = Client::new(url.as_ref(), Auth::UserPass(username, password))?;
 
         Ok(spawn_blocking(move || f(client)).await?)
     }
@@ -106,5 +106,18 @@ impl BitcoinClient for RPCClient {
             .await??;
 
         Ok(info.blocks as u32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn clarinet_connect() {
+        let client =
+            RPCClient::new("http://devnet:devnet@localhost:18443".parse().unwrap()).unwrap();
+
+        dbg!(client.fetch_block(100).await.unwrap());
     }
 }

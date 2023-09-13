@@ -4,3 +4,43 @@ name: Devnet deployment
 network: devnet
 stacks-node: "http://localhost:20443"
 bitcoin-node: "http://devnet:devnet@localhost:18443"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - requirement-publish:
+            contract-id: ST1NXBK3K5YYMD6FD41MVNP3JS1GABZ8TRVX023PT.sip-010-trait-ft-standard
+            remap-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            remap-principals:
+              ST1NXBK3K5YYMD6FD41MVNP3JS1GABZ8TRVX023PT: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 8390
+            path: "./.cache/requirements/ST1NXBK3K5YYMD6FD41MVNP3JS1GABZ8TRVX023PT.sip-010-trait-ft-standard.clar"
+            clarity-version: 1
+      epoch: "2.05"
+    - id: 1
+      transactions:
+        - contract-publish:
+            contract-name: clarity-bitcoin-mini
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 54370
+            path: contracts/clarity-bitcoin-mini.clar
+            anchor-block-only: true
+            clarity-version: 2
+      epoch: "2.1"
+    - id: 2
+      transactions:
+        - contract-publish:
+            contract-name: asset
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 36480
+            path: contracts/asset.clar
+            anchor-block-only: true
+            clarity-version: 2
+        - contract-publish:
+            contract-name: asset_test
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 67120
+            path: tests/asset_test.clar
+            anchor-block-only: true
+            clarity-version: 2
+      epoch: "2.4"

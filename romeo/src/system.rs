@@ -33,7 +33,7 @@ use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
-use crate::bitcoin_client::esplora::EsploraClient;
+use crate::bitcoin_client::rpc::RPCClient as BitcoinRPCClient;
 use crate::bitcoin_client::BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
@@ -50,7 +50,7 @@ use crate::task::Task;
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-    let bitcoin_client = EsploraClient::new(config.bitcoin_node_url.as_str())
+    let bitcoin_client = BitcoinRPCClient::new(config.bitcoin_node_url.clone())
         .expect("Failed to instantiate bitcoin client");
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
@@ -283,46 +283,4 @@ async fn fetch_bitcoin_block(client: impl BitcoinClient, block_height: Option<u3
         .expect("Failed to fetch block");
 
     Event::BitcoinBlock(block)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use bdk::bitcoin::hashes::sha256d::Hash;
-    use blockstack_lib::{
-        types::chainstate::StacksAddress,
-        vm::types::{PrincipalData, StandardPrincipalData},
-    };
-
-    use super::*;
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore]
-    async fn broadcast_mint_transation() {
-        let config = Config::from_path("testing/config.json").expect("Failed to find config file");
-
-        let http_client = reqwest::Client::new();
-        let bitcoin_client = EsploraClient::new(config.bitcoin_node_url.as_str()).unwrap();
-        let stacks_client = StacksClient::new(config.clone(), http_client).into();
-
-        let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
-            config.stacks_credentials.address().serialize_to_vec(),
-        ))
-        .unwrap();
-
-        let recipient = PrincipalData::Standard(StandardPrincipalData(addr.version, addr.bytes.0));
-
-        let deposit_info = DepositInfo {
-            txid: BitcoinTxId::from_hash(
-                Hash::from_str("7108a2826a070553e2b6c95b8c0a09d3a92100740c172754d68605495a4ed0cf")
-                    .unwrap(),
-            ),
-            amount: 100,
-            recipient,
-            block_height: 2475303,
-        };
-
-        mint_asset(&config, bitcoin_client, stacks_client, deposit_info).await;
-    }
 }

@@ -11,6 +11,7 @@ use stacks_core::{
     wallet::{BitcoinCredentials, Credentials, Wallet},
     Network,
 };
+use url::Url;
 
 /// sBTC Alpha Romeo
 #[derive(Debug, Parser)]
@@ -37,10 +38,10 @@ pub struct Config {
     pub bitcoin_credentials: BitcoinCredentials,
 
     /// Address of a bitcoin node
-    pub bitcoin_node_url: reqwest::Url,
+    pub bitcoin_node_url: Url,
 
     /// Address of a stacks node
-    pub stacks_node_url: reqwest::Url,
+    pub stacks_node_url: Url,
 
     /// sBTC asset contract name
     pub contract_name: ContractName,
@@ -57,8 +58,9 @@ impl Config {
         let config_file = ConfigFile::from_path(&path)?;
         let state_directory = normalize(config_root.clone(), config_file.state_directory);
         let contract = normalize(config_root, config_file.contract);
-        let bitcoin_node_url = reqwest::Url::parse(&config_file.bitcoin_node_url)?;
-        let stacks_node_url = reqwest::Url::parse(&config_file.stacks_node_url)?;
+
+        let bitcoin_node_url = Url::parse(&config_file.bitcoin_node_url)?;
+        let stacks_node_url = Url::parse(&config_file.stacks_node_url)?;
 
         let wallet = Wallet::new(config_file.network, &config_file.mnemonic)?;
         let bitcoin_credentials = wallet.bitcoin_credentials(0)?;
