@@ -29,12 +29,12 @@ impl EsploraClient {
 
 #[async_trait]
 impl BitcoinClient for EsploraClient {
-    async fn broadcast(&self, tx: &Transaction) -> anyhow::Result<()> {
-        retry(|| self.0.broadcast(tx)).await
+    async fn broadcast(&self, tx: Transaction) -> anyhow::Result<()> {
+        retry(|| self.0.broadcast(&tx)).await
     }
 
-    async fn get_tx_status(&self, txid: &Txid) -> anyhow::Result<TransactionStatus> {
-        let status = retry(|| self.0.get_tx_status(txid)).await?;
+    async fn get_tx_status(&self, txid: Txid) -> anyhow::Result<TransactionStatus> {
+        let status = retry(|| self.0.get_tx_status(&txid)).await?;
 
         Ok(match status {
             Some(esplora_client::TxStatus {
