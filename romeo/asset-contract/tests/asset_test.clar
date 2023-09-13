@@ -2,7 +2,7 @@
 (define-constant wallet-2 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
 (define-constant test-mint-amount u10000000)
 (define-constant expected-total-supply (* u3 test-mint-amount))
-(define-constant expected-token-uri (some u"https://assets.stacks.co/sbtc.pdf"))
+(define-constant expected-token-uri (some u"https://gateway.pinata.cloud/ipfs/Qma5P7LFGQAXt7gzkNZGxet5qJcVxgeXsenDXwu9y45hpr?_gl=1*1mxodt*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDA4MzA3OC40LjEuMTY5NDA4MzQzOC42MC4wLjA"))
 (define-constant expected-name "sBTC")
 (define-constant expected-symbol "sBTC")
 (define-constant expected-decimals u8)
