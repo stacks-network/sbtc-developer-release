@@ -5,22 +5,33 @@ use bdk::{
     bitcoin::{
         psbt::{serialize::Serialize, PartiallySignedTransaction},
         secp256k1::{Message, Secp256k1},
-        Address as BitcoinAddress, Network, PrivateKey,
+        Address as BitcoinAddress, Network, Network as BitcoinNetwork, PrivateKey,
     },
+    blockchain::{ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig},
     database::MemoryDatabase,
-    SignOptions, Wallet,
+    template::P2Wpkh,
+    SignOptions, SyncOptions, Wallet,
 };
 use clap::Parser;
 use stacks_core::crypto::{sha256::Sha256Hasher, Hashing};
+use url::Url;
 
 use crate::commands::utils::TransactionData;
-use crate::commands::utils::{build_op_return_script, magic_bytes, reorder_outputs, setup_wallet};
+use crate::commands::utils::{build_op_return_script, magic_bytes, reorder_outputs};
 
 #[derive(Parser, Debug, Clone)]
 pub struct WithdrawalArgs {
+    /// Where to broadcast the transaction
+    #[clap(short('u'), long)]
+    node_url: Url,
+
     /// P2WPKH BTC private key in WIF format
     #[clap(short, long)]
     wif: String,
+
+    /// Bitcoin network where the withdrawal will be broadcasted to
+    #[clap(short, long)]
+    network: BitcoinNetwork,
 
     /// P2WPKH sBTC sender private key in WIF format
     #[clap(short, long)]
@@ -46,7 +57,23 @@ pub struct WithdrawalArgs {
 pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
     let private_key = PrivateKey::from_wif(&withdrawal.wif)?;
 
-    let wallet = setup_wallet(private_key)?;
+    let blockchain = ElectrumBlockchain::from_config(&ElectrumBlockchainConfig {
+        url: withdrawal.node_url.as_str().to_string(),
+        socks5: None,
+        retry: 3,
+        timeout: Some(10),
+        stop_gap: 10,
+        validate_domain: false,
+    })?;
+
+    let wallet = Wallet::new(
+        P2Wpkh(private_key),
+        Some(P2Wpkh(private_key)),
+        withdrawal.network,
+        MemoryDatabase::default(),
+    )?;
+
+    wallet.sync(&blockchain, SyncOptions::default())?;
 
     let sender_private_key = PrivateKey::from_wif(&withdrawal.sender_wif)?;
     let recipient = BitcoinAddress::from_str(&withdrawal.recipient)?;
@@ -59,7 +86,7 @@ pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
         &dkg_address,
         withdrawal.amount,
         withdrawal.fulfillment_fee,
-        &private_key.network,
+        &withdrawal.network,
     )?;
 
     wallet.sign(&mut psbt, SignOptions::default())?;
