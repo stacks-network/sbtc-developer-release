@@ -4,11 +4,13 @@ members = ["sbtc-cli", "sbtc-core", "stacks-core", "romeo"]
 [workspace.dependencies]
 anyhow = "1.0"
 array-bytes = "6.1.0"
+async-trait = "0.1.73"
 backoff = "0.4.0"
 bdk = "0.28.1"
 bitcoin = "0.29.2"
 clap = "4.1.1"
 derivative = "2.2.0"
+dirs = "5.0.1"
 futures = "0.3.28"
 hex = "0.4.3"
 log = "0.4.19"
@@ -27,7 +29,8 @@ stacks-core = { version = "0.1.0", path = "./stacks-core"}
 strum = "0.25.0"
 thiserror = "1.0.43"
 tokio = "1.32.0"
+toml = "0.8.0"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-url = "2.4.0"
+url = "2.4.1"
 wsts = "1.2"

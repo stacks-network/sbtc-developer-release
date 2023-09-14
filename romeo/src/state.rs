@@ -19,10 +19,9 @@ use crate::task::Task;
 /// The whole state of the application
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
-    contract: Option<TransactionRequest<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
-    block_height: Option<u32>,
+    current_block_height: Option<u32>,
 }
 
 /// A parsed deposit
@@ -144,6 +143,7 @@ struct Response<T> {
 
 /// Spawn initial tasks given a recovered state
 pub fn bootstrap(mut state: State) -> (State, Task) {
+    // When bootstraping we're not expecting any transaction updates to come
     get_mut_transaction_requests(&mut state).for_each(|request| {
         if let TransactionRequest::Acknowledged {
             has_pending_task, ..
@@ -153,20 +153,9 @@ pub fn bootstrap(mut state: State) -> (State, Task) {
         }
     });
 
-    match state.contract {
-        None => {
-            state.contract = Some(TransactionRequest::Created);
-
-            (state, Task::CreateAssetContract)
-        }
-        Some(_) => {
-            let block_height = state.block_height;
-
-            (
-                state,
-                Task::FetchBitcoinBlock(get_next_block_height(block_height)),
-            )
-        }
+    match state.current_block_height {
+        None => (state, Task::GetContractBlockHeight),
+        Some(height) => (state, Task::FetchBitcoinBlock(height + 1)),
     }
 }
 
@@ -178,71 +167,56 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
     debug!("Handling update");
 
     match event {
+        Event::ContractBlockHeight(height) => process_contract_block_height(state, height),
         Event::StacksTransactionUpdate(txid, status) => {
             process_stacks_transaction_update(config, state, txid, status)
         }
         Event::BitcoinTransactionUpdate(txid, status) => {
             process_bitcoin_transaction_update(config, state, txid, status)
         }
-        Event::BitcoinBlock(block) => process_bitcoin_block(config, state, block),
-        Event::AssetContractBroadcasted(txid) => {
-            process_asset_contract_broadcasted(config, state, txid)
-        }
+        Event::BitcoinBlock(height, block) => process_bitcoin_block(config, state, height, block),
         Event::MintBroadcasted(deposit_info, txid) => {
             process_mint_broadcasted(state, deposit_info, txid)
         }
-        event => panic!("Cannot handle yet: {:?}", event),
+        Event::BurnBroadcasted(_, _) => (state, vec![]),
+        Event::FulfillBroadcasted(_, _) => (state, vec![]),
     }
 }
 
-fn process_bitcoin_block(config: &Config, mut state: State, block: Block) -> (State, Vec<Task>) {
-    let deposits = parse_deposits(config, &block);
+fn process_contract_block_height(mut state: State, height: u32) -> (State, Vec<Task>) {
+    match state.current_block_height {
+        Some(current_height) => {
+            panic!(
+                "Got contract block height when state already contains it: {}",
+                current_height
+            )
+        }
+        None => {
+            state.current_block_height = Some(height);
+
+            (state, vec![Task::FetchBitcoinBlock(height + 1)])
+        }
+    }
+}
+
+fn process_bitcoin_block(
+    config: &Config,
+    mut state: State,
+    height: u32,
+    block: Block,
+) -> (State, Vec<Task>) {
+    let deposits = parse_deposits(config, height, &block);
     let withdrawals = parse_withdrawals(&block);
 
     state.deposits.extend_from_slice(&deposits);
     state.withdrawals.extend_from_slice(&withdrawals);
 
-    let new_block_height = block
-        .bip34_block_height()
-        .expect("Failed to get block height") as u32;
+    state.current_block_height = Some(height);
 
-    state.block_height = Some(new_block_height);
-
-    let mut tasks = create_transaction_status_update_requests(&mut state);
-    tasks.push(Task::FetchBitcoinBlock(get_next_block_height(
-        state.block_height,
-    )));
+    let mut tasks = create_transaction_status_update_tasks(&mut state);
+    tasks.push(Task::FetchBitcoinBlock(height + 1));
 
     (state, tasks)
-}
-
-fn create_transaction_status_update_requests(state: &mut State) -> Vec<Task> {
-    match state.contract.as_mut() {
-        None | Some(TransactionRequest::Created) => vec![],
-        Some(TransactionRequest::Acknowledged {
-            txid,
-            status: TransactionStatus::Broadcasted,
-            has_pending_task,
-        }) => {
-            if !*has_pending_task {
-                *has_pending_task = true;
-                vec![Task::CheckStacksTransactionStatus(*txid)]
-            } else {
-                vec![]
-            }
-        }
-        Some(TransactionRequest::Acknowledged {
-            status: TransactionStatus::Confirmed,
-            ..
-        }) => create_transaction_status_update_tasks(state),
-        Some(TransactionRequest::Acknowledged {
-            txid,
-            status: TransactionStatus::Rejected,
-            ..
-        }) => {
-            panic!("Contract creation transaction rejected: {}", txid)
-        }
-    }
 }
 
 fn create_transaction_status_update_tasks(state: &mut State) -> Vec<Task> {
@@ -272,11 +246,7 @@ fn create_transaction_status_update_tasks(state: &mut State) -> Vec<Task> {
     tasks
 }
 
-fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
-    let block_height = block
-        .bip34_block_height()
-        .expect("Failed to get block height") as u32;
-
+fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
     block
         .txdata
         .iter()
@@ -291,7 +261,7 @@ fn parse_deposits(config: &Config, block: &Block) -> Vec<Deposit> {
                         txid,
                         amount: parsed_deposit.amount,
                         recipient: convert_principal_data(parsed_deposit.recipient),
-                        block_height,
+                        block_height: height,
                     },
                     mint: None,
                 })
@@ -328,7 +298,7 @@ fn process_stacks_transaction_update(
     status: TransactionStatus,
 ) -> (State, Vec<Task>) {
     if status == TransactionStatus::Rejected {
-        panic!("Stacks transaction failed");
+        panic!("Stacks transaction failed: {}", txid);
     }
 
     let statuses_updated: usize = get_mut_transaction_requests(&mut state)
@@ -370,34 +340,12 @@ fn process_stacks_transaction_update(
         );
     }
 
-    let tasks = {
-        let Some(TransactionRequest::Acknowledged {
-            txid: contract_txid,
-            status: contract_status,
-            ..
-        }) = state.contract.as_ref()
-        else {
-            panic!("Contract transaction should be acknowledged and broadcasted first");
-        };
-
-        if txid == *contract_txid
-            && *contract_status == TransactionStatus::Broadcasted
-            && state.block_height.is_none()
-        {
-            vec![Task::FetchBitcoinBlock(None)]
-        } else {
-            vec![]
-        }
-    };
-
-    (state, tasks)
+    (state, vec![])
 }
 
 fn get_mut_transaction_requests(
     state: &mut State,
 ) -> impl Iterator<Item = &mut TransactionRequest<StacksTxId>> {
-    let contract_response = state.contract.as_mut().into_iter();
-
     let deposit_responses = state
         .deposits
         .iter_mut()
@@ -408,24 +356,7 @@ fn get_mut_transaction_requests(
         .iter_mut()
         .filter_map(|withdrawal| withdrawal.burn.as_mut());
 
-    std::iter::empty()
-        .chain(contract_response)
-        .chain(deposit_responses)
-        .chain(withdrawal_responses)
-}
-
-fn process_asset_contract_broadcasted(
-    _config: &Config,
-    mut state: State,
-    txid: StacksTxId,
-) -> (State, Vec<Task>) {
-    state.contract = Some(TransactionRequest::Acknowledged {
-        txid,
-        status: TransactionStatus::Broadcasted,
-        has_pending_task: true,
-    });
-
-    (state, vec![Task::CheckStacksTransactionStatus(txid)])
+    deposit_responses.chain(withdrawal_responses)
 }
 
 fn process_mint_broadcasted(
@@ -451,8 +382,4 @@ fn process_mint_broadcasted(
     });
 
     (state, vec![])
-}
-
-fn get_next_block_height(height: Option<u32>) -> Option<u32> {
-    height.map(|height| height + 1)
 }

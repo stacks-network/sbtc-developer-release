@@ -1,38 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
 
-use bdk::{
-    bitcoin::{
-        blockdata::{opcodes::all::OP_RETURN, script::Builder},
-        Network, PrivateKey, Script, TxOut,
-    },
-    blockchain::ElectrumBlockchain,
-    database::MemoryDatabase,
-    electrum_client::Client,
-    template::P2Wpkh,
-    SyncOptions, Wallet,
+use bdk::bitcoin::{
+    blockdata::{opcodes::all::OP_RETURN, script::Builder},
+    Network, Script, TxOut,
 };
 
 use serde::Serialize;
-
-pub fn init_blockchain() -> anyhow::Result<ElectrumBlockchain> {
-    let client = Client::new("ssl://blockstream.info:993")?;
-    let blockchain = ElectrumBlockchain::from(client);
-    Ok(blockchain)
-}
-
-pub fn setup_wallet(private_key: PrivateKey) -> anyhow::Result<Wallet<MemoryDatabase>> {
-    let blockchain = init_blockchain()?;
-    let wallet = Wallet::new(
-        P2Wpkh(private_key),
-        Some(P2Wpkh(private_key)),
-        private_key.network,
-        MemoryDatabase::default(),
-    )?;
-
-    wallet.sync(&blockchain, SyncOptions::default())?;
-
-    Ok(wallet)
-}
 
 pub fn build_op_return_script(data: &[u8]) -> Script {
     Builder::new()

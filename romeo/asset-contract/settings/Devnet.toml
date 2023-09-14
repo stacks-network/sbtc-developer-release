@@ -75,6 +75,7 @@ balance = 100_000_000_000_000
 [devnet]
 disable_stacks_explorer = false
 disable_stacks_api = false
+bind_containers_volumes = true
 # disable_subnet_api = false
 # disable_bitcoin_explorer = true
 # working_dir = "tmp/devnet"
@@ -125,26 +126,3 @@ disable_stacks_api = false
 # epoch_2_2 = 103
 # epoch_2_3 = 104
 # epoch_2_4 = 105
-
-
-# Send some stacking orders
-[[devnet.pox_stacking_orders]]
-start_at_cycle = 3
-duration = 12
-wallet = "wallet_1"
-slots = 2
-btc_address = "mr1iPkD9N3RJZZxXRk7xF9d36gffa6exNC"
-
-[[devnet.pox_stacking_orders]]
-start_at_cycle = 3
-duration = 12
-wallet = "wallet_2"
-slots = 1
-btc_address = "muYdXKmX9bByAueDe6KFfHd5Ff1gdN9ErG"
-
-[[devnet.pox_stacking_orders]]
-start_at_cycle = 3
-duration = 12
-wallet = "wallet_3"
-slots = 1
-btc_address = "mvZtbibDAAA3WLpY7zXXFqRa3T4XSknBX7"
