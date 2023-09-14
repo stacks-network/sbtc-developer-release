@@ -135,7 +135,6 @@ services:
       context: ./electrs/docker
     ports:
       - 60401:60401
-    command: electrs
     depends_on:
       - bitcoin
       - miner

@@ -27,4 +27,11 @@ COPY --from=electrs-build /root/.cargo/bin/electrs /usr/bin/electrs
 
 COPY config.toml /etc/electrs/config.toml
 
+COPY entrypoint.sh /entrypoint.sh
+
+RUN chmod a+x /entrypoint.sh
+
 WORKDIR /
+
+ENTRYPOINT ["./entrypoint.sh"]
+
