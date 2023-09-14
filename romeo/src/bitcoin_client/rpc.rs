@@ -116,16 +116,3 @@ impl BitcoinClient for RPCClient {
         Ok(info.blocks as u32)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn clarinet_connect() {
-        let client =
-            RPCClient::new("http://devnet:devnet@localhost:18443".parse().unwrap()).unwrap();
-
-        dbg!(client.fetch_block(100).await.unwrap());
-    }
-}
