@@ -8,7 +8,8 @@ RUN npm install
 
 FROM node:16-alpine
 WORKDIR /workspace
+RUN apk --update add git curl
 COPY --from=builder /workspace .
-RUN apk --update add git
-CMD npm start
-EXPOSE 3002
+COPY entrypoint.sh /workspace/entrypoint.sh
+RUN chmod a+x /workspace/entrypoint.sh
+ENTRYPOINT ["/workspace/entrypoint.sh"]
