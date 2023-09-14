@@ -87,8 +87,7 @@
 ;; #[allow(unchecked_data)]
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-		(asserts! (is-contract-owner) err-forbidden)
-    (asserts! (> amount u0) err-bad-request)
+		(asserts! (> amount u0) err-bad-request)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
