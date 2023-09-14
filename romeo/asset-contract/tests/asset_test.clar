@@ -75,7 +75,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-mint-external)
-	(assert-eq (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
 )
 
 ;; @name Protocol can burn tokens
@@ -88,7 +88,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-burn-external)
-	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
 )
 
 ;; @name Protocol can set wallet address
@@ -102,7 +102,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-set-wallet-public-key-external)
-	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-invalid-caller "Should have returned err forbidden")
+	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-forbidden "Should have returned err forbidden")
 )
 
 ;; --- SIP010 tests
@@ -126,7 +126,7 @@
 ;; @name Cannot transfer someone else's tokens
 ;; @caller wallet_1
 (define-public (test-transfer-external)
-	(assert-eq (contract-call? .asset transfer u100 wallet-2 tx-sender none) err-not-token-owner "Should have failed")
+	(assert-eq (contract-call? .asset transfer u100 wallet-2 tx-sender none) err-forbidden "Should have failed")
 )
 
 ;; @name Can get name

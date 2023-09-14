@@ -34,7 +34,7 @@
 ;; #[allow(unchecked_data)]
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
-        (try! (is-contract-owner))
+    (asserts! (is-contract-owner) err-forbidden)
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
     )
 )
@@ -43,7 +43,6 @@
 (define-public (set-contract-owner (new-owner principal))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
-        (asserts! (> amount u0) err-bad-request)
         (ok (var-set contract-owner new-owner))
     )
 )
@@ -60,7 +59,7 @@
     (begin
         (asserts! (is-contract-owner) err-forbidden)
         (try! (verify-txid-exists-on-burn-chain deposit-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
-        (ft-mint? sbtc amount destination)
+        (try! (ft-mint? sbtc amount destination))
         (print {notification: "mint", payload: deposit-txid})
         (ok true)
     )
@@ -79,7 +78,7 @@
         (asserts! (is-contract-owner) err-forbidden)
         (asserts! (> amount u0) err-bad-request)
         (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
-        (ft-burn? sbtc amount owner)
+        (try! (ft-burn? sbtc amount owner))
         (print {notification: "burn", payload: withdraw-txid})
     		(ok true)
     )
