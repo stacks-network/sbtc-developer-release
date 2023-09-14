@@ -1,10 +1,11 @@
 use std::io::stdout;
 
+use bdk::bitcoin::Network as BitcoinNetwork;
 use clap::Parser;
 use serde_json::{Map, Value};
 use stacks_core::{
     wallet::{BitcoinCredentials, Credentials, Wallet},
-    Network,
+    Network as StacksNetwork,
 };
 
 #[derive(Parser, Debug, Clone)]
@@ -13,9 +14,13 @@ pub struct GenerateArgs {
     #[command(subcommand)]
     subcommand: GenerateSubcommand,
 
-    /// The network to broadcast to
-    #[clap(short, long, default_value_t = Network::Testnet)]
-    network: Network,
+    /// Stacks network to generate credentials for
+    #[clap(short, long, default_value_t = StacksNetwork::Mainnet)]
+    stacks_network: StacksNetwork,
+
+    /// Bitcoin network to generate credentials for
+    #[clap(short, long, default_value_t = BitcoinNetwork::Bitcoin)]
+    bitcoin_network: BitcoinNetwork,
 
     /// How many accounts to generate
     #[clap(short, long, default_value_t = 1)]
@@ -31,27 +36,21 @@ enum GenerateSubcommand {
 pub fn generate(generate_args: &GenerateArgs) -> anyhow::Result<()> {
     match &generate_args.subcommand {
         GenerateSubcommand::New => {
-            let wallet = Wallet::random(generate_args.network)?;
+            let wallet = Wallet::random()?;
 
-            serde_json::to_writer_pretty(
-                stdout(),
-                &value_from_wallet(&wallet, generate_args.accounts),
-            )?;
+            serde_json::to_writer_pretty(stdout(), &value_from_wallet(&wallet, generate_args))?;
         }
         GenerateSubcommand::Mnemonic { mnemonic } => {
-            let wallet = Wallet::new(generate_args.network, mnemonic)?;
+            let wallet = Wallet::new(mnemonic)?;
 
-            serde_json::to_writer_pretty(
-                stdout(),
-                &value_from_wallet(&wallet, generate_args.accounts),
-            )?;
+            serde_json::to_writer_pretty(stdout(), &value_from_wallet(&wallet, generate_args))?;
         }
     };
 
     Ok(())
 }
 
-fn value_from_wallet(wallet: &Wallet, credentials_count: usize) -> Value {
+fn value_from_wallet(wallet: &Wallet, generate_args: &GenerateArgs) -> Value {
     let mut map = Map::new();
 
     map.insert("mnemonic".into(), wallet.mnemonic().to_string().into());
@@ -59,19 +58,30 @@ fn value_from_wallet(wallet: &Wallet, credentials_count: usize) -> Value {
         "private_key".into(),
         hex::encode(wallet.master_key().secret_bytes()).into(),
     );
-    map.insert("wif".into(), wallet.wif().to_string().into());
+    map.insert(
+        "wif".into(),
+        wallet.wif(generate_args.stacks_network).to_string().into(),
+    );
 
     let mut credentials: Vec<Value> = Default::default();
 
-    for i in 0..credentials_count {
+    for i in 0..generate_args.accounts {
         let mut creds = Map::new();
         creds.insert(
             "stacks".into(),
-            value_from_credentials(wallet.credentials(i as u32).unwrap()),
+            value_from_credentials(
+                wallet
+                    .credentials(generate_args.stacks_network, i as u32)
+                    .unwrap(),
+            ),
         );
         creds.insert(
             "bitcoin".into(),
-            value_from_bitcoin_credentials(wallet.bitcoin_credentials(i as u32).unwrap()),
+            value_from_bitcoin_credentials(
+                wallet
+                    .bitcoin_credentials(generate_args.bitcoin_network, i as u32)
+                    .unwrap(),
+            ),
         );
 
         credentials.push(creds.into());
@@ -84,6 +94,23 @@ fn value_from_wallet(wallet: &Wallet, credentials_count: usize) -> Value {
             .enumerate()
             .map(|(i, creds)| (i.to_string(), creds))
             .collect::<Map<String, Value>>()
+            .into(),
+    );
+
+    map.insert(
+        "network_stacks".into(),
+        generate_args
+            .stacks_network
+            .to_string()
+            .to_ascii_lowercase()
+            .into(),
+    );
+    map.insert(
+        "network_bitcoin".into(),
+        generate_args
+            .bitcoin_network
+            .to_string()
+            .to_ascii_lowercase()
             .into(),
     );
 

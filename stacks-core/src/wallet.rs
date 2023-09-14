@@ -62,36 +62,31 @@ pub fn derive_key(master_key: ExtendedPrivKey, path: DerivationPath) -> Extended
 /// Wallet of credentials
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Wallet {
-    network: Network,
     master_key: ExtendedPrivKey,
     mnemonic: Mnemonic,
 }
 
 impl Wallet {
     /// Creates a wallet from the network, mnemonic, and optional passphrase
-    pub fn new(network: Network, mnemonic: impl AsRef<str>) -> StacksResult<Self> {
+    pub fn new(mnemonic: impl AsRef<str>) -> StacksResult<Self> {
         let mnemonic = Mnemonic::from_str(mnemonic.as_ref())?;
 
-        let master_key = ExtendedPrivKey::new_master(network.into(), &mnemonic.to_seed(""))?;
+        // Bitcoin network is irrelevant for extended private keys
+        let master_key =
+            ExtendedPrivKey::new_master(BitcoinNetwork::Bitcoin, &mnemonic.to_seed(""))?;
 
         Ok(Self {
-            network,
             master_key,
             mnemonic,
         })
     }
 
     /// Creates a random wallet
-    pub fn random(network: Network) -> StacksResult<Self> {
+    pub fn random() -> StacksResult<Self> {
         let entropy: [u8; 32] = random();
         let mnemonic = Mnemonic::from_entropy(&entropy)?;
 
-        Self::new(network, mnemonic.to_string())
-    }
-
-    /// Returns the network of the wallet
-    pub fn network(&self) -> Network {
-        self.network
+        Self::new(mnemonic.to_string())
     }
 
     /// Returns the mnemonic of the wallet
@@ -105,18 +100,22 @@ impl Wallet {
     }
 
     /// Returns the WIF of the wallet
-    pub fn wif(&self) -> WIF {
-        WIF::new(self.network(), self.master_key())
+    pub fn wif(&self, network: Network) -> WIF {
+        WIF::new(network, self.master_key())
     }
 
     /// Returns the credentials at the given index
-    pub fn credentials(&self, index: u32) -> StacksResult<Credentials> {
-        Credentials::new(self.network(), self.master_key, index)
+    pub fn credentials(&self, network: Network, index: u32) -> StacksResult<Credentials> {
+        Credentials::new(network, self.master_key, index)
     }
 
     /// Returns the Bitcoin credentials at the given index
-    pub fn bitcoin_credentials(&self, index: u32) -> StacksResult<BitcoinCredentials> {
-        BitcoinCredentials::new(self.network.into(), self.master_key, index)
+    pub fn bitcoin_credentials(
+        &self,
+        network: BitcoinNetwork,
+        index: u32,
+    ) -> StacksResult<BitcoinCredentials> {
+        BitcoinCredentials::new(network, self.master_key, index)
     }
 }
 
