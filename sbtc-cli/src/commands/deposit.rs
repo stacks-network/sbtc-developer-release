@@ -5,7 +5,7 @@ use clap::Parser;
 use sbtc_core::operations::op_return::deposit::build_deposit_transaction;
 use stacks_core::address::StacksAddress;
 
-use crate::commands::utils;
+use crate::{commands::utils, config::read_config};
 
 #[derive(Parser, Debug, Clone)]
 pub struct DepositArgs {
@@ -27,8 +27,9 @@ pub struct DepositArgs {
 }
 
 pub fn build_deposit_tx(deposit: &DepositArgs) -> anyhow::Result<()> {
+    let config = read_config().expect("Could not read sbtc config, did you try `sbtc init`?");
     let private_key = PrivateKey::from_wif(&deposit.wif)?;
-    let wallet = utils::setup_wallet(private_key)?;
+    let wallet = utils::setup_wallet_from_config(&config, private_key)?;
     let recipient_address = StacksAddress::try_from(deposit.recipient.as_str())?;
     let dkg_address = BitcoinAddress::from_str(&deposit.dkg_wallet)?;
 

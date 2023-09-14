@@ -21,7 +21,7 @@ pub struct BroadcastArgs {
 }
 
 pub fn broadcast_tx(broadcast: &BroadcastArgs) -> anyhow::Result<()> {
-    let blockchain = utils::init_blockchain()?;
+    let blockchain = utils::init_blockstream_blockchain()?;
     let tx = Transaction::deserialize(&hex::decode(&broadcast.tx)?)?;
     blockchain.broadcast(&tx)?;
 

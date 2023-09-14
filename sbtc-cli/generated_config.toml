@@ -1,0 +1,5 @@
+# Can be something like electrum://blockstream.info:993 or rpc://user:pass@localhost:18433
+bitcoin_node_url = ""
+
+# Can be mainnet, testnet, or regtest
+bitcoin_network = ""

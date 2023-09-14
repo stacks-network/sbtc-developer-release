@@ -12,9 +12,11 @@ use clap::{Parser, Subcommand};
 use crate::commands::broadcast::{broadcast_tx, BroadcastArgs};
 use crate::commands::deposit::{build_deposit_tx, DepositArgs};
 use crate::commands::generate::{generate, GenerateArgs};
+use crate::commands::init::init;
 use crate::commands::withdraw::{build_withdrawal_tx, WithdrawalArgs};
 
 mod commands;
+mod config;
 
 #[derive(Parser)]
 struct Cli {
@@ -24,6 +26,8 @@ struct Cli {
 
 #[derive(Subcommand, Debug, Clone)]
 enum Command {
+    /// Create a new config file
+    Init,
     Deposit(DepositArgs),
     Withdraw(WithdrawalArgs),
     Broadcast(BroadcastArgs),
@@ -34,6 +38,7 @@ fn main() -> Result<(), anyhow::Error> {
     let args = Cli::parse();
 
     match args.command {
+        Command::Init => init(),
         Command::Deposit(deposit_args) => build_deposit_tx(&deposit_args),
         Command::Withdraw(withdrawal_args) => build_withdrawal_tx(&withdrawal_args),
         Command::Broadcast(broadcast_args) => broadcast_tx(&broadcast_args),
