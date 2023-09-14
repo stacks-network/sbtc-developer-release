@@ -1,0 +1,12 @@
+{
+  "network": "testnet",
+  "state_directory": "./state",
+  "wif": "YOUR_WIF_CREDENTIALS",
+  "mnemonic": "YOUR_MNEMONIC_PHRASES",
+  "bitcoin_node_url": "http://devnet:devnet@bitcoin-explorer:3002/api",
+  "stacks_node_url": "http://stacks-api:3999",
+  "stacks_transaction_fee": 2000,
+  "bitcoin_transaction_fee": 2000,
+  "contract": "../asset-contract/contracts/asset.clar",
+  "contract_name": "sbtc-alpha-romeo-testing"
+}

@@ -1,0 +1,24 @@
+version: "3.2"
+
+services:
+  explorer:
+    image: bitcoin-explorer:latest
+    container_name: bitcoin-explorer
+    build:
+      context: ./docker
+      args:
+        BTCEXP_NODE_VERSION: 'v3.4.0'
+        GIT_URI: https://github.com/janoside/btc-rpc-explorer.git
+        GIT_BRANCH: 'v3.4.0'
+    ports:
+      - 3002:3002
+    environment:
+      BTCEXP_HOST: 0.0.0.0
+      BTCEXP_BITCOIND_HOST: bitcoin
+      BTCEXP_BITCOIND_PORT: 18443
+      BTCEXP_BITCOIND_USER: devnet
+      BTCEXP_BITCOIND_PASS: devnet
+      BTCEXP_BITCOIND_RPC_TIMEOUT: 5000
+      BTCEXP_BITCOIND_URI: bitcoin://devnet:devnet@bitcoin:18443?timeout=10000
+      BTCEXP_SLOW_DEVICE_MODE: false
+      BTCEXP_UI_THEME: dark

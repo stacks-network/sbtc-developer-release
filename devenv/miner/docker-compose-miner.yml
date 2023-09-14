@@ -1,0 +1,11 @@
+version: '3.2'
+
+services:
+  miner:
+    image: miner:latest
+    container_name: miner
+    build:
+      context: ./docker
+    environment:
+      INIT_BTC_BLOCKS: 100
+      BTC_BLOCK_GEN_TIME: 10
