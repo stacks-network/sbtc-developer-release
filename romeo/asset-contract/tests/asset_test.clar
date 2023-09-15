@@ -110,7 +110,7 @@
 ;; @name Token owner can transfer their tokens
 ;; @caller wallet_1
 (define-public (test-transfer)
-	(contract-call? .asset transfer u100 tx-sender wallet-2 none)
+	(contract-call? .asset transfer u100 contract-caller wallet-2 none)
 )
 
 ;; @name User can transfer tokens owned by contract
@@ -124,9 +124,9 @@
 )
 
 ;; @name Cannot transfer someone else's tokens
-;; @caller wallet_1
+;; @caller deployer
 (define-public (test-transfer-external)
-	(assert-eq (contract-call? .asset transfer u100 wallet-2 tx-sender none) err-forbidden "Should have failed")
+	(assert-eq (contract-call? .asset transfer u100 wallet-2 wallet-1 none) err-forbidden "Should have failed")
 )
 
 ;; @name Can get name
@@ -171,7 +171,7 @@
 )
 
 ;; @name Try to set owner without being current owner
-;; @caller wallet_1 
+;; @caller wallet_1
 (define-public (test-set-invalid-owner)
-	(assert-eq (contract-call? .asset set-new-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y) err-forbidden "Should have failed")
+	(assert-eq (contract-call? .asset set-new-owner wallet-2) err-forbidden "Should have failed")
 )
