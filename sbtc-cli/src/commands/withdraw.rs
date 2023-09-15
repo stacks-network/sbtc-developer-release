@@ -77,6 +77,7 @@ pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
     let peg_wallet_bitcoin_address = BitcoinAddress::from_str(&withdrawal.peg_wallet)?;
 
     let tx = sbtc_core::operations::op_return::withdrawal_request::build_withdrawal_tx(
+        &wallet,
         broadcaster_bitcoin_private_key,
         drawee_stacks_private_key,
         payee_bitcoin_address,
