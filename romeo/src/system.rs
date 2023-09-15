@@ -3,36 +3,45 @@
 use std::{fs::create_dir_all, io::Cursor};
 
 use bdk::bitcoin::Txid as BitcoinTxId;
-use blockstack_lib::{
-	burnchains::Txid as StacksTxId,
-	chainstate::stacks::{
-		StacksTransaction, TransactionAuth, TransactionContractCall,
-		TransactionPayload, TransactionSpendingCondition, TransactionVersion,
-	},
-	codec::StacksMessageCodec,
-	types::chainstate::{StacksAddress, StacksPublicKey},
-	vm::{types::Value, ClarityName},
-};
-use sbtc_core::operations::op_return::withdrawal_fulfillment::create_outputs;
-use stacks_core::{codec::Codec, BlockId, Network as StacksNetwork};
-use tokio::{
-	fs::{File, OpenOptions},
-	io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
-	sync::mpsc,
-	task::JoinHandle,
-};
-use tracing::{debug, trace};
+use blockstack_lib::burnchains::Txid as StacksTxId;
+use blockstack_lib::chainstate::stacks::TransactionContractCall;
+use blockstack_lib::codec::StacksMessageCodec;
+use blockstack_lib::types::chainstate::StacksAddress;
+use blockstack_lib::types::chainstate::StacksPublicKey;
 
-use crate::{
-	bitcoin_client::Client as BitcoinClient,
-	config::Config,
-	event::Event,
-	proof_data::{ProofData, ProofDataClarityValues},
-	stacks_client::{LockedClient, StacksClient},
-	state,
-	state::{DepositInfo, WithdrawalInfo},
-	task::Task,
-};
+use blockstack_lib::vm::ClarityName;
+use stacks_core::{codec::Codec, Network as StacksNetwork};
+use tokio::fs::File;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::io::BufReader;
+use tokio::io::BufWriter;
+
+use blockstack_lib::chainstate::stacks::StacksTransaction;
+use blockstack_lib::chainstate::stacks::TransactionAuth;
+use blockstack_lib::chainstate::stacks::TransactionPayload;
+use blockstack_lib::chainstate::stacks::TransactionSpendingCondition;
+use blockstack_lib::chainstate::stacks::TransactionVersion;
+use blockstack_lib::vm::types::Value;
+
+use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
+use tracing::debug;
+use tracing::trace;
+
+use crate::bitcoin_client::rpc::RPCClient as BitcoinRPCClient;
+use crate::bitcoin_client::BitcoinClient;
+use crate::config::Config;
+use crate::event::Event;
+use crate::proof_data::ProofData;
+use crate::proof_data::ProofDataClarityValues;
+use crate::stacks_client::LockedClient;
+use crate::stacks_client::StacksClient;
+use crate::state;
+use crate::state::DepositInfo;
+use crate::state::WithdrawalInfo;
+use crate::task::Task;
 
 /// The main run loop of this system.
 /// This function feeds all events to the `state::update` function and spawns
@@ -144,40 +153,25 @@ async fn run_task(
 	stacks_client: LockedClient,
 	task: Task,
 ) -> Event {
-	match task {
-		Task::GetContractBlockHeight => {
-			get_contract_block_height(config, stacks_client).await
-		}
-		Task::CreateMint(deposit_info) => {
-			mint_asset(config, bitcoin_client, stacks_client, deposit_info)
-				.await
-		}
-		Task::CreateBurn(withdrawal_info) => {
-			burn_asset(config, bitcoin_client, stacks_client, withdrawal_info)
-				.await
-		}
-		Task::CreateFulfillment(fulfillment_info) => {
-			fulfill_asset(
-				config,
-				bitcoin_client,
-				stacks_client,
-				fulfillment_info,
-			)
-			.await
-		}
-		Task::CheckBitcoinTransactionStatus(txid) => {
-			check_bitcoin_transaction_status(config, bitcoin_client, txid).await
-		}
-		Task::CheckStacksTransactionStatus(txid) => {
-			check_stacks_transaction_status(stacks_client, txid).await
-		}
-		Task::FetchStacksBlock(block_height) => {
-			fetch_stacks_block(stacks_client, block_height).await
-		}
-		Task::FetchBitcoinBlock(block_height) => {
-			fetch_bitcoin_block(bitcoin_client, block_height).await
-		}
-	}
+    match task {
+        Task::GetContractBlockHeight => get_contract_block_height(config, stacks_client).await,
+        Task::CreateMint(deposit_info) => {
+            mint_asset(config, bitcoin_client, stacks_client, deposit_info).await
+        }
+        Task::CreateBurn(withdrawal_info) => {
+            burn_asset(config, bitcoin_client, stacks_client, withdrawal_info).await
+        }
+        Task::CheckBitcoinTransactionStatus(txid) => {
+            check_bitcoin_transaction_status(config, txid).await
+        }
+        Task::CheckStacksTransactionStatus(txid) => {
+            check_stacks_transaction_status(stacks_client, txid).await
+        }
+        Task::FetchBitcoinBlock(block_height) => {
+            fetch_bitcoin_block(bitcoin_client, block_height).await
+        }
+        _ => panic!(),
+    }
 }
 
 async fn get_contract_block_height(
@@ -207,12 +201,12 @@ async fn mint_asset(
 	stacks_client: LockedClient,
 	deposit_info: DepositInfo,
 ) -> Event {
-	let proof_data = get_tx_proof(
-		&bitcoin_client,
-		deposit_info.block_height,
-		deposit_info.txid,
-	)
-	.await;
+    let proof_data = get_tx_proof(
+        &bitcoin_client,
+        deposit_info.block_height,
+        deposit_info.txid,
+    )
+    .await;
 
 	let public_key = StacksPublicKey::from_slice(
 		&config.stacks_credentials.public_key().serialize(),
@@ -247,12 +241,12 @@ async fn mint_asset(
 			function_args,
 		});
 
-	let tx_version = match config.stacks_network {
-		StacksNetwork::Mainnet => TransactionVersion::Mainnet,
-		StacksNetwork::Testnet => TransactionVersion::Testnet,
-	};
+    let tx_version = match config.stacks_network {
+        StacksNetwork::Mainnet => TransactionVersion::Mainnet,
+        StacksNetwork::Testnet => TransactionVersion::Testnet,
+    };
 
-	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
+    let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
 	let txid = stacks_client
 		.lock()
@@ -265,129 +259,86 @@ async fn mint_asset(
 }
 
 async fn burn_asset(
-	config: &Config,
-	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
-	withdrawal_info: WithdrawalInfo,
+    config: &Config,
+    bitcoin_client: impl BitcoinClient,
+    stacks_client: LockedClient,
+    withdrawal_info: WithdrawalInfo,
 ) -> Event {
-	let proof_data = get_tx_proof(
-		&bitcoin_client,
-		withdrawal_info.block_height,
-		withdrawal_info.txid,
-	)
-	.await;
+    let proof_data = get_tx_proof(
+        &bitcoin_client,
+        withdrawal_info.block_height,
+        withdrawal_info.txid,
+    )
+    .await;
 
-	let public_key = StacksPublicKey::from_slice(
-		&config.stacks_credentials.public_key().serialize(),
-	)
-	.unwrap();
+    let public_key =
+        StacksPublicKey::from_slice(&config.stacks_credentials.public_key().serialize()).unwrap();
 
-	let tx_auth = TransactionAuth::Standard(
-		TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
-	);
+    let tx_auth = TransactionAuth::Standard(
+        TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
+    );
 
-	let function_args = vec![
-		Value::UInt(withdrawal_info.amount as u128),
-		Value::from(withdrawal_info.source.clone()),
-		proof_data.txid,
-		proof_data.block_height,
-		proof_data.merkle_path,
-		proof_data.tx_index,
-		proof_data.merkle_tree_depth,
-		proof_data.block_header,
-	];
+    let function_args = vec![
+        Value::UInt(withdrawal_info.amount as u128),
+        Value::from(withdrawal_info.source.clone()),
+        proof_data.txid,
+        proof_data.block_height,
+        proof_data.merkle_path,
+        proof_data.tx_index,
+        proof_data.merkle_tree_depth,
+        proof_data.block_header,
+    ];
 
-	let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
-		config.stacks_credentials.address().serialize_to_vec(),
-	))
-	.unwrap();
+    let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
+        config.stacks_credentials.address().serialize_to_vec(),
+    ))
+    .unwrap();
 
-	let tx_payload =
-		TransactionPayload::ContractCall(TransactionContractCall {
-			address: addr,
-			contract_name: config.contract_name.clone(),
-			function_name: ClarityName::from("burn"),
-			function_args,
-		});
+    let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
+        address: addr,
+        contract_name: config.contract_name.clone(),
+        function_name: ClarityName::from("burn"),
+        function_args,
+    });
 
-	let tx_version = match config.stacks_network {
-		StacksNetwork::Mainnet => TransactionVersion::Mainnet,
-		StacksNetwork::Testnet => TransactionVersion::Testnet,
-	};
+    let tx_version = match config.stacks_network {
+        StacksNetwork::Mainnet => TransactionVersion::Mainnet,
+        StacksNetwork::Testnet => TransactionVersion::Testnet,
+    };
 
-	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
+    let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
-	let txid = stacks_client
-		.lock()
-		.await
-		.sign_and_broadcast(tx)
-		.await
-		.expect("Unable to sign and broadcast the mint transaction");
+    let txid = stacks_client
+        .lock()
+        .await
+        .sign_and_broadcast(tx)
+        .await
+        .expect("Unable to sign and broadcast the mint transaction");
 
-	Event::BurnBroadcasted(withdrawal_info, txid)
-}
-
-async fn fulfill_asset(
-	config: &Config,
-	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
-	withdrawal_info: WithdrawalInfo,
-) -> Event {
-	let stacks_chain_tip = stacks_client
-		.lock()
-		.await
-		.get_block_hash_from_bitcoin_height(withdrawal_info.block_height)
-		.await
-		.expect("Unable to get stacks block hash");
-
-	let outputs = create_outputs(
-		BlockId::new(stacks_chain_tip),
-		config.bitcoin_network,
-		&withdrawal_info.recipient,
-		withdrawal_info.amount,
-	)
-	.expect("Could not create withdrawal fulfillment outputs");
-
-	let txid = bitcoin_client
-		.sign_and_broadcast(outputs.to_vec())
-		.await
-		.expect(
-		"Unable to sign and broadcast the withdrawal fulfillment transaction",
-	);
-
-	Event::FulfillBroadcasted(withdrawal_info, txid)
+    Event::BurnBroadcasted(withdrawal_info, txid)
 }
 
 async fn get_tx_proof(
-	bitcoin_client: &BitcoinClient,
-	height: u32,
-	txid: BitcoinTxId,
+    bitcoin_client: &impl BitcoinClient,
+    height: u32,
+    txid: BitcoinTxId,
 ) -> ProofDataClarityValues {
-	let (_, block) = bitcoin_client
-		.get_block(height)
-		.await
-		.expect("Failed to fetch block");
+    let (_, block) = bitcoin_client
+        .fetch_block(height)
+        .await
+        .expect("Failed to fetch block");
 
-	let index = block
-		.txdata
-		.iter()
-		.position(|tx| tx.txid() == txid)
-		.expect("Failed to find transaction in block");
+    let index = block
+        .txdata
+        .iter()
+        .position(|tx| tx.txid() == txid)
+        .expect("Failed to find transaction in block");
 
-	ProofData::from_block_and_index(&block, index).to_values()
+    ProofData::from_block_and_index(&block, index).to_values()
 }
 
-async fn check_bitcoin_transaction_status(
-	_config: &Config,
-	client: BitcoinClient,
-	txid: BitcoinTxId,
-) -> Event {
-	let status = client
-		.get_tx_status(txid)
-		.await
-		.expect("Could not get Bitcoin transaction status");
-
-	Event::BitcoinTransactionUpdate(txid, status)
+async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {
+    todo!();
 }
 
 async fn check_stacks_transaction_status(

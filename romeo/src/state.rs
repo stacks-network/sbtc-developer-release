@@ -115,21 +115,89 @@ struct Withdrawal {
 /// Relevant information for processing withdrawals
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct WithdrawalInfo {
-	/// ID of the bitcoin withdrawal request transaction
-	pub txid: BitcoinTxId,
+    /// ID of the bitcoin withdrawal request transaction
+    pub txid: BitcoinTxId,
 
-	/// Amount to withdraw
-	pub amount: u64,
+    /// Amount to withdraw
+    pub amount: u64,
 
-	/// Where to withdraw sBTC from
-	pub source: PrincipalData,
+    /// Where to withdraw sBTC from
+    pub source: PrincipalData,
 
-	/// Recipient of the BTC
-	pub recipient: BitcoinAddress,
+    /// Recipient of the BTC
+    pub recipient: BitcoinAddress,
 
-	/// Height of the Bitcoin blockchain where this withdrawal request
-	/// transaction exists
-	pub block_height: u32,
+    /// Height of the Bitcoin blockchain where this withdrawal request
+    /// transaction exists
+    pub block_height: u32,
+}
+
+impl Withdrawal {
+    fn burn(&mut self) -> Option<Task> {
+        match self.burn.as_mut() {
+            None => {
+                self.burn = Some(TransactionRequest::Created);
+                Some(Task::CreateBurn(self.info.clone()))
+            }
+            Some(TransactionRequest::Created)
+            | Some(TransactionRequest::Acknowledged {
+                status: TransactionStatus::Confirmed,
+                ..
+            }) => None,
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Broadcasted,
+                has_pending_task,
+            }) => {
+                if !*has_pending_task {
+                    *has_pending_task = true;
+                    Some(Task::CheckStacksTransactionStatus(*txid))
+                } else {
+                    None
+                }
+            }
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Rejected,
+                ..
+            }) => {
+                panic!("Burn transaction rejected: {}", txid)
+            }
+        }
+    }
+
+    fn fulfillment(&mut self) -> Option<Task> {
+        match self.fulfillment.as_mut() {
+            None => {
+                self.fulfillment = Some(TransactionRequest::Created);
+                Some(Task::CreateFulfillment(self.info.clone()))
+            }
+            Some(TransactionRequest::Created)
+            | Some(TransactionRequest::Acknowledged {
+                status: TransactionStatus::Confirmed,
+                ..
+            }) => None,
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Broadcasted,
+                has_pending_task,
+            }) => {
+                if !*has_pending_task {
+                    *has_pending_task = true;
+                    Some(Task::CheckBitcoinTransactionStatus(*txid))
+                } else {
+                    None
+                }
+            }
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Rejected,
+                ..
+            }) => {
+                panic!("Fulfillment transaction rejected: {}", txid)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -319,56 +387,17 @@ fn get_bitcoin_transactions(state: &mut State) -> Vec<Task> {
 		.collect()
 }
 
-fn get_stacks_status_checks(state: &mut State) -> Vec<Task> {
-	let deposit_tasks = state.deposits.iter_mut().filter_map(|deposit| {
-		match deposit.mint.as_mut() {
-			Some(TransactionRequest::Acknowledged {
-				txid,
-				status: TransactionStatus::Broadcasted,
-				has_pending_task,
-			}) if !*has_pending_task => {
-				*has_pending_task = true;
-				Some(Task::CheckStacksTransactionStatus(*txid))
-			}
-			_ => None,
-		}
-	});
+    let fulfillment_tasks: Vec<_> = state
+        .withdrawals
+        .iter_mut()
+        .filter_map(|withdrawal| withdrawal.fulfillment())
+        .collect();
 
-	let withdrawal_tasks =
-		state
-			.withdrawals
-			.iter_mut()
-			.filter_map(|withdrawal| match withdrawal.burn.as_mut() {
-				Some(TransactionRequest::Acknowledged {
-					txid,
-					status: TransactionStatus::Broadcasted,
-					has_pending_task,
-				}) if !*has_pending_task => {
-					*has_pending_task = true;
-					Some(Task::CheckStacksTransactionStatus(*txid))
-				}
-				_ => None,
-			});
+	tasks.extend(mint_tasks);
+	tasks.extend(burn_tasks);
+	tasks.extend(fulfillment_tasks);
 
-	deposit_tasks.chain(withdrawal_tasks).collect()
-}
-
-fn get_bitcoin_status_checks(state: &mut State) -> Vec<Task> {
-	state
-		.withdrawals
-		.iter_mut()
-		.filter_map(|withdrawal| match withdrawal.fulfillment.as_mut() {
-			Some(TransactionRequest::Acknowledged {
-				txid,
-				status: TransactionStatus::Broadcasted,
-				has_pending_task,
-			}) if !*has_pending_task => {
-				*has_pending_task = true;
-				Some(Task::CheckBitcoinTransactionStatus(*txid))
-			}
-			_ => None,
-		})
-		.collect()
+	tasks
 }
 
 fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
@@ -430,12 +459,13 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
                             &mut Cursor::new(drawee_stacks_address.serialize_to_vec()),
                         )
                         .unwrap();
+                        let source = PrincipalData::from(blockstack_lib_address);
 
                         Withdrawal {
                             info: WithdrawalInfo {
                                 txid,
                                 amount,
-                                source: blockstack_lib_address,
+                                source,
                                 recipient: payee_bitcoin_address,
                                 block_height,
                             },
