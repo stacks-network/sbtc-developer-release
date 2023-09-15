@@ -110,29 +110,87 @@ struct Withdrawal {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WithdrawalInfo {
     /// ID of the bitcoin withdrawal request transaction
-    txid: BitcoinTxId,
+    pub txid: BitcoinTxId,
 
     /// Amount to withdraw
-    amount: u64,
+    pub amount: u64,
 
     /// Where to withdraw sBTC from
-    source: StacksAddress,
+    pub source: PrincipalData,
 
     /// Recipient of the BTC
-    recipient: BitcoinAddress,
+    pub recipient: BitcoinAddress,
 
     /// Height of the Bitcoin blockchain where this withdrawal request
     /// transaction exists
-    block_height: u32,
+    pub block_height: u32,
 }
 
 impl Withdrawal {
     fn burn(&mut self) -> Option<Task> {
-        todo!();
+        match self.burn.as_mut() {
+            None => {
+                self.burn = Some(TransactionRequest::Created);
+                Some(Task::CreateBurn(self.info.clone()))
+            }
+            Some(TransactionRequest::Created)
+            | Some(TransactionRequest::Acknowledged {
+                status: TransactionStatus::Confirmed,
+                ..
+            }) => None,
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Broadcasted,
+                has_pending_task,
+            }) => {
+                if !*has_pending_task {
+                    *has_pending_task = true;
+                    Some(Task::CheckStacksTransactionStatus(*txid))
+                } else {
+                    None
+                }
+            }
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Rejected,
+                ..
+            }) => {
+                panic!("Burn transaction rejected: {}", txid)
+            }
+        }
     }
 
-    fn fulfill(&mut self) -> Option<Task> {
-        todo!();
+    fn fulfillment(&mut self) -> Option<Task> {
+        match self.fulfillment.as_mut() {
+            None => {
+                self.fulfillment = Some(TransactionRequest::Created);
+                Some(Task::CreateFulfillment(self.info.clone()))
+            }
+            Some(TransactionRequest::Created)
+            | Some(TransactionRequest::Acknowledged {
+                status: TransactionStatus::Confirmed,
+                ..
+            }) => None,
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Broadcasted,
+                has_pending_task,
+            }) => {
+                if !*has_pending_task {
+                    *has_pending_task = true;
+                    Some(Task::CheckBitcoinTransactionStatus(*txid))
+                } else {
+                    None
+                }
+            }
+            Some(TransactionRequest::Acknowledged {
+                txid,
+                status: TransactionStatus::Rejected,
+                ..
+            }) => {
+                panic!("Fulfillment transaction rejected: {}", txid)
+            }
+        }
     }
 }
 
@@ -237,7 +295,7 @@ fn create_transaction_status_update_tasks(state: &mut State) -> Vec<Task> {
     let fulfillment_tasks: Vec<_> = state
         .withdrawals
         .iter_mut()
-        .filter_map(|withdrawal| withdrawal.fulfill())
+        .filter_map(|withdrawal| withdrawal.fulfillment())
         .collect();
 
     tasks.extend(mint_tasks);
@@ -301,12 +359,13 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
                             &mut Cursor::new(drawee_stacks_address.serialize_to_vec()),
                         )
                         .unwrap();
+                        let source = PrincipalData::from(blockstack_lib_address);
 
                         Withdrawal {
                             info: WithdrawalInfo {
                                 txid,
                                 amount,
-                                source: blockstack_lib_address,
+                                source,
                                 recipient: payee_bitcoin_address,
                                 block_height,
                             },

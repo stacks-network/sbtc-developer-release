@@ -13,7 +13,7 @@ pub enum Task {
     /// Create and broadcast a burn stacks transaction
     CreateBurn(state::WithdrawalInfo),
     /// Create and broadcast a fulfill bitcoin transaction
-    CreateFulfill(state::WithdrawalInfo),
+    CreateFulfillment(state::WithdrawalInfo),
 
     /// Get the block height of the contract deployment
     GetContractBlockHeight,
