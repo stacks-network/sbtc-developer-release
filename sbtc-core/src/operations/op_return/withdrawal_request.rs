@@ -80,12 +80,12 @@ use stacks_core::{
 };
 
 use crate::{
-	operations::{
-		magic_bytes,
-		op_return::utils::{build_op_return_script, reorder_outputs},
-		Opcode,
-	},
-	SBTCError, SBTCResult,
+    operations::{
+        magic_bytes,
+        op_return::utils::{build_op_return_script, reorder_outputs},
+        Opcode,
+    },
+    SBTCError, SBTCResult,
 };
 
 /// Signature prefix used by convention
@@ -171,6 +171,7 @@ impl WithdrawalRequestData {
 
 /// Construct a withdrawal request transaction
 pub fn build_withdrawal_tx(
+    wallet: &Wallet<impl BatchDatabase>,
     broadcaster_bitcoin_private_key: BitcoinPrivateKey,
     drawee_stacks_private_key: StacksPrivateKey,
     payee_bitcoin_address: BitcoinAddress,
@@ -178,8 +179,6 @@ pub fn build_withdrawal_tx(
     amount: u64,
     fulfillment_fee: u64,
 ) -> SBTCResult<Transaction> {
-    let wallet = setup_wallet(broadcaster_bitcoin_private_key)?;
-
     let mut psbt = create_psbt(
         &wallet,
         &drawee_stacks_private_key,
