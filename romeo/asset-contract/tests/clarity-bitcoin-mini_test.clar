@@ -30,7 +30,27 @@
         (merkle-root 0x15424423c2614c23aceec8d732b5330c21ff3a306f52243fbeef47a192c65c86)
         (proof {
             tx-index: u3,
-            hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8)
+            hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8),
+            tree-depth: u2})
+        )
+
+        (ok (contract-call? .clarity-bitcoin-mini verify-merkle-proof
+            hash-wtx-le
+            merkle-root
+            proof)
+        )
+    )
+)
+
+;; @name check valid verify-merkle-proof-2
+(define-public (test-verify-merkle-proof-pass-2)
+    (let (
+        (raw-wtx 0x02000000000101abb563d92ef886a675d41613c5cab151eac8aa7dc4168781daa8f0beb227b4a40100000000ffffffff02d2040000000000001600145c74e4e48fe9dd1ed747676cb9e43e40aeb398669210000000000000160014a43b692f36cb5ab3657580c96daf80f82fd5b1c70247304402204c9c4f0c4da81aea6dc9d4efa0f3c93881c0443b71362388586634edbfe7e26d02203b5c593a4e2d45f92bb8c5f469887b07cd4a06b2d2f0ee9c5587c2f71c446951012103eb16b2ab368f56f92ae70f24edc57c40519feade64d55029acecbba4ffca9b9800000000)
+        (hash-wtx-le 0x3755aa59e30e045e8e9ccc31ff8c4cbc445f804a329287073d27eed965b9e4cb)
+        (merkle-root 0x15424423c2614c23aceec8d732b5330c21ff3a306f52243fbeef47a192c65c86)
+        (proof {
+            tx-index: u3,
+            hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8),
             tree-depth: u2})
         )
 
@@ -51,7 +71,7 @@
         (merkle-root 0x15424423c2614c23aceec8d732b5330c21ff3a306f52243fbeef47a192c65c86)
         (proof {
             tx-index: u3,
-            hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8)
+            hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8),
             tree-depth: u2})
         )
 
