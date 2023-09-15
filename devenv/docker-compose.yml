@@ -156,7 +156,7 @@ services:
     environment:
       RUST_BACKTRACE: 1
     volumes:
-      - $PWD/sbtc/docker/config.json:/src/romeo/src/config.json
+      - $PWD/sbtc/docker/config.json:/romeo/config.json
   sbtc-bridge-web:
     image: sbtc-bridge-web:latest
     container_name: sbtc-bridge-web

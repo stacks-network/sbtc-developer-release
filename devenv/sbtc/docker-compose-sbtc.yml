@@ -8,4 +8,4 @@ services:
       context: ./../../
       dockerfile: ./devenv/sbtc/docker/Dockerfile
     volumes:
-      - $PWD/docker/config.json:/src/romeo/src/config.json
+      - $PWD/docker/config.json:/romeo/config.json
