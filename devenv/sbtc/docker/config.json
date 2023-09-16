@@ -1,5 +1,6 @@
 {
-  "network": "testnet",
+  "stacks_network": "testnet",
+  "bitcoin_network": "regtest",
   "state_directory": "./state",
   "wif": "YOUR_WIF_CREDENTIALS",
   "mnemonic": "YOUR_MNEMONIC_PHRASES",
