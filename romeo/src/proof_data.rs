@@ -2,8 +2,8 @@
 use bdk::bitcoin::{Block, BlockHeader, Transaction, Txid as BitcoinTxId};
 use blockstack_lib::vm::types::{ListData, ListTypeData, SequenceData, Value, BUFF_32};
 use rs_merkle::{Hasher, MerkleTree};
-use sha2::{digest::FixedOutput, Digest, Sha256};
-
+use stacks_core::crypto::sha256::DoubleSha256Hasher;
+use stacks_core::crypto::Hashing;
 /// The double sha256 algorithm used for bitcoin
 #[derive(Clone)]
 pub struct DoubleSha256Algorithm {}
@@ -12,11 +12,10 @@ impl Hasher for DoubleSha256Algorithm {
     type Hash = [u8; 32];
 
     fn hash(data: &[u8]) -> [u8; 32] {
-        let mut hasher = Sha256::new();
-        let mut hasher2 = Sha256::new();
-        hasher.update(data);
-        hasher2.update(<[u8; 32]>::from(hasher.finalize_fixed()));
-        <[u8; 32]>::from(hasher2.finalize_fixed())
+        DoubleSha256Hasher::hash(data)
+            .as_bytes()
+            .try_into()
+            .unwrap()
     }
 }
 
@@ -26,6 +25,8 @@ impl Hasher for DoubleSha256Algorithm {
 pub struct ProofData {
     /// The reversed transaction id of the bitcoin transaction
     /// in little endian format
+    /// as it is produced by bdk crate.
+    /// It is the reversed txid of the one seen in explorers.
     pub reversed_txid: BitcoinTxId,
     /// The index of the bitcoin transaction in the block
     pub tx_index: u32,
@@ -125,7 +126,7 @@ impl ProofData {
                 data: self
                     .merkle_path
                     .iter()
-                    .map(|v| Value::buff_from(v.to_vec()).unwrap())
+                    .map(|v| Value::buff_from(v.clone()).unwrap())
                     .collect(),
                 type_signature: ListTypeData::new_list(BUFF_32.clone(), 14).unwrap(),
             })),
