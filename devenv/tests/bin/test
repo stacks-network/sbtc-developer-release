@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -ueo >/dev/null
+
+project_name() {
+    local input="$1"
+    local filter="${input//[![:alnum:]]/_}"
+    echo "$filter"
+}
+
+filters=("package(romeo)" "test(deposit_parse)" "test(deposit_output)")
+filter_union=""
+ids=()
+projects=()
+
+for filter in "${filters[@]}"; do
+    project=$(project_name $filter)
+    echo Working project: $project
+    projects+=($project)
+
+    ./tests/bin/down docker-compose.yml $project
+    ./tests/bin/up docker-compose.yml $project
+
+    network=${project}_default
+    id=$(docker run -td --network $network -e PROJECT_NAME=$project testbed "$filter")
+    ids+=($id)
+    echo with container id: $id
+
+    if [ -z "$filter_union" ]; then
+        filter_union=$filter
+    else
+        filter_union="$filter_union | $filter"
+    fi
+
+done
+
+project="remainder--"
+echo Working project: $project
+projects+=($project)
+
+./tests/bin/down docker-compose.yml $project
+./tests/bin/up docker-compose.yml $project
+
+network=${project}_default
+id=($(docker run -td --network $network -e PROJECT_NAME=$project testbed "not ($filter_union)"))
+ids+=($id)
+echo with container id: $id
+
+for id in ${ids[@]}; do
+    exit_code=$(docker wait $id)
+    echo Runner: $id exited with err_no: $exit_code
+    if [ $exit_code -ne 0 ]; then
+        docker logs -f $id
+        exit $exit_code
+    fi
+done
+
+for project in ${projects[@]}; do
+    ./tests/bin/down docker-compose.yml $project
+done

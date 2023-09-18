@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+if [ -z "$2" ]; then
+    echo "Use: up <full-node-compose.yml> <project_name>"
+    exit 1
+fi
+
+docker compose -f $1 -p $2 up -d --remove-orphans
