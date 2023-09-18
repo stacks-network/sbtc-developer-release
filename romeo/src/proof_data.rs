@@ -202,7 +202,10 @@ mod tests {
         assert_eq!(values.block_header.to_string(), "0x0200000035ab154183570282ce9afc0b494c9fc6a3cfea05aa8c1add2ecc56490000000038ba3d78e4500a5a7570dbe61960398add4410d278b21cd9708e6d9743f374d544fc055227f1001c29c1ea3b");
         assert_eq!(values.block_height.to_string(), "u100000");
         assert_eq!(values.merkle_tree_depth.to_string(), "u1");
-        assert_eq!(values.merkle_path.to_string(), "0xd6141b363505039cdb97b4552766872ad925b63be83cbb4bc286fe9970362242");
+        assert_eq!(
+            values.merkle_path.to_string(),
+            "0xd6141b363505039cdb97b4552766872ad925b63be83cbb4bc286fe9970362242"
+        );
     }
 
     // test from_block_and_index returns correct proof
