@@ -12,4 +12,4 @@ export type Real = {
   chain: Chain;
 };
 
-export type RomeoCommand = fc.Command<Stub, Real>;
+export type AssetCommand = fc.Command<Stub, Real>;

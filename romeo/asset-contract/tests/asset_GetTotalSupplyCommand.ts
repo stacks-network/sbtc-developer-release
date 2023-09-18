@@ -1,8 +1,8 @@
-import { Real, Stub, RomeoCommand } from "./RomeoCommandModel.ts";
+import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
 
 import { Account, Tx } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
 
-export class RomeoGetTotalSupplyCommand implements RomeoCommand {
+export class GetTotalSupplyCommand implements AssetCommand {
   readonly sender: Account;
 
   constructor(

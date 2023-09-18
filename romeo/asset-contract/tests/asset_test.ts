@@ -127,18 +127,18 @@ Clarinet.test({
   },
 });
 
-import { RomeoCommands } from "./RomeoCommands.ts";
+import { AssetCommands } from "./asset_Commands.ts";
 
 Clarinet.test({
   name: "asset.clar: Invariant tests",
   fn(chain: Chain, accounts: Map<string, Account>) {
     const initialChain = { chain: chain };
     const initialModel = {
-      wallets: new Map<string, number>()
+      wallets: new Map<string, number>(),
     };
     fc.assert(
       fc.property(
-        RomeoCommands(accounts),
+        AssetCommands(accounts),
         (cmds: []) => {
           const initialState = () => ({
             model: initialModel,

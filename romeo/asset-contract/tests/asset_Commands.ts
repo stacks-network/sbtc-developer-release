@@ -2,39 +2,39 @@ import { Account } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
 
 import fc from "https://cdn.skypack.dev/fast-check@3";
 
-import { RomeoGetBalanceCommand } from "./RomeoGetBalanceCommand.ts";
-import { RomeoGetTotalSupplyCommand } from "./RomeoGetTotalSupplyCommand.ts";
-import { RomeoMintCommand } from "./RomeoMintCommand.ts";
-import { RomeoTransferCommand } from "./RomeoTransferCommand.ts";
-import { RomeoTransferCommand_NonOwner } from "./RomeoTransferCommand_NonOwner.ts";
+import { GetBalanceCommand } from "./asset_GetBalanceCommand.ts";
+import { GetTotalSupplyCommand } from "./asset_GetTotalSupplyCommand.ts";
+import { MintCommand } from "./asset_MintCommand.ts";
+import { TransferCommand } from "./asset_TransferCommand.ts";
+import { TransferCommand_NonOwner } from "./asset_TransferCommand_NonOwner.ts";
 
-export function RomeoCommands(accounts: Map<string, Account>) {
+export function AssetCommands(accounts: Map<string, Account>) {
   const cmds = [
-    // RomeoGetBalanceCommand
+    // GetBalanceCommand
     fc
       .record({
         sender: fc.constantFrom(...accounts.values()),
         wallet: fc.constantFrom(...accounts.values()),
       })
       .map((r: { sender: Account; wallet: Account }) =>
-        new RomeoGetBalanceCommand(
+        new GetBalanceCommand(
           r.sender,
           r.wallet,
         )
       ),
 
-    // RomeoGetTotalSupplyCommand
+    // GetTotalSupplyCommand
     fc
       .record({
         sender: fc.constantFrom(...accounts.values()),
       })
       .map((r: { sender: Account; wallet: Account }) =>
-        new RomeoGetTotalSupplyCommand(
+        new GetTotalSupplyCommand(
           r.sender,
         )
       ),
 
-    // RomeoMintCommand
+    // MintCommand
     fc
       .record({
         sender: fc.constant(accounts.get("deployer")!),
@@ -42,6 +42,8 @@ export function RomeoCommands(accounts: Map<string, Account>) {
         wallet: fc.constantFrom(...accounts.values()).filter((a: Account) =>
           a.address !== accounts.get("deployer")!.address
         ),
+        // FIXME: Generate random depositTx, burnChainHeight, merkleProof, txIndex, treeDepth, blockHeader, blockHeaderHash.
+        // https://github.com/stacks-network/sbtc/issues/146
         depositTx: fc.constant(
           hexStringToUint8Array(
             "0x0168ee41db8a4766efe02bba1ebc0de320bc1b0abb7304f5f104818a9dd721cf",
@@ -80,7 +82,7 @@ export function RomeoCommands(accounts: Map<string, Account>) {
           blockHeaderHash: Uint8Array;
         },
       ) =>
-        new RomeoMintCommand(
+        new MintCommand(
           r.sender,
           r.amount,
           r.wallet,
@@ -94,7 +96,7 @@ export function RomeoCommands(accounts: Map<string, Account>) {
         )
       ),
 
-    // RomeoTransferCommand
+    // TransferCommand
     fc
       .record({
         sender: fc.constantFrom(...accounts.values()),
@@ -108,7 +110,7 @@ export function RomeoCommands(accounts: Map<string, Account>) {
           wallet: Account;
         },
       ) =>
-        new RomeoTransferCommand(
+        new TransferCommand(
           r.sender,
           r.amount,
           r.wallet,
@@ -130,7 +132,7 @@ export function RomeoCommands(accounts: Map<string, Account>) {
           wallet: Account;
         },
       ) =>
-        new RomeoTransferCommand_NonOwner(
+        new TransferCommand_NonOwner(
           r.sender,
           r.amount,
           r.holder,

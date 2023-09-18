@@ -1,4 +1,4 @@
-import { Real, Stub, RomeoCommand } from "./RomeoCommandModel.ts";
+import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
 
 import {
   Account,
@@ -6,7 +6,7 @@ import {
   types,
 } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
 
-export class RomeoTransferCommand_NonOwner implements RomeoCommand {
+export class TransferCommand_NonOwner implements AssetCommand {
   readonly sender: Account;
   readonly amount: number;
   readonly holder: Account;
