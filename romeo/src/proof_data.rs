@@ -1,5 +1,4 @@
 //! Proof Data used in Clarity Contracts
-use bdk::bitcoin::util::hash::bitcoin_merkle_root;
 use bdk::bitcoin::{Block, BlockHeader, Transaction, Txid as BitcoinTxId};
 use blockstack_lib::vm::types::{ListData, ListTypeData, SequenceData, Value, BUFF_32};
 use rs_merkle::{Hasher, MerkleTree};
@@ -82,17 +81,11 @@ impl ProofData {
         merkle_tree.commit();
         let merkle_path = merkle_tree.proof(&[index]);
 
-        let merkle_tree_depth = merkle_tree.depth();
-        println!(
-            "merkle root: {:?}",
-            hex::encode(merkle_tree.root().unwrap())
-        );
-        for l in merkle_tree.leaves().unwrap() {
-            println!("merkle leave: {:#?}", hex::encode(l));
-        }
-        println!("merkle root hex: {:#?}", merkle_tree.root_hex());
-        let bmr: BitcoinTxId = bitcoin_merkle_root(block.txdata.iter().map(|t| t.txid())).unwrap();
-        println!("bitcoin merkle root: {:?}", bmr);
+        // rs_merkle tree depth counts leaves as well
+        // we only care about the layers above
+        // therefore minus 1.
+        let merkle_tree_depth = merkle_tree.depth() - 1;
+
         Self {
             reversed_txid: tx.txid(),
             tx_index: index as u32,
@@ -136,10 +129,7 @@ impl ProofData {
                     .collect(),
                 type_signature: ListTypeData::new_list(BUFF_32.clone(), 14).unwrap(),
             })),
-            // rs_merkle tree depth counts leaves as well
-            // we only care about the layers above
-            // therefore minus 1.
-            merkle_tree_depth: Value::UInt(self.merkle_tree_depth as u128 - 1),
+            merkle_tree_depth: Value::UInt(self.merkle_tree_depth as u128),
         }
     }
 }
@@ -204,7 +194,7 @@ mod tests {
         assert_eq!(values.merkle_tree_depth.to_string(), "u1");
         assert_eq!(
             values.merkle_path.to_string(),
-            "0xd6141b363505039cdb97b4552766872ad925b63be83cbb4bc286fe9970362242"
+            "(0x38ba3d78e4500a5a7570dbe61960398add4410d278b21cd9708e6d9743f374d5)"
         );
     }
 
@@ -221,5 +211,9 @@ mod tests {
         assert_eq!(values.block_height.to_string(), "u3538");
         assert_eq!(values.merkle_tree_depth.to_string(), "u2");
         assert_eq!(values.merkle_path.to_string(), "(0x30955a1f27461b4ca06d68147a377a585d05499d186853a2e05e21cf4f9bf55f 0xb4a7cc817198247161027ab3584b0c6a1bd2f7319d6468d2c6e128ec3acb2a47)");
+        assert_eq!(
+            values.txid.to_string(),
+            "0xd564f1a4e53e7bad92f67c9a05b748e504ac1b8155db4c2d9b4ed12afd32139f"
+        )
     }
 }
