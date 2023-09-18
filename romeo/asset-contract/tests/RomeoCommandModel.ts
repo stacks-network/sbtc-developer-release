@@ -13,4 +13,3 @@ export type Real = {
 };
 
 export type RomeoCommand = fc.Command<Stub, Real>;
-
