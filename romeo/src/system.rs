@@ -159,6 +159,9 @@ async fn run_task(
         Task::CreateBurn(withdrawal_info) => {
             burn_asset(config, bitcoin_client, stacks_client, withdrawal_info).await
         }
+        Task::CreateFulfillment(fulfillment_info) => {
+            fulfill_asset(config, bitcoin_client, stacks_client, fulfillment_info).await
+        }
         Task::CheckBitcoinTransactionStatus(txid) => {
             check_bitcoin_transaction_status(config, txid).await
         }
@@ -168,7 +171,6 @@ async fn run_task(
         Task::FetchBitcoinBlock(block_height) => {
             fetch_bitcoin_block(bitcoin_client, block_height).await
         }
-        _ => panic!(),
     }
 }
 
@@ -307,6 +309,15 @@ async fn burn_asset(
         .expect("Unable to sign and broadcast the mint transaction");
 
     Event::BurnBroadcasted(withdrawal_info, txid)
+}
+
+async fn fulfill_asset(
+    _config: &Config,
+    _bitcoin_client: impl BitcoinClient,
+    _stacks_client: LockedClient,
+    _withdrawal_info: WithdrawalInfo,
+) -> Event {
+    todo!()
 }
 
 async fn get_tx_proof(
