@@ -71,7 +71,7 @@ pub struct DepositInfo {
 }
 
 impl Deposit {
-    fn request_work(&mut self) -> Option<Task> {
+    fn request_mint_work(&mut self) -> Option<Task> {
         match self.mint.as_mut() {
             None => {
                 self.mint = Some(TransactionRequest::Created);
@@ -133,7 +133,7 @@ pub struct WithdrawalInfo {
 }
 
 impl Withdrawal {
-    fn burn(&mut self) -> Option<Task> {
+    fn request_burn_work(&mut self) -> Option<Task> {
         match self.burn.as_mut() {
             None => {
                 self.burn = Some(TransactionRequest::Created);
@@ -166,7 +166,17 @@ impl Withdrawal {
         }
     }
 
-    fn fulfillment(&mut self) -> Option<Task> {
+    fn request_fulfillment_work(&mut self) -> Option<Task> {
+        if !matches!(
+            self.burn,
+            Some(TransactionRequest::Acknowledged {
+                status: TransactionStatus::Confirmed,
+                ..
+            })
+        ) {
+            return None;
+        }
+
         match self.fulfillment.as_mut() {
             None => {
                 self.fulfillment = Some(TransactionRequest::Created);
@@ -250,32 +260,25 @@ pub fn update(
 ) -> (State, Vec<Task>) {
 	debug!("Handling update");
 
-	match event {
-		Event::ContractBlockHeight(stacks_height, bitcoin_height) => {
-			process_contract_block_height(state, stacks_height, bitcoin_height)
-		}
-		Event::StacksTransactionUpdate(txid, status) => {
-			process_stacks_transaction_update(config, state, txid, status)
-		}
-		Event::BitcoinTransactionUpdate(txid, status) => {
-			process_bitcoin_transaction_update(config, state, txid, status)
-		}
-		Event::StacksBlock(height, txs) => {
-			process_stacks_block(config, state, height, txs)
-		}
-		Event::BitcoinBlock(height, block) => {
-			process_bitcoin_block(config, state, height, block)
-		}
-		Event::MintBroadcasted(deposit_info, txid) => {
-			process_mint_broadcasted(state, deposit_info, txid)
-		}
-		Event::BurnBroadcasted(withdrawal_info, txid) => {
-			process_burn_broadcasted(state, withdrawal_info, txid)
-		}
-		Event::FulfillBroadcasted(withdrawal_info, txid) => {
-			process_fulfillment_broadcasted(state, withdrawal_info, txid)
-		}
-	}
+    match event {
+        Event::ContractBlockHeight(height) => process_contract_block_height(state, height),
+        Event::StacksTransactionUpdate(txid, status) => {
+            process_stacks_transaction_update(config, state, txid, status)
+        }
+        Event::BitcoinTransactionUpdate(txid, status) => {
+            process_bitcoin_transaction_update(config, state, txid, status)
+        }
+        Event::BitcoinBlock(height, block) => process_bitcoin_block(config, state, height, block),
+        Event::MintBroadcasted(deposit_info, txid) => {
+            process_mint_broadcasted(state, deposit_info, txid)
+        }
+        Event::BurnBroadcasted(withdrawal_info, txid) => {
+            process_burn_broadcasted(state, withdrawal_info, txid)
+        }
+        Event::FulfillBroadcasted(withdrawal_info, txid) => {
+            process_fulfillment_broadcasted(state, withdrawal_info, txid)
+        }
+    }
 }
 
 fn process_contract_block_height(
@@ -358,39 +361,21 @@ fn get_stacks_transactions(state: &mut State) -> Vec<Task> {
 		}
 	});
 
-	let withdrawal_tasks =
-		state
-			.withdrawals
-			.iter_mut()
-			.filter_map(|withdrawal| match withdrawal.burn.as_mut() {
-				None => {
-					withdrawal.burn = Some(TransactionRequest::Created);
-					Some(Task::CreateBurn(withdrawal.info.clone()))
-				}
-				_ => None,
-			});
+    let mint_tasks = state
+        .deposits
+        .iter_mut()
+        .filter_map(|deposit| deposit.request_mint_work());
 
-	deposit_tasks.chain(withdrawal_tasks).collect()
-}
-
-fn get_bitcoin_transactions(state: &mut State) -> Vec<Task> {
-	state
-		.withdrawals
-		.iter_mut()
-		.filter_map(|withdrawal| match withdrawal.fulfillment.as_mut() {
-			None => {
-				withdrawal.fulfillment = Some(TransactionRequest::Created);
-				Some(Task::CreateFulfillment(withdrawal.info.clone()))
-			}
-			_ => None,
-		})
-		.collect()
-}
+    let burn_tasks: Vec<_> = state
+        .withdrawals
+        .iter_mut()
+        .filter_map(|withdrawal| withdrawal.request_burn_work())
+        .collect();
 
     let fulfillment_tasks: Vec<_> = state
         .withdrawals
         .iter_mut()
-        .filter_map(|withdrawal| withdrawal.fulfillment())
+        .filter_map(|withdrawal| withdrawal.request_fulfillment_work())
         .collect();
 
 	tasks.extend(mint_tasks);
@@ -556,7 +541,9 @@ fn process_stacks_transaction_update(
                         false
                     }
                 }
-                _ => false
+                TransactionRequest::Created => {
+                    false
+                }
             };
 
             status_updated as usize
@@ -617,51 +604,34 @@ fn process_mint_broadcasted(
 }
 
 fn process_burn_broadcasted(
-	mut state: State,
-	withdrawal_info: WithdrawalInfo,
-	txid: StacksTxId,
+    mut state: State,
+    withdrawal_info: WithdrawalInfo,
+    txid: StacksTxId,
 ) -> (State, Vec<Task>) {
-	let withdrawal = state
-		.withdrawals
-		.iter_mut()
-		.find(|withdrawal| withdrawal.info == withdrawal_info)
-		.expect("Could not find a withdrawal for the burn");
+    let withdrawal = state
+        .withdrawals
+        .iter_mut()
+        .find(|withdrawal| withdrawal.info == withdrawal_info)
+        .expect("Could not find a withdrawal for the burn");
 
-	assert!(
-		matches!(withdrawal.burn, Some(TransactionRequest::Created)),
-		"Newly burned withdrawal already has a burn acknowledged"
-	);
+    assert!(
+        matches!(withdrawal.burn, Some(TransactionRequest::Created)),
+        "Newly burned deposit already has a burn acknowledged"
+    );
 
-	withdrawal.burn = Some(TransactionRequest::Acknowledged {
-		txid,
-		status: TransactionStatus::Broadcasted,
-		has_pending_task: false,
-	});
+    withdrawal.burn = Some(TransactionRequest::Acknowledged {
+        txid,
+        status: TransactionStatus::Broadcasted,
+        has_pending_task: false,
+    });
 
-	(state, vec![])
+    (state, vec![])
 }
 
 fn process_fulfillment_broadcasted(
-	mut state: State,
-	withdrawal_info: WithdrawalInfo,
-	txid: BitcoinTxId,
+    mut _state: State,
+    _deposit_info: WithdrawalInfo,
+    _txid: BitcoinTxId,
 ) -> (State, Vec<Task>) {
-	let withdrawal = state
-		.withdrawals
-		.iter_mut()
-		.find(|withdrawal| withdrawal.info == withdrawal_info)
-		.expect("Could not find a withdrawal for the fulfillment");
-
-	assert!(
-		matches!(withdrawal.fulfillment, Some(TransactionRequest::Created)),
-		"Newly fulfilled withdrawal already has a fulfillment acknowledged"
-	);
-
-	withdrawal.fulfillment = Some(TransactionRequest::Acknowledged {
-		txid,
-		status: TransactionStatus::Broadcasted,
-		has_pending_task: false,
-	});
-
-	(state, vec![])
+    todo!()
 }

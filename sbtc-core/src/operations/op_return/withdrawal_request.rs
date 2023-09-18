@@ -180,7 +180,7 @@ pub fn build_withdrawal_tx(
     fulfillment_fee: u64,
 ) -> SBTCResult<Transaction> {
     let mut psbt = create_psbt(
-        &wallet,
+        wallet,
         &drawee_stacks_private_key,
         &payee_bitcoin_address,
         &peg_wallet_bitcoin_address,
