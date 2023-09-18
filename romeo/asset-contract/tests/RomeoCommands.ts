@@ -4,6 +4,8 @@ import fc from "https://cdn.skypack.dev/fast-check@3";
 
 import { RomeoGetBalanceCommand } from "./RomeoGetBalanceCommand.ts";
 import { RomeoGetTotalSupplyCommand } from "./RomeoGetTotalSupplyCommand.ts";
+import { RomeoTransferCommand } from "./RomeoTransferCommand.ts";
+import { RomeoTransferCommand_NonOwner } from "./RomeoTransferCommand_NonOwner.ts";
 
 export function RomeoCommands(accounts: Map<string, Account>) {
   const cmds = [
@@ -28,6 +30,50 @@ export function RomeoCommands(accounts: Map<string, Account>) {
       .map((r: { sender: Account; wallet: Account }) =>
         new RomeoGetTotalSupplyCommand(
           r.sender,
+        )
+      ),
+
+    // RomeoTransferCommand
+    fc
+      .record({
+        sender: fc.constantFrom(...accounts.values()),
+        amount: fc.integer({ min: 1 }),
+        wallet: fc.constantFrom(...accounts.values()),
+      })
+      .map((
+        r: {
+          sender: Account;
+          amount: number;
+          wallet: Account;
+        },
+      ) =>
+        new RomeoTransferCommand(
+          r.sender,
+          r.amount,
+          r.wallet,
+        )
+      ),
+
+      fc
+      .record({
+        sender: fc.constantFrom(...accounts.values()),
+        amount: fc.integer({ min: 1 }),
+        holder: fc.constantFrom(...accounts.values()),
+        wallet: fc.constantFrom(...accounts.values()),
+      })
+      .map((
+        r: {
+          sender: Account;
+          amount: number;
+          holder: Account;
+          wallet: Account;
+        },
+      ) =>
+        new RomeoTransferCommand_NonOwner(
+          r.sender,
+          r.amount,
+          r.holder,
+          r.wallet,
         )
       ),
   ];
