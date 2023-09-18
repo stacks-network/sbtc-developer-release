@@ -126,3 +126,28 @@ Clarinet.test({
     ));
   },
 });
+
+import { RomeoCommands } from "./RomeoCommands.ts";
+
+Clarinet.test({
+  name: "asset.clar: Invariant tests",
+  fn(chain: Chain, accounts: Map<string, Account>) {
+    const initialChain = { chain: chain };
+    const initialModel = {
+      wallets: new Map<string, number>()
+    };
+    fc.assert(
+      fc.property(
+        RomeoCommands(accounts),
+        (cmds: []) => {
+          const initialState = () => ({
+            model: initialModel,
+            real : initialChain,
+          });
+          fc.modelRun(initialState, cmds);
+        },
+      ),
+      { numRuns: 1, verbose: true },
+    );
+  },
+});
