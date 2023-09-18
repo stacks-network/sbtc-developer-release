@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+set -ueo >/dev/null
+
+STACKS=$PROJECT_NAME-stacks-1
+API_URL=http://$STACKS:20443/v2/info
+
+# makes sure the node is ready before proceeding
+# stacks node get info
+echo "Waiting on Stacks API"
+while ! curl -s $API_URL >/dev/null; do
+    sleep 1
+done
+
+DEV_READY_HEIGHT=205
+
+# bitcoind get info
+echo "Waiting on burn block height $DEV_READY_HEIGHT"
+while [ "$(curl -s $API_URL | jq '.burn_block_height')" -lt $DEV_READY_HEIGHT ]; do
+    sleep 2
+done
+# any other service checks
+
+echo with filter: "'$@'"
+cargo nextest run -E "$@"
