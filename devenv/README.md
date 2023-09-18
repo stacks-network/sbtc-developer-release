@@ -57,6 +57,7 @@ There is a helper script at the top level directory to facilitate logging:
 ./log stacks-api
 ./log stacks-explorer
 ./log postgres
+./log mongodb
 ./log miner
 ./log sbtc
 ./log electrs
