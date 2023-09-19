@@ -10,6 +10,8 @@ use blockstack_lib::types::chainstate::StacksAddress;
 use blockstack_lib::types::chainstate::StacksPublicKey;
 
 use blockstack_lib::vm::ClarityName;
+use sbtc_core::operations::op_return::withdrawal_fulfillment::create_outputs;
+use stacks_core::BlockId;
 use stacks_core::{codec::Codec, Network as StacksNetwork};
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -49,11 +51,11 @@ use crate::task::Task;
 ///
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
-	let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-	let bitcoin_client = BitcoinRPCClient::new(config.bitcoin_node_url.clone())
-		.expect("Failed to instantiate bitcoin client");
-	let stacks_client: LockedClient =
-		StacksClient::new(config.clone(), reqwest::Client::new()).into();
+    let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
+    let bitcoin_client =
+        BitcoinRPCClient::new(config.clone()).expect("Failed to instantiate bitcoin client");
+    let stacks_client: LockedClient =
+        StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
 	tracing::info!("Starting replay of persisted events");
 	let (mut storage, state) =
@@ -321,12 +323,32 @@ async fn burn_asset(
 }
 
 async fn fulfill_asset(
-    _config: &Config,
-    _bitcoin_client: impl BitcoinClient,
-    _stacks_client: LockedClient,
-    _withdrawal_info: WithdrawalInfo,
+    config: &Config,
+    bitcoin_client: impl BitcoinClient,
+    stacks_client: LockedClient,
+    withdrawal_info: WithdrawalInfo,
 ) -> Event {
-    todo!()
+    let stacks_chain_tip = stacks_client
+        .lock()
+        .await
+        .get_block_hash(withdrawal_info.block_height)
+        .await
+        .expect("Unable to get stacks block hash");
+
+    let outputs = create_outputs(
+        BlockId::new(stacks_chain_tip),
+        config.bitcoin_network,
+        &withdrawal_info.recipient,
+        withdrawal_info.amount,
+    )
+    .expect("Could not create withdrawal fulfillment outputs");
+
+    let txid = bitcoin_client
+        .sign_and_broadcast(outputs.to_vec())
+        .await
+        .expect("Unable to sign and broadcast the withdrawal fulfillment transaction");
+
+    Event::FulfillBroadcasted(withdrawal_info, txid)
 }
 
 async fn get_tx_proof(
