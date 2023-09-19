@@ -114,18 +114,18 @@ impl StacksClient {
         })
 	}
 
-	/// Sign and broadcast an unsigned stacks transaction
-	pub async fn sign_and_broadcast(
-		&mut self,
-		mut tx: StacksTransaction,
-	) -> anyhow::Result<StacksTxId> {
-		#[cfg(debug_assertions)]
-		{
-			sleep(Duration::from_secs(3)).await;
-		}
+    /// Sign and broadcast an unsigned stacks transaction
+    pub async fn sign_and_broadcast(
+        &mut self,
+        mut tx: StacksTransaction,
+    ) -> anyhow::Result<StacksTxId> {
+        #[cfg(debug_assertions)]
+        {
+            sleep(Duration::from_secs(3)).await;
+        }
 
-		tx.set_origin_nonce(self.get_nonce_info().await?.possible_next_nonce);
-		tx.set_tx_fee(self.calculate_fee(tx.tx_len()).await?);
+        tx.set_origin_nonce(self.get_nonce_info().await?.possible_next_nonce);
+        tx.set_tx_fee(self.calculate_fee(tx.tx_len()).await?);
 
 		tx.anchor_mode = TransactionAnchorMode::Any;
 		tx.post_condition_mode = TransactionPostConditionMode::Allow;
