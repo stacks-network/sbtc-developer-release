@@ -116,7 +116,7 @@
 ;; @name User can transfer tokens owned by contract
 ;; @caller wallet_1
 (define-public (test-transfer-contract)
-	(distribute-tokens u100 (as-contract tx-sender) wallet-2)
+	(as-contract (distribute-tokens u100 tx-sender wallet-2))
 )
 
 (define-public (distribute-tokens (amount uint) (from principal) (to principal))
@@ -163,7 +163,7 @@
 ;; @caller deployer
 (define-public (test-set-valid-owner)
 (begin
-    (try! (contract-call? .asset set-new-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y))
+    (try! (contract-call? .asset set-contract-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y))
     ;; Check new owner set
     (asserts! (is-eq (contract-call? .asset get-contract-owner) 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y) (err u100))
 	(ok true)
@@ -173,5 +173,5 @@
 ;; @name Try to set owner without being current owner
 ;; @caller wallet_1
 (define-public (test-set-invalid-owner)
-	(assert-eq (contract-call? .asset set-new-owner wallet-2) err-forbidden "Should have failed")
+	(assert-eq (contract-call? .asset set-contract-owner wallet-2) err-forbidden "Should have failed")
 )

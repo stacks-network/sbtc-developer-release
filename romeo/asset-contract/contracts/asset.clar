@@ -24,7 +24,9 @@
 
 ;; public functions
 ;;
-(define-public (set-new-owner (new-owner principal))
+
+;; #[allow(unchecked_data)]
+(define-public (set-contract-owner (new-owner principal))
   (begin
     (asserts! (is-contract-owner) err-forbidden)
     (var-set contract-owner new-owner)
@@ -36,14 +38,6 @@
     (begin
     (asserts! (is-contract-owner) err-forbidden)
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
-    )
-)
-
-;; #[allow(unchecked_data)]
-(define-public (set-contract-owner (new-owner principal))
-    (begin
-        (asserts! (is-contract-owner) err-forbidden)
-        (ok (var-set contract-owner new-owner))
     )
 )
 
@@ -87,7 +81,7 @@
 ;; #[allow(unchecked_data)]
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-        (asserts! (is-eq sender contract-caller) err-forbidden)
+        (asserts! (is-eq sender tx-sender) err-forbidden)
 		(asserts! (> amount u0) err-bad-request)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
