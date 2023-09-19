@@ -169,3 +169,9 @@
 	(ok true)
 	)
 )
+
+;; @name Try to set owner without being current owner
+;; @caller wallet_1
+(define-public (test-set-invalid-owner)
+	(assert-eq (contract-call? .asset set-contract-owner wallet-2) err-forbidden "Should have failed")
+)
