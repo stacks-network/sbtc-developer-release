@@ -4,3 +4,4 @@ coverage
 romeo/testing/
 romeo/asset-contract/.test
 romeo/asset-contract/.coverage
+**/romeo.log
