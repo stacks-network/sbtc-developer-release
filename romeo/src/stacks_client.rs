@@ -81,7 +81,6 @@ impl StacksClient {
         serde_json::from_str(&body).map_err(|err| {
             let error_details = serde_json::from_str::<Value>(&body).ok().map(|details| {
                 let error = details["error"].as_str();
-
                 let reason = details["reason"].as_str();
 
                 format!(
@@ -110,6 +109,11 @@ impl StacksClient {
         &mut self,
         mut tx: StacksTransaction,
     ) -> anyhow::Result<StacksTxId> {
+        #[cfg(debug_assertions)]
+        {
+            sleep(Duration::from_secs(3)).await;
+        }
+
         tx.set_origin_nonce(self.get_nonce_info().await?.possible_next_nonce);
         tx.set_tx_fee(self.calculate_fee(tx.tx_len()).await?);
 
