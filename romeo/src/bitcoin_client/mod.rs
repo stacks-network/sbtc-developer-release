@@ -3,7 +3,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use bdk::bitcoin::{Block, Transaction, Txid};
+use bdk::bitcoin::{Block, Script, Transaction, Txid};
 
 use crate::event::TransactionStatus;
 
@@ -26,7 +26,7 @@ pub trait BitcoinClient: Send + Sync + Debug {
     async fn get_height(&self) -> anyhow::Result<u32>;
 
     /// Sign relevant inputs of a bitcoin transaction
-    async fn sign(&self, _tx: Transaction) -> anyhow::Result<Transaction> {
+    async fn sign_and_broadcast(&self, _outputs: Vec<(Script, u64)>) -> anyhow::Result<Txid> {
         // TODO #68
         todo!()
     }

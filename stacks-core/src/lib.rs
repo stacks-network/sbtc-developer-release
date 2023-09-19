@@ -76,8 +76,8 @@ pub struct BlockId(Uint256);
 
 impl BlockId {
     /// Creates a new StacksBlockId from a slice of bytes
-    pub fn new(number: Uint256) -> StacksResult<Self> {
-        Ok(Self(number))
+    pub fn new(number: Uint256) -> Self {
+        Self(number)
     }
 }
 

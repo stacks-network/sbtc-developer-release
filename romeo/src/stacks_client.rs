@@ -1,5 +1,6 @@
 //! Stacks client
 
+use std::io::Cursor;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,6 +14,8 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::Request;
 use serde_json::Value;
+use stacks_core::codec::Codec;
+use stacks_core::uint::Uint256;
 use tokio::sync::{Mutex, MutexGuard};
 
 use serde::de::DeserializeOwned;
@@ -205,7 +208,7 @@ impl StacksClient {
     pub async fn get_bitcoin_block_height(&mut self, block_height: u32) -> anyhow::Result<u32> {
         let res: Value = self
             .http_client
-            .get(self.burn_block_height_url(block_height))
+            .get(self.block_by_height_url(block_height))
             .send()
             .await?
             .json()
@@ -219,7 +222,7 @@ impl StacksClient {
         let res: Value = loop {
             let res: Value = self
                 .http_client
-                .get(self.burn_block_height_url(block_height))
+                .get(self.block_by_height_url(block_height))
                 .send()
                 .await?
                 .json()
@@ -276,6 +279,22 @@ impl StacksClient {
         Ok(tx)
     }
 
+    /// Get the block hash for a given height
+    pub async fn get_block_hash(&mut self, height: u32) -> anyhow::Result<Uint256> {
+        let res: Value = self
+            .http_client
+            .get(self.block_by_height_url(height))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let hash_str = res["hash"].as_str().unwrap();
+        let hash_bytes = hex::decode(hash_str)?;
+
+        Ok(Uint256::deserialize(&mut Cursor::new(hash_bytes))?)
+    }
+
     async fn calculate_fee(&self, tx_len: u64) -> anyhow::Result<u64> {
         let fee_rate: u64 = self
             .http_client
@@ -303,7 +322,7 @@ impl StacksClient {
             .unwrap()
     }
 
-    fn burn_block_height_url(&self, height: u32) -> reqwest::Url {
+    fn block_by_height_url(&self, height: u32) -> reqwest::Url {
         self.config
             .stacks_node_url
             .join(&format!("/extended/v1/block/by_height/{}", height))
