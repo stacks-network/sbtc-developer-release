@@ -1,5 +1,6 @@
 //! Stacks client
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::anyhow;
@@ -11,7 +12,8 @@ use blockstack_lib::vm::ContractName;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use reqwest::Request;
-use serde_json::Value;
+use serde_json::{json, Value};
+use stacks_core::address::StacksAddress;
 use tokio::sync::{Mutex, MutexGuard};
 
 use serde::de::DeserializeOwned;
@@ -197,6 +199,59 @@ impl StacksClient {
         Ok(res["block_height"].as_u64().unwrap() as u32)
     }
 
+    /// Get the public key defined in the asset contract
+    pub async fn get_public_key(&self) -> anyhow::Result<String> {
+        let contract_address = self.config.stacks_credentials.address();
+        let contract_name = self.config.contract_name.to_string();
+        let res = self
+            .call_read_only_fn(
+                &contract_address,
+                &contract_name,
+                "get-bitcoin-wallet-public-key",
+                &[],
+                &contract_address,
+            )
+            .await?;
+
+        println!("res: {:?}", res);
+        Ok(res["result"].as_str().unwrap().to_string())
+    }
+
+    async fn call_read_only_fn(
+        &self,
+        contract_address: &StacksAddress,
+        contract_name: impl AsRef<str>,
+        function_name: impl AsRef<str>,
+        function_args: &[Value],
+        sender: &StacksAddress,
+    ) -> anyhow::Result<Value> {
+        let mut map = HashMap::new();
+        map.insert("sender", json!(sender));
+        map.insert(
+            "arguments",
+            json!(function_args
+                .iter()
+                .map(|arg| arg.to_string())
+                .collect::<Vec<String>>()),
+        );
+
+        let res: Value = self
+            .http_client
+            .post(self.call_read_only_fn_url(
+                contract_address.to_string(),
+                contract_name,
+                function_name,
+            ))
+            .header("Content-type", "application/json")
+            .header("Accept", "application/json")
+            .json(&map)
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(res)
+    }
+
     async fn calculate_fee(&self, tx_len: u64) -> anyhow::Result<u64> {
         let fee_rate: u64 = self
             .http_client
@@ -265,6 +320,21 @@ impl StacksClient {
             .join("/v2/fees/transfer")
             .unwrap()
     }
+
+    fn call_read_only_fn_url(
+        &self,
+        contract_address: impl AsRef<str>,
+        contract_name: impl AsRef<str>,
+        function_name: impl AsRef<str>,
+    ) -> reqwest::Url {
+        let path = format!(
+            "/v2/contracts/call-read/{}/{}/{}",
+            contract_address.as_ref(),
+            contract_name.as_ref(),
+            function_name.as_ref(),
+        );
+        self.config.stacks_node_url.join(&path).unwrap()
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -304,5 +374,17 @@ mod tests {
         let stacks_client = StacksClient::new(config, http_client);
 
         stacks_client.calculate_fee(123).await.unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[ignore]
+    async fn get_public_key() {
+        let config =
+            Config::from_path("./testing/config.json").expect("Failed to find config file");
+        let http_client = reqwest::Client::new();
+
+        let stacks_client = StacksClient::new(config, http_client);
+
+        stacks_client.get_public_key().await.unwrap();
     }
 }
