@@ -1,23 +1,25 @@
-//! Withdrawal fulfillment is a Bitcoin transaction with the output structure as
-//! below:
-//!
-//! 1. data output
-//! 2. Bitcoin address to send the BTC to
-//!
-//! The data output should contain data in the following byte format:
-//!
-//! ```text
-//! 0     2  3                                                                    80
-//! |-----|--|---------------------------------------------------------------------|
-//! magic op                      withdrawal fulfillment data
-//! ```
-//!
-//! Where withdrawal fulfillment data should be in the following format:
-//!
-//! ```text
-//! 0                                                                             32
-//! |------------------------------------------------------------------------------|
-//! chain tip
+/*!
+Withdrawal fulfillment is a Bitcoin transaction with the output structure as
+below:
+
+1. data output
+2. Bitcoin address to send the BTC to
+
+The data output should contain data in the following byte format:
+
+```text
+0     2  3                                                                    80
+|-----|--|---------------------------------------------------------------------|
+ magic op                      withdrawal fulfillment data
+```
+
+Where withdrawal fulfillment data should be in the following format:
+
+```text
+0                                                                             32
+|------------------------------------------------------------------------------|
+                                  chain tip
+*/
 
 use std::{collections::HashMap, io};
 

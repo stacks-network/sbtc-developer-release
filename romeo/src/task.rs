@@ -24,9 +24,9 @@ pub enum Task {
 	/// Poll a stacks node for the status of a transaction
 	CheckStacksTransactionStatus(StacksTxId),
 
-	/// Fetch a Stacks block for the given block height
-	FetchStacksBlock(u32),
+    /// Fetch a Stacks block for the given block height
+    FetchStacksBlock(u32),
 
-	/// Fetch a Bitcoin block for the given block height
-	FetchBitcoinBlock(u32),
+    /// Fetch a Bitcoin block for the given block height
+    FetchBitcoinBlock(u32),
 }

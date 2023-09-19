@@ -60,18 +60,18 @@ pub async fn run(config: Config) {
 		Storage::load_and_replay(&config, state::State::default()).await;
 	tracing::info!("Replay finished with state: {:?}", state);
 
-	let (mut state, bootstrap_tasks) = state::bootstrap(state);
+    let (mut state, bootstrap_tasks) = state::bootstrap(state);
 
-	// Bootstrap
-	for task in bootstrap_tasks {
-		spawn(
-			config.clone(),
-			bitcoin_client.clone(),
-			stacks_client.clone(),
-			task,
-			tx.clone(),
-		);
-	}
+    // Bootstrap
+    for task in bootstrap_tasks {
+        spawn(
+            config.clone(),
+            bitcoin_client.clone(),
+            stacks_client.clone(),
+            task,
+            tx.clone(),
+        );
+    }
 
 	while let Some(event) = rx.recv().await {
 		storage.record(&event).await;
@@ -170,31 +170,31 @@ async fn run_task(
         Task::CheckStacksTransactionStatus(txid) => {
             check_stacks_transaction_status(stacks_client, txid).await
         }
+        Task::FetchStacksBlock(block_height) => {
+            fetch_stacks_block(stacks_client, block_height).await
+        }
         Task::FetchBitcoinBlock(block_height) => {
             fetch_bitcoin_block(bitcoin_client, block_height).await
         }
     }
 }
 
-async fn get_contract_block_height(
-	config: &Config,
-	client: LockedClient,
-) -> Event {
-	let block_height = client
-		.lock()
-		.await
-		.get_contract_block_height(config.contract_name.clone())
-		.await
-		.expect("Could not get block height");
+async fn get_contract_block_height(config: &Config, client: LockedClient) -> Event {
+    let block_height = client
+        .lock()
+        .await
+        .get_contract_block_height(config.contract_name.clone())
+        .await
+        .expect("Could not get block height");
 
-	let bitcoin_block_height = client
-		.lock()
-		.await
-		.get_bitcoin_block_height(block_height)
-		.await
-		.expect("Could not get burnchain block height");
+    let bitcoin_block_height = client
+        .lock()
+        .await
+        .get_bitcoin_block_height(block_height)
+        .await
+        .expect("Could not get burnchain block height");
 
-	Event::ContractBlockHeight(block_height, bitcoin_block_height)
+    Event::ContractBlockHeight(block_height, bitcoin_block_height)
 }
 
 async fn mint_asset(
@@ -335,7 +335,7 @@ async fn get_tx_proof(
     txid: BitcoinTxId,
 ) -> ProofDataClarityValues {
     let (_, block) = bitcoin_client
-        .fetch_block(height)
+        .get_block(height)
         .await
         .expect("Failed to fetch block");
 
@@ -367,24 +367,21 @@ async fn check_stacks_transaction_status(
 }
 
 async fn fetch_stacks_block(client: LockedClient, block_height: u32) -> Event {
-	let txs = client
-		.lock()
-		.await
-		.get_block(block_height)
-		.await
-		.expect("Could not get Stacks block");
+    let txs = client
+        .lock()
+        .await
+        .get_block(block_height)
+        .await
+        .expect("Could not get Stacks block");
 
-	Event::StacksBlock(block_height, txs)
+    Event::StacksBlock(block_height, txs)
 }
 
-async fn fetch_bitcoin_block(
-	client: BitcoinClient,
-	block_height: u32,
-) -> Event {
-	let (height, block) = client
-		.get_block(block_height)
-		.await
-		.expect("Failed to fetch block");
+async fn fetch_bitcoin_block(client: impl BitcoinClient, block_height: u32) -> Event {
+    let (height, block) = client
+        .get_block(block_height)
+        .await
+        .expect("Failed to fetch block");
 
 	Event::BitcoinBlock(height, block)
 }
