@@ -4,5 +4,4 @@ coverage
 romeo/testing/
 romeo/asset-contract/.test
 romeo/asset-contract/.coverage
-**/.DS_Store
 **/romeo.log
