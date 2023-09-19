@@ -77,7 +77,7 @@ impl BitcoinClient for RPCClient {
         }
     }
 
-    async fn fetch_block(&self, block_height: u32) -> anyhow::Result<(u32, Block)> {
+    async fn get_block(&self, block_height: u32) -> anyhow::Result<(u32, Block)> {
         let block_hash = loop {
             let res = self
                 .execute(move |client| client.get_block_hash(block_height as u64))
@@ -85,17 +85,21 @@ impl BitcoinClient for RPCClient {
 
             match res {
                 Ok(hash) => {
-                    trace!("Got block hash: {}", hash);
+                    trace!(
+                        "Got Bitcoin block hash at height {}: {}",
+                        block_height,
+                        hash
+                    );
                     break hash;
                 }
                 Err(bitcoincore_rpc::Error::JsonRpc(bitcoincore_rpc::jsonrpc::Error::Rpc(err))) => {
                     if err.code == -8 {
-                        trace!("Block not found, retrying...");
+                        trace!("Bitcoin block not found, retrying...");
                     } else {
-                        Err(anyhow!("Error fetching block: {:?}", err))?;
+                        Err(anyhow!("Error fetching Bitcoin block: {:?}", err))?;
                     }
                 }
-                Err(err) => Err(anyhow!("Error fetching block: {:?}", err))?,
+                Err(err) => Err(anyhow!("Error fetching Bitcoin block: {:?}", err))?,
             };
 
             sleep(BLOCK_POLLING_INTERVAL).await;

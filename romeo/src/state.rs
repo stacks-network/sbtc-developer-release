@@ -4,6 +4,7 @@ use std::io::Cursor;
 
 use bdk::bitcoin::{Address as BitcoinAddress, Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
+use blockstack_lib::chainstate::stacks::StacksTransaction;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::types::chainstate::StacksAddress;
 use blockstack_lib::vm::types::PrincipalData;
@@ -22,7 +23,8 @@ use crate::task::Task;
 pub struct State {
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
-    current_block_height: Option<u32>,
+    stacks_block_height: Option<u32>,
+    bitcoin_block_height: Option<u32>,
 }
 
 /// A parsed deposit
@@ -211,7 +213,7 @@ struct Response<T> {
 }
 
 /// Spawn initial tasks given a recovered state
-pub fn bootstrap(mut state: State) -> (State, Task) {
+pub fn bootstrap(mut state: State) -> (State, Vec<Task>) {
     // When bootstraping we're not expecting any transaction updates to come
     get_mut_transaction_requests(&mut state).for_each(|request| {
         if let TransactionRequest::Acknowledged {
@@ -222,10 +224,21 @@ pub fn bootstrap(mut state: State) -> (State, Task) {
         }
     });
 
-    match state.current_block_height {
-        None => (state, Task::GetContractBlockHeight),
-        Some(height) => (state, Task::FetchBitcoinBlock(height + 1)),
-    }
+    let tasks = if state.stacks_block_height.is_none() || state.bitcoin_block_height.is_none() {
+        assert!(
+            state.stacks_block_height.is_none() && state.bitcoin_block_height.is_none(),
+            "Only one of the block heights is missing"
+        );
+
+        vec![Task::GetContractBlockHeight]
+    } else {
+        vec![
+            Task::FetchStacksBlock(state.stacks_block_height.unwrap() + 1),
+            Task::FetchBitcoinBlock(state.bitcoin_block_height.unwrap() + 1),
+        ]
+    };
+
+    (state, tasks)
 }
 
 /// The beating heart of Romeo.
@@ -236,13 +249,16 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
     debug!("Handling update");
 
     match event {
-        Event::ContractBlockHeight(height) => process_contract_block_height(state, height),
+        Event::ContractBlockHeight(stacks_height, bitcoin_height) => {
+            process_contract_block_height(state, stacks_height, bitcoin_height)
+        }
         Event::StacksTransactionUpdate(txid, status) => {
             process_stacks_transaction_update(config, state, txid, status)
         }
         Event::BitcoinTransactionUpdate(txid, status) => {
             process_bitcoin_transaction_update(config, state, txid, status)
         }
+        Event::StacksBlock(height, txs) => process_stacks_block(config, state, height, txs),
         Event::BitcoinBlock(height, block) => process_bitcoin_block(config, state, height, block),
         Event::MintBroadcasted(deposit_info, txid) => {
             process_mint_broadcasted(state, deposit_info, txid)
@@ -256,8 +272,14 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
     }
 }
 
-fn process_contract_block_height(mut state: State, height: u32) -> (State, Vec<Task>) {
-    match state.current_block_height {
+fn process_contract_block_height(
+    mut state: State,
+    stacks_height: u32,
+    bitcoin_height: u32,
+) -> (State, Vec<Task>) {
+    let mut tasks = vec![];
+
+    match state.stacks_block_height {
         Some(current_height) => {
             panic!(
                 "Got contract block height when state already contains it: {}",
@@ -265,29 +287,56 @@ fn process_contract_block_height(mut state: State, height: u32) -> (State, Vec<T
             )
         }
         None => {
-            state.current_block_height = Some(height);
+            state.stacks_block_height = Some(stacks_height);
 
-            (state, vec![Task::FetchBitcoinBlock(height + 1)])
+            tasks.push(Task::FetchStacksBlock(stacks_height + 1));
         }
-    }
+    };
+
+    match state.bitcoin_block_height {
+        Some(current_height) => {
+            panic!(
+                "Got contract bitcoin block height when state already contains it: {}",
+                current_height
+            )
+        }
+        None => {
+            state.bitcoin_block_height = Some(bitcoin_height);
+
+            tasks.push(Task::FetchBitcoinBlock(bitcoin_height + 1));
+        }
+    };
+
+    (state, tasks)
+}
+
+fn process_stacks_block(
+    _config: &Config,
+    mut state: State,
+    stacks_height: u32,
+    _txs: Vec<StacksTransaction>,
+) -> (State, Vec<Task>) {
+    state.stacks_block_height = Some(stacks_height);
+
+    (state, vec![Task::FetchStacksBlock(stacks_height + 1)])
 }
 
 fn process_bitcoin_block(
     config: &Config,
     mut state: State,
-    height: u32,
+    bitcoin_height: u32,
     block: Block,
 ) -> (State, Vec<Task>) {
-    let deposits = parse_deposits(config, height, &block);
+    let deposits = parse_deposits(config, bitcoin_height, &block);
     let withdrawals = parse_withdrawals(config, &block);
 
     state.deposits.extend_from_slice(&deposits);
     state.withdrawals.extend_from_slice(&withdrawals);
 
-    state.current_block_height = Some(height);
+    state.bitcoin_block_height = Some(bitcoin_height);
 
     let mut tasks = create_transaction_status_update_tasks(&mut state);
-    tasks.push(Task::FetchBitcoinBlock(height + 1));
+    tasks.push(Task::FetchBitcoinBlock(bitcoin_height + 1));
 
     (state, tasks)
 }

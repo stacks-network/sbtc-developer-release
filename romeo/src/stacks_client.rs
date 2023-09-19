@@ -1,6 +1,7 @@
 //! Stacks client
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::anyhow;
 use blockstack_lib::codec::StacksMessageCodec;
@@ -20,10 +21,13 @@ use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::{
     StacksTransaction, StacksTransactionSigner, TransactionAnchorMode, TransactionPostConditionMode,
 };
-use tracing::debug;
+use tokio::time::sleep;
+use tracing::{debug, trace};
 
 use crate::config::Config;
 use crate::event::TransactionStatus;
+
+const BLOCK_POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Wrapped Stacks Client which can be shared safely between threads.
 #[derive(Clone, Debug)]
@@ -197,6 +201,81 @@ impl StacksClient {
         Ok(res["block_height"].as_u64().unwrap() as u32)
     }
 
+    /// Get the Bitcoin block height for a Stacks block height
+    pub async fn get_bitcoin_block_height(&mut self, block_height: u32) -> anyhow::Result<u32> {
+        let res: Value = self
+            .http_client
+            .get(self.burn_block_height_url(block_height))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        Ok(res["burn_block_height"].as_u64().unwrap() as u32)
+    }
+
+    /// Get the block at height
+    pub async fn get_block(&mut self, block_height: u32) -> anyhow::Result<Vec<StacksTransaction>> {
+        let res: Value = loop {
+            let res: Value = self
+                .http_client
+                .get(self.burn_block_height_url(block_height))
+                .send()
+                .await?
+                .json()
+                .await?;
+
+            if res["txs"].is_array() {
+                trace!("Found Stacks block of height {}", block_height);
+                break res;
+            }
+
+            trace!("Stacks block not found, retrying...");
+            sleep(BLOCK_POLLING_INTERVAL).await;
+        };
+
+        let tx_ids: Vec<StacksTxId> = res["txs"]
+            .as_array()
+            .unwrap_or_else(|| panic!("Could not get txs from response: {:?}", res))
+            .iter()
+            .map(|id| {
+                let mut id = id.as_str().unwrap().to_string();
+                id = id.replace("0x", "");
+
+                StacksTxId::from_hex(&id).unwrap()
+            })
+            .collect();
+
+        let mut txs = Vec::with_capacity(tx_ids.len());
+
+        for id in tx_ids {
+            let tx = self.get_transaction(id).await?;
+            txs.push(tx);
+        }
+
+        Ok(txs)
+    }
+
+    /// Get the block at height
+    pub async fn get_transaction(&mut self, id: StacksTxId) -> anyhow::Result<StacksTransaction> {
+        let res: Value = self
+            .http_client
+            .get(self.get_raw_transaction_url(id))
+            .header("Accept", "application/octet-stream")
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let mut raw_tx: String = res["raw_tx"].as_str().unwrap().to_string();
+        raw_tx = raw_tx.replace("0x", "");
+
+        let bytes = hex::decode(raw_tx).unwrap();
+        let tx = StacksTransaction::consensus_deserialize(&mut &bytes[..]).unwrap();
+
+        Ok(tx)
+    }
+
     async fn calculate_fee(&self, tx_len: u64) -> anyhow::Result<u64> {
         let fee_rate: u64 = self
             .http_client
@@ -214,6 +293,20 @@ impl StacksClient {
         self.config
             .stacks_node_url
             .join("/v2/transactions")
+            .unwrap()
+    }
+
+    fn get_raw_transaction_url(&self, txid: StacksTxId) -> reqwest::Url {
+        self.config
+            .stacks_node_url
+            .join(&format!("/extended/v1/tx/{}/raw", txid))
+            .unwrap()
+    }
+
+    fn burn_block_height_url(&self, height: u32) -> reqwest::Url {
+        self.config
+            .stacks_node_url
+            .join(&format!("/extended/v1/block/by_height/{}", height))
             .unwrap()
     }
 
