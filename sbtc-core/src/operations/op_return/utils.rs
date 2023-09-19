@@ -17,8 +17,8 @@ pub(crate) fn build_op_return_script(data: &[u8]) -> Script {
 
 /// Reorders outputs according to the provided order
 pub fn reorder_outputs(
-	outputs: impl IntoIterator<Item = TxOut>,
-	order: impl IntoIterator<Item = (Script, u64)>,
+    outputs: impl IntoIterator<Item = TxOut>,
+    order: impl IntoIterator<Item = (Script, u64)>,
 ) -> Vec<TxOut> {
 	let indices: HashMap<(Script, u64), usize> = order
 		.into_iter()
