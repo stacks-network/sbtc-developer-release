@@ -49,12 +49,9 @@ impl BitcoinClient for EsploraClient {
 		})
 	}
 
-	#[tracing::instrument(skip(self))]
-	async fn fetch_block(
-		&self,
-		block_height: u32,
-	) -> anyhow::Result<(u32, bitcoin::Block)> {
-		let mut current_height = retry(|| self.0.get_height()).await?;
+    #[tracing::instrument(skip(self))]
+    async fn get_block(&self, block_height: u32) -> anyhow::Result<(u32, bitcoin::Block)> {
+        let mut current_height = retry(|| self.0.get_height()).await?;
 
 		trace!("Looking for block height: {}", current_height + 1);
 		while current_height < block_height {

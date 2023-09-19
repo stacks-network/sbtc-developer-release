@@ -2,6 +2,7 @@
 
 use bdk::bitcoin::{Block, Txid as BitcoinTxId};
 use blockstack_lib::burnchains::Txid as StacksTxId;
+use blockstack_lib::chainstate::stacks::StacksTransaction;
 
 use crate::state::{DepositInfo, WithdrawalInfo};
 
@@ -12,8 +13,8 @@ use crate::state::{DepositInfo, WithdrawalInfo};
 )]
 #[derivative(Debug)]
 pub enum Event {
-	/// Block height of the contract deployment transaction
-	ContractBlockHeight(u32),
+    /// Block heights of the contract deployment transaction
+    ContractBlockHeight(u32, u32),
 
 	/// A mint transaction has been created and broadcasted
 	MintBroadcasted(DepositInfo, StacksTxId),
@@ -30,8 +31,11 @@ pub enum Event {
 	/// A bitcoin node has responded with an updated status regarding this txid
 	BitcoinTransactionUpdate(BitcoinTxId, TransactionStatus),
 
-	/// A wild bitcoin block has appeared
-	BitcoinBlock(u32, #[derivative(Debug = "ignore")] Block),
+    /// A wild bitcoin block has appeared
+    StacksBlock(u32, #[derivative(Debug = "ignore")] Vec<StacksTransaction>),
+
+    /// A wild bitcoin block has appeared
+    BitcoinBlock(u32, #[derivative(Debug = "ignore")] Block),
 }
 
 /// Status of a broadcasted transaction, useful for implementing retry logic

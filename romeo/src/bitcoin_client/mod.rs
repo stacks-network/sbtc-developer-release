@@ -22,11 +22,8 @@ pub trait BitcoinClient: Send + Sync + Debug {
 		txid: Txid,
 	) -> anyhow::Result<TransactionStatus>;
 
-	/// Fetch a block at the given block height, waiting if needed
-	async fn fetch_block(
-		&self,
-		block_height: u32,
-	) -> anyhow::Result<(u32, Block)>;
+    /// Fetch a block at the given block height, waiting if needed
+    async fn get_block(&self, block_height: u32) -> anyhow::Result<(u32, Block)>;
 
 	/// Get the current block height
 	async fn get_height(&self) -> anyhow::Result<u32>;
