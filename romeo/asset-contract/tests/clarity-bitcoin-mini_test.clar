@@ -1,4 +1,5 @@
 (define-constant ERR-ERROR-EXPECTED (err u99001))
+(define-constant ERR-HEADER-HEIGHT-MISMATCH (err u6))
 (define-constant ERR-INVALID-MERKLE-PROOF (err u7))
 (define-constant ERR-PROOF-TOO-SHORT (err u8))
 
@@ -19,9 +20,12 @@
         (burnchain-block-height u807525)
         ;; block id: 0000000000000000000104cf6179ece70fe28f1f6a24126e8d8c91d42d5eafb4
         (raw-block-header 0x00001733539613a8d931b08f0d3f746879572a6d3e12623b16d20000000000000000000034f521522fba52c2c5c75609d261b490ee620661319ab23c68f24d756ff4ced801230265ae32051718d9aadb))
-            (ok (contract-call? .clarity-bitcoin-mini verify-block-header
+            
+            (asserts! (contract-call? .clarity-bitcoin-mini verify-block-header
                 0x00001733539613a8d931b08f0d3f746879572a6d3e12623b16d20000000000000000000034f521522fba52c2c5c75609d261b490ee620661319ab23c68f24d756ff4ced801230265ae32051718d9aadb
-                burnchain-block-height))))
+                burnchain-block-height) ERR-HEADER-HEIGHT-MISMATCH)
+
+            (ok true)))
 
 ;; @name check valid verify-merkle-proof-1
 (define-public (test-verify-merkle-proof-pass)
