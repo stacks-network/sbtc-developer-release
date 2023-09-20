@@ -1,5 +1,5 @@
 import { Account } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
-import { TransactionData } from "./asset_CommandModel.ts";
+import { BitcoinTxData } from "./asset_CommandModel.ts";
 
 import fc from "https://cdn.skypack.dev/fast-check@3";
 
@@ -95,7 +95,7 @@ export function AssetCommands(accounts: Map<string, Account>) {
           sender: Account;
           amount: number;
           wallet: Account;
-          params: TransactionData;
+          params: BitcoinTxData;
         },
       ) =>
         new MintCommand(

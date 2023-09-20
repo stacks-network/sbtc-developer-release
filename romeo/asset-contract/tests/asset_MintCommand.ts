@@ -2,7 +2,7 @@ import {
   AssetCommand,
   Real,
   Stub,
-  TransactionData,
+  BitcoinTxData,
 } from "./asset_CommandModel.ts";
 
 import {
@@ -15,13 +15,13 @@ export class MintCommand implements AssetCommand {
   readonly sender: Account;
   readonly amount: number;
   readonly wallet: Account;
-  readonly params: TransactionData;
+  readonly params: BitcoinTxData;
 
   constructor(
     sender: Account,
     amount: number,
     wallet: Account,
-    params: TransactionData,
+    params: BitcoinTxData,
   ) {
     this.sender = sender;
     this.amount = amount;

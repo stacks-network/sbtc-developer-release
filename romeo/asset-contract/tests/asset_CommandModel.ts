@@ -14,7 +14,7 @@ export type Real = {
 
 export type AssetCommand = fc.Command<Stub, Real>;
 
-export interface TransactionData {
+export interface BitcoinTxData {
   depositTx: Uint8Array;
   burnChainHeight: number;
   merkleProof: Uint8Array[];
