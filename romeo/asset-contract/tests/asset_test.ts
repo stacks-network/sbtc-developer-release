@@ -147,7 +147,7 @@ Clarinet.test({
           fc.modelRun(initialState, cmds);
         },
       ),
-      { numRuns: 1, verbose: true },
+      { numRuns: 10, verbose: true },
     );
   },
 });
