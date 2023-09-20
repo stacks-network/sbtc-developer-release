@@ -13,3 +13,13 @@ export type Real = {
 };
 
 export type AssetCommand = fc.Command<Stub, Real>;
+
+export interface TransactionData {
+  depositTx: Uint8Array;
+  burnChainHeight: number;
+  merkleProof: Uint8Array[];
+  txIndex: number;
+  treeDepth: number;
+  blockHeader: Uint8Array;
+  blockHeaderHash: Uint8Array;
+}

@@ -1,4 +1,9 @@
-import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
+import {
+  AssetCommand,
+  Real,
+  Stub,
+  TransactionData,
+} from "./asset_CommandModel.ts";
 
 import {
   Account,
@@ -7,39 +12,21 @@ import {
 } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
 
 export class MintCommand implements AssetCommand {
-  readonly sender         : Account;
-  readonly amount         : number;
-  readonly wallet         : Account;
-  readonly depositTx      : Uint8Array;
-  readonly burnChainHeight: number;
-  readonly merkleProof    : Uint8Array[];
-  readonly txIndex        : number;
-  readonly treeDepth      : number;
-  readonly blockHeader    : Uint8Array;
-  readonly blockHeaderHash: Uint8Array;
+  readonly sender: Account;
+  readonly amount: number;
+  readonly wallet: Account;
+  readonly params: TransactionData;
 
   constructor(
-    sender         : Account,
-    amount         : number,
-    wallet         : Account,
-    depositTx      : Uint8Array,
-    burnChainHeight: number,
-    merkleProof    : Uint8Array[],
-    txIndex        : number,
-    treeDepth      : number,
-    blockHeader    : Uint8Array,
-    blockHeaderHash: Uint8Array
+    sender: Account,
+    amount: number,
+    wallet: Account,
+    params: TransactionData,
   ) {
-    this.sender          = sender;
-    this.amount          = amount;
-    this.wallet          = wallet;
-    this.depositTx       = depositTx
-    this.burnChainHeight = burnChainHeight;
-    this.merkleProof     = merkleProof;
-    this.txIndex         = txIndex;
-    this.treeDepth       = treeDepth;
-    this.blockHeader     = blockHeader;
-    this.blockHeaderHash = blockHeaderHash;
+    this.sender = sender;
+    this.amount = amount;
+    this.wallet = wallet;
+    this.params = params;
   }
 
   check(model: Readonly<Stub>): boolean {
@@ -60,8 +47,8 @@ export class MintCommand implements AssetCommand {
         "clarity-bitcoin-mini",
         "debug-insert-burn-header-hash",
         [
-          types.buff(this.blockHeaderHash),
-          types.uint(this.burnChainHeight),
+          types.buff(this.params.blockHeaderHash),
+          types.uint(this.params.burnChainHeight),
         ],
         this.sender.address,
       ),
@@ -71,12 +58,12 @@ export class MintCommand implements AssetCommand {
         [
           types.uint(this.amount),
           types.principal(this.wallet.address),
-          types.buff(this.depositTx),
-          types.uint(this.burnChainHeight),
-          types.list(this.merkleProof.map((p) => types.buff(p))),
-          types.uint(this.txIndex),
-          types.uint(this.treeDepth),
-          types.buff(this.blockHeader),
+          types.buff(this.params.depositTx),
+          types.uint(this.params.burnChainHeight),
+          types.list(this.params.merkleProof.map((p) => types.buff(p))),
+          types.uint(this.params.txIndex),
+          types.uint(this.params.treeDepth),
+          types.buff(this.params.blockHeader),
         ],
         this.sender.address,
       ),

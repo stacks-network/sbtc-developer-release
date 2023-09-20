@@ -1,4 +1,5 @@
 import { Account } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
+import { TransactionData } from "./asset_CommandModel.ts";
 
 import fc from "https://cdn.skypack.dev/fast-check@3";
 
@@ -42,57 +43,66 @@ export function AssetCommands(accounts: Map<string, Account>) {
         wallet: fc.constantFrom(...accounts.values()).filter((a: Account) =>
           a.address !== accounts.get("deployer")!.address
         ),
-        // FIXME: Generate random depositTx, burnChainHeight, merkleProof, txIndex, treeDepth, blockHeader, blockHeaderHash.
-        // https://github.com/stacks-network/sbtc/issues/146
-        depositTx: fc.constant(
-          hexStringToUint8Array(
+        params: fc.constantFrom({
+          // https://github.com/stacks-network/sbtc/blob/dbe5209e087ec196181282e64d769844ae8fc2d5/romeo/asset-contract/tests/asset_test.clar#L13-L19
+          depositTx: hexStringToUint8Array(
             "0x0168ee41db8a4766efe02bba1ebc0de320bc1b0abb7304f5f104818a9dd721cf",
           ),
-        ),
-        burnChainHeight: fc.constant(1),
-        merkleProof: fc.constant([
-          hexStringToUint8Array(
-            "0x582b1900f55dad47d575138e91321c441d174e20a43336780c352a0b556ecc8b",
-          ),
-        ]),
-        txIndex: fc.constant(1),
-        treeDepth: fc.constant(1),
-        blockHeader: fc.constant(
-          hexStringToUint8Array(
+          burnChainHeight: 1,
+          merkleProof: [
+            hexStringToUint8Array(
+              "0x582b1900f55dad47d575138e91321c441d174e20a43336780c352a0b556ecc8b",
+            ),
+          ],
+          txIndex: 1,
+          treeDepth: 1,
+          blockHeader: hexStringToUint8Array(
             "0x02000000000000000000000000000000000000000000000000000000000000000000000075b8bf903d0153e1463862811283ffbec83f55411c9fa5bd24e4207dee0dc1f1000000000000000000000000",
           ),
-        ),
-        blockHeaderHash: fc.constant(
-          hexStringToUint8Array(
+          blockHeaderHash: hexStringToUint8Array(
             "0x346993fc64b2a124a681111bb1f381e24dbef3cd362f0a40019238846c7ebf93",
           ),
-        ),
+        }, {
+          // https://gist.github.com/setzeus/469e747290961c03adb09fbeff2534f3/b159465d49a3d5bfc25633e8189d798ce43e1992#file-merkletests-json-L113-L166
+          // https://blockstream.info/testnet/block/0000000000000130de2402cb8ee45b755f1a80370ee30aa0db5ed28de6a75f84
+          depositTx: hexStringToUint8Array(
+            "0x255dcfd00b04456288b5aacc5275835add15c89067f082952331b7fc1b87a63c",
+          ),
+          burnChainHeight: 1,
+          merkleProof: [
+            hexStringToUint8Array(
+              "0x12a5ec707a1285569eda4ee92178d82a409a1c00e3a14ec743d522242f1f5434",
+            ),
+            hexStringToUint8Array(
+              "0x28a21919d2dd17fb4021be6f44bce9be34ed813a1794d2c66421f2d3d97acb50",
+            ),
+            hexStringToUint8Array(
+              "0xcf648a05e8d001fd494ed67c80de91ec303baad36ededd967fc4a54ef26b5c31",
+            ),
+          ],
+          txIndex: 1,
+          treeDepth: 3,
+          blockHeader: hexStringToUint8Array(
+            "0x000060204c3f1a8884f4ef56bb6590a8a2237f8f1006543f5bc1a8f9e30000000000000003397473336b570cae8e82cc8d83c6711e01c1777d3dbc43c1dbb932248310a46fa00465fcff031a7f23bf84",
+          ),
+          blockHeaderHash: hexStringToUint8Array(
+            "0x0000000000000130de2402cb8ee45b755f1a80370ee30aa0db5ed28de6a75f84",
+          ),
+        }),
       })
       .map((
         r: {
-          sender         : Account;
-          amount         : number;
-          wallet         : Account;
-          depositTx      : Uint8Array;
-          burnChainHeight: number;
-          merkleProof    : Uint8Array[];
-          txIndex        : number;
-          treeDepth      : number;
-          blockHeader    : Uint8Array;
-          blockHeaderHash: Uint8Array;
+          sender: Account;
+          amount: number;
+          wallet: Account;
+          params: TransactionData;
         },
       ) =>
         new MintCommand(
           r.sender,
           r.amount,
           r.wallet,
-          r.depositTx,
-          r.burnChainHeight,
-          r.merkleProof,
-          r.txIndex,
-          r.treeDepth,
-          r.blockHeader,
-          r.blockHeaderHash,
+          r.params,
         )
       ),
 
