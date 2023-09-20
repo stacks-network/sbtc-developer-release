@@ -75,7 +75,7 @@ export class MintCommand implements AssetCommand {
     model.wallets.set(this.wallet.address, balance + this.amount);
 
     console.log(
-      `✓ ${this.sender.name.padStart(8, " ")} ${"mint".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")}`
+      `✓ ${this.sender.name.padStart(8, " ")} ${"mint".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")}`
     );
   }
 
@@ -83,6 +83,11 @@ export class MintCommand implements AssetCommand {
     // fast-check will call toString() in case of errors, e.g. property failed.
     // It will then make a minimal counterexample, a process called 'shrinking'
     // https://github.com/dubzzz/fast-check/issues/2864#issuecomment-1098002642
-    return `${this.sender.name} mint ${this.amount} to ${this.wallet.name}`;
+    return `${this.sender.name} mint ${this.amount} to ${this.wallet.name} (bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")})`;
   }
 }
+
+function uint8ArrayToHexString(uint8Array: Uint8Array): string {
+  return Array.from(uint8Array).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
