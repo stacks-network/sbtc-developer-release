@@ -43,7 +43,12 @@ export function AssetCommands(accounts: Map<string, Account>) {
         sender: fc.constantFrom(...accounts.values()),
         wallet: fc.constantFrom(...accounts.values()),
       })
-      .map((r: { sender: Account; wallet: Account }) =>
+      .map((
+        r: {
+          sender: Account;
+          wallet: Account;
+        },
+      ) =>
         new GetBalanceCommand(
           r.sender,
           r.wallet,
@@ -55,7 +60,11 @@ export function AssetCommands(accounts: Map<string, Account>) {
       .record({
         sender: fc.constantFrom(...accounts.values()),
       })
-      .map((r: { sender: Account; wallet: Account }) =>
+      .map((
+        r: {
+          sender: Account;
+        },
+      ) =>
         new GetTotalSupplyCommand(
           r.sender,
         )
@@ -66,9 +75,7 @@ export function AssetCommands(accounts: Map<string, Account>) {
       .record({
         sender: fc.constant(accounts.get("deployer")!),
         amount: fc.integer({ min: 1 }),
-        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) =>
-          a.address !== accounts.get("deployer")!.address
-        ),
+        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
         params: fc.constantFrom(...data),
       })
       .map((
