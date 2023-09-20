@@ -18,7 +18,7 @@ export class GetBalanceCommand implements AssetCommand {
     this.wallet = wallet;
   }
 
-  check(model: Readonly<Stub>): boolean {
+  check(_model: Readonly<Stub>): boolean {
     // Can always get balance.
     return true;
   }

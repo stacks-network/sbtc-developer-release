@@ -11,7 +11,7 @@ export class GetTotalSupplyCommand implements AssetCommand {
     this.sender = sender;
   }
 
-  check(model: Readonly<Stub>): boolean {
+  check(_model: Readonly<Stub>): boolean {
     // Can always get total supply.
     return true;
   }

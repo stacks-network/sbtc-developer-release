@@ -29,7 +29,7 @@ export class MintCommand implements AssetCommand {
     this.params = params;
   }
 
-  check(model: Readonly<Stub>): boolean {
+  check(_model: Readonly<Stub>): boolean {
     // Can mint if sender is the deployer.
     //
     // Note that this is filtered at the generator level. So there's no need to
