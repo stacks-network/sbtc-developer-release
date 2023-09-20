@@ -29,19 +29,22 @@ export class BurnCommand implements AssetCommand {
     this.params = params;
   }
 
-  check(_model: Readonly<Stub>): boolean {
+  check(model: Readonly<Stub>): boolean {
     // Can burn if sender is the deployer.
     //
-    // Note that this is filtered at the generator level. So there's no need to
+    // Note that this is filtered at the generator level. So you don't need to
     // check here.
     //
-    // If you don't filter at the generator level, you can check here. But, if
-    // you check here, and don't filter at the generator level, you effectively
-    // discard the command.
+    // If you don't filter at the generator level, you can check here but then
+    // if you return false from here the command is 'discarded'.
+    //
+    // What discard means is that if you are generating 1000 commands, and 100
+    // of them are filtered out here, then you end up running 900 commands. If
+    // you filter at the generator level, however, you will run 1000 commands.
 
     // In addition to the above, we also need to check that the amount to burn
     // is less or equal to the balance of the wallet.
-    const balance = _model.wallets.get(this.wallet.address) ?? 0;
+    const balance = model.wallets.get(this.wallet.address) ?? 0;
     return this.amount <= balance;
   }
 

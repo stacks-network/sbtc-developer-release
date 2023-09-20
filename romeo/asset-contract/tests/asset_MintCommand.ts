@@ -32,12 +32,15 @@ export class MintCommand implements AssetCommand {
   check(_model: Readonly<Stub>): boolean {
     // Can mint if sender is the deployer.
     //
-    // Note that this is filtered at the generator level. So there's no need to
+    // Note that this is filtered at the generator level. So you don't need to
     // check here.
     //
-    // If you don't filter at the generator level, you can check here. But, if
-    // you check here, and don't filter at the generator level, you effectively
-    // discard the command.
+    // If you don't filter at the generator level, you can check here but then
+    // if you return false from here the command is 'discarded'.
+    //
+    // What discard means is that if you are generating 1000 commands, and 100
+    // of them are filtered out here, then you end up running 900 commands. If
+    // you filter at the generator level, however, you will run 1000 commands.
     return true;
   }
 
