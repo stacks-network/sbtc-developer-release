@@ -1,6 +1,11 @@
 [package]
 authors = ["Stacks Foundation <admin@stacks.co>"]
-categories = ["cryptography::cryptocurrencies", "data-structures", "development-tools", "finance"]
+categories = [
+    "cryptography::cryptocurrencies",
+    "data-structures",
+    "development-tools",
+    "finance",
+]
 description = "Package that exposes primitives for working with the Stacks sBTC token"
 edition = "2021"
 keywords = ["stacks", "bitcoin", "sbtc", "sdk", "blockchain"]
@@ -9,7 +14,7 @@ name = "sbtc-core"
 readme = "README.md"
 repository = "https://github.com/stacks-network/sbtc"
 version = "0.1.0"
-website = "https://www.stacks.co"
+homepage = "https://www.stacks.co"
 
 [dependencies]
 bdk.workspace = true
