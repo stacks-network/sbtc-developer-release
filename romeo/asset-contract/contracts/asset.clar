@@ -8,6 +8,7 @@
 ;; burned when BTC is withdrawn from the wallet.
 ;; Requests for minting and burning are made by the contract owner.
 
+
 ;; token definitions
 ;; 100 M sats = 1 sBTC
 ;; 21 M sBTC supply = 2.1 Q sats total
