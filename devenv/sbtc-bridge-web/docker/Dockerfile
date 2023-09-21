@@ -15,4 +15,4 @@ RUN npm install
 # Build the application using Vite
 RUN npm run build
 
-CMD npm run preview
+CMD npm run dev -- --host

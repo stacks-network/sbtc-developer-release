@@ -60,6 +60,7 @@ There is a helper script at the top level directory to facilitate logging:
 ./log miner
 ./log sbtc
 ./log electrs
+./log sbtc-bridge-web
 ```
 ## Services
 
@@ -105,7 +106,7 @@ The Stacks API service is running on port 3999.
 The sBTC bridge app is running at:
 
 ```
-http://127.0.0.1:4137/
+http://127.0.0.1:8080/
 ```
 ### sBTC Bridge API
 TBD

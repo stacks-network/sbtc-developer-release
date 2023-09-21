@@ -1,0 +1,10 @@
+version: "3.2"
+
+services:
+  sbtc-bridge-app:
+    image: sbtc-bridge-web:latest
+    container_name: sbtc-bridge-web    
+    build:
+      context: ./docker
+    ports:
+      - 8080:8080
