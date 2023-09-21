@@ -1,3 +1,3 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
- docker compose -f docker-compose-stacks.yml up -d
+docker compose -f docker-compose-stacks.yml up -d
