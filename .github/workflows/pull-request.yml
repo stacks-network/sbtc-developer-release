@@ -23,7 +23,7 @@ jobs:
         name: Cargo.lock
         path: Cargo.lock
 
-  pr-validation:
+  linter:
     needs: generate-lockfile
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +43,24 @@ jobs:
 
     - name: Lint
       run: cargo make --profile github-actions format
+
+  coverage:
+    needs: generate-lockfile
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
+      with:
+        name: Cargo.lock
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - uses: davidB/rust-cargo-make@v1
+      with:
+        version: "0.36.13"
 
     - name: Coverage
       run: cargo make --profile github-actions coverage-lcov
