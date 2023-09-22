@@ -1,4 +1,5 @@
 (define-constant ERR-ERROR-EXPECTED (err u99001))
+(define-constant ERR-OK-EXPECTED (err u99002))
 (define-constant ERR-HEADER-HEIGHT-MISMATCH (err u6))
 (define-constant ERR-INVALID-MERKLE-PROOF (err u7))
 (define-constant ERR-PROOF-TOO-SHORT (err u8))
@@ -9,9 +10,10 @@
 
 (define-public (prepare)
 	(begin
-        ;; 1
         (unwrap-panic (add-burnchain-block-header-hash u807525 0x00001733539613a8d931b08f0d3f746879572a6d3e12623b16d20000000000000000000034f521522fba52c2c5c75609d261b490ee620661319ab23c68f24d756ff4ced801230265ae32051718d9aadb))
         (unwrap-panic (add-burnchain-block-header-hash u2431087 0x0000a02065bc9201b5b5a1d695a18e4d5efe5d52d8ccc4129a2499141d000000000000009160ba7ae5f29f9632dc0cd89f466ee64e2dddfde737a40808ddc147cd82406f18b8486488a127199842cec7))
+        (unwrap-panic (add-burnchain-block-header-hash u2501368 0x00600120df8b67bf9774d6a73cea577aa415b44154dd77c84472106546020000000000002d131ab39fcffcf300e7c9edc133d762c2d7854c753ab59afc5ca4961700559250a70465fcff031ac912deb6))
+        (unwrap-panic (add-burnchain-block-header-hash u2501351 0x0060bf24490b72dd2e08d0f14f7ff058412f296c48d87f1717aae3ca8002000000000000854a0d71830a5c8f52f5cee4552f7a61d6996d2dd3d57a452301c41692c61d874da60465fcff031a0a885ddf))
         (ok true)))
 
 ;; @name check verify-block-header
@@ -38,12 +40,10 @@
         (proof {
             tx-index: u3,
             hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8),
-            tree-depth: u2}))
+            tree-depth: u2})
+        (proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
 
-            (asserts! (is-ok (contract-call? .clarity-bitcoin-mini verify-merkle-proof
-                hash-wtx-le
-                merkle-root
-                proof)) ERR-INVALID-MERKLE-PROOF)
+            (asserts! proof-response ERR-INVALID-MERKLE-PROOF)
 
             (ok true)))
 
@@ -57,12 +57,10 @@
         (proof {
             tx-index: u2,
             hashes: (list 0x1bd75b05fec22e8436fa721115f5a8843ba3d2d17640df9653303b186c6a3701 0x073782910dca06f17d09828a116b1b991e1255d1da2f541a465e681e11ebf32b),
-            tree-depth: u2}))
+            tree-depth: u2})
+        (proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
 
-            (asserts! (is-ok (contract-call? .clarity-bitcoin-mini verify-merkle-proof
-                hash-wtx-le
-                merkle-root
-                proof)) ERR-INVALID-MERKLE-PROOF)
+            (asserts! proof-response ERR-INVALID-MERKLE-PROOF)
 
             (ok true)))
 
@@ -76,12 +74,10 @@
         (proof {
             tx-index: u2,
             hashes: (list 0x29c233c7a7b9237cc201b570af1013dd051f79f3fb39e73731afe58c3bcce09c 0xf18cd848313c7f988409dc15555ab4301aa9237ddbac3552ac01700c9c5fd454),
-            tree-depth: u2}))
-
-            (asserts! (is-ok (contract-call? .clarity-bitcoin-mini verify-merkle-proof
-                hash-wtx-le
-                merkle-root
-                proof)) ERR-INVALID-MERKLE-PROOF)
+            tree-depth: u2})
+        (proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
+            
+            (asserts! proof-response ERR-INVALID-MERKLE-PROOF)
 
             (ok true)))
 
@@ -102,5 +98,5 @@
             merkle-root
             proof)))
             (asserts! (is-err proof-result) ERR-ERROR-EXPECTED)
-		    (asserts! (is-eq proof-result ERR-PROOF-TOO-SHORT) (err (unwrap-err-panic proof-result)))
+		    (asserts! (is-eq proof-result ERR-PROOF-TOO-SHORT) ERR-ERROR-EXPECTED)
             (ok true)))
