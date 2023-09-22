@@ -47,6 +47,9 @@ pub struct Config {
     /// Address of a bitcoin node
     pub bitcoin_node_url: Url,
 
+    /// Address of the Electrum node
+    pub electrum_node_url: Url,
+
     /// sBTC asset contract name
     pub contract_name: ContractName,
 }
@@ -64,6 +67,7 @@ impl Config {
 
         let stacks_node_url = Url::parse(&config_file.stacks_node_url)?;
         let bitcoin_node_url = Url::parse(&config_file.bitcoin_node_url)?;
+        let electrum_node_url = Url::parse(&config_file.electrum_node_url)?;
 
         let wallet = Wallet::new(&config_file.mnemonic)?;
 
@@ -78,6 +82,7 @@ impl Config {
             bitcoin_credentials,
             stacks_node_url,
             bitcoin_node_url,
+            electrum_node_url,
             contract_name: ContractName::from(config_file.contract_name.as_str()),
         })
     }
@@ -110,6 +115,9 @@ struct ConfigFile {
 
     /// Address of a bitcoin node
     pub bitcoin_node_url: String,
+
+    /// Address of the Electrum node
+    pub electrum_node_url: String,
 
     /// sBTC asset contract name
     pub contract_name: String,

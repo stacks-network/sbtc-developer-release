@@ -67,15 +67,29 @@ impl BitcoinClient for RPCClient {
     }
 
     async fn get_tx_status(&self, txid: Txid) -> anyhow::Result<TransactionStatus> {
-        let tx = self
+        let is_confirmed = self
             .execute(move |client| client.get_raw_transaction_info(&txid, None))
-            .await??;
+            .await?
+            .ok()
+            .and_then(|tx| tx.confirmations)
+            .map(|confirmations| confirmations > 0)
+            .unwrap_or_default();
 
-        if tx.blockhash.is_some() {
-            Ok(TransactionStatus::Confirmed)
-        } else {
-            Ok(TransactionStatus::Broadcasted)
-        }
+        let in_mempool = self
+            .execute(move |client| client.get_mempool_entry(&txid))
+            .await?
+            .is_ok();
+
+        let res = match (is_confirmed, in_mempool) {
+            (true, false) => TransactionStatus::Confirmed,
+            (false, true) => TransactionStatus::Broadcasted,
+            (false, false) => TransactionStatus::Rejected,
+            (true, true) => panic!("Transaction cannot be both confirmed and pending"),
+        };
+
+        tracing::debug!("BTC TX {} IS {:?}", txid, res);
+
+        Ok(res)
     }
 
     async fn get_block(&self, block_height: u32) -> anyhow::Result<(u32, Block)> {
@@ -122,7 +136,9 @@ impl BitcoinClient for RPCClient {
     }
 
     async fn sign_and_broadcast(&self, outputs: Vec<(Script, u64)>) -> anyhow::Result<Txid> {
-        let url = self.0.bitcoin_node_url.as_str().to_string();
+        sleep(Duration::from_secs(1)).await;
+
+        let url = self.0.electrum_node_url.as_str().to_string();
         let network = self.0.bitcoin_network;
         let private_key =
             PrivateKey::from_wif(&self.0.bitcoin_credentials.wif_p2wpkh().to_string())?;
