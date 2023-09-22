@@ -167,7 +167,7 @@ async fn run_task(
             fulfill_asset(config, bitcoin_client, stacks_client, fulfillment_info).await
         }
         Task::CheckBitcoinTransactionStatus(txid) => {
-            check_bitcoin_transaction_status(config, txid).await
+            check_bitcoin_transaction_status(config, bitcoin_client, txid).await
         }
         Task::CheckStacksTransactionStatus(txid) => {
             check_stacks_transaction_status(stacks_client, txid).await
@@ -331,7 +331,7 @@ async fn fulfill_asset(
     let stacks_chain_tip = stacks_client
         .lock()
         .await
-        .get_block_hash(withdrawal_info.block_height)
+        .get_block_hash_from_bitcoin_height(withdrawal_info.block_height)
         .await
         .expect("Unable to get stacks block hash");
 
@@ -370,8 +370,17 @@ async fn get_tx_proof(
     ProofData::from_block_and_index(&block, index).to_values()
 }
 
-async fn check_bitcoin_transaction_status(_config: &Config, _txid: BitcoinTxId) -> Event {
-    todo!();
+async fn check_bitcoin_transaction_status(
+    _config: &Config,
+    client: impl BitcoinClient,
+    txid: BitcoinTxId,
+) -> Event {
+    let status = client
+        .get_tx_status(txid)
+        .await
+        .expect("Could not get Bitcoin transaction status");
+
+    Event::BitcoinTransactionUpdate(txid, status)
 }
 
 async fn check_stacks_transaction_status(
