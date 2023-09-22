@@ -1,6 +1,5 @@
 use std::{io::stdout, str::FromStr};
 
-
 use bdk::{
     bitcoin::{
         psbt::serialize::Serialize, Address as BitcoinAddress, Network as BitcoinNetwork,
