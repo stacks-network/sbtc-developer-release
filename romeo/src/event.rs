@@ -14,6 +14,9 @@ pub enum Event {
     /// Block height of the contract deployment transaction
     ContractBlockHeight(u32),
 
+    /// A transaction to update the public key has been created and broadcasted
+    SetBitcoinPublicKeyBroadcasted(StacksTxId),
+
     /// A mint transaction has been created and broadcasted
     MintBroadcasted(DepositInfo, StacksTxId),
 

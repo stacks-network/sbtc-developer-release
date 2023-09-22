@@ -199,6 +199,25 @@ impl StacksClient {
         Ok(res["block_height"].as_u64().unwrap() as u32)
     }
 
+    /// Set the public key in the asset contract
+    pub async fn set_public_key(&self, public_key: &str) -> anyhow::Result<StacksTxId> {
+        let contract_address = self.config.stacks_credentials.address();
+        let contract_name = self.config.contract_name.to_string();
+        let res = self
+            .sign_and_broadcast(
+                StacksTransaction::new_contract_call(
+                    contract_address,
+                    contract_name,
+                    "set-bitcoin-wallet-public-key",
+                    &[Value::String(public_key.to_string())],
+                )
+                .unwrap(),
+            )
+            .await?;
+
+        Ok(res)
+    }
+
     /// Get the public key defined in the asset contract
     pub async fn get_public_key(&self) -> anyhow::Result<String> {
         let contract_address = self.config.stacks_credentials.address();

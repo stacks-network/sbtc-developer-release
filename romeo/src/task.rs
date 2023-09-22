@@ -15,8 +15,8 @@ pub enum Task {
     /// Create and broadcast a fulfill bitcoin transaction
     CreateFulfill(state::WithdrawalInfo),
 
-    /// Get the block height of the contract deployment
-    GetContractBlockHeight,
+    /// Initializes the binary (romeo engine)
+    Initialize,
 
     /// Poll a bitcoin node for the status of a transaction
     CheckBitcoinTransactionStatus(BitcoinTxId),

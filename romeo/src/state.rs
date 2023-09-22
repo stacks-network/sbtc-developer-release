@@ -19,6 +19,7 @@ use crate::task::Task;
 /// The whole state of the application
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct State {
+    set_bitcoin_public_key_tx: Option<TransactionRequest<StacksTxId>>,
     deposits: Vec<Deposit>,
     withdrawals: Vec<Withdrawal>,
     current_block_height: Option<u32>,
@@ -154,7 +155,7 @@ pub fn bootstrap(mut state: State) -> (State, Task) {
     });
 
     match state.current_block_height {
-        None => (state, Task::GetContractBlockHeight),
+        None => (state, Task::Initialize),
         Some(height) => (state, Task::FetchBitcoinBlock(height + 1)),
     }
 }
@@ -168,6 +169,9 @@ pub fn update(config: &Config, state: State, event: Event) -> (State, Vec<Task>)
 
     match event {
         Event::ContractBlockHeight(height) => process_contract_block_height(state, height),
+        Event::SetBitcoinPublicKeyBroadcasted(txid) => {
+            process_set_bitcoin_public_key_broadcasted(state, txid)
+        }
         Event::StacksTransactionUpdate(txid, status) => {
             process_stacks_transaction_update(config, state, txid, status)
         }
@@ -357,6 +361,18 @@ fn get_mut_transaction_requests(
         .filter_map(|withdrawal| withdrawal.burn.as_mut());
 
     deposit_responses.chain(withdrawal_responses)
+}
+
+fn process_set_bitcoin_public_key_broadcasted(
+    mut state: State,
+    txid: StacksTxId,
+) -> (State, Vec<Task>) {
+    state.set_bitcoin_public_key_tx = Some(TransactionRequest::Acknowledged {
+        txid: txid,
+        status: TransactionStatus::Broadcasted,
+        has_pending_task: false,
+    });
+    (state, vec![])
 }
 
 fn process_mint_broadcasted(

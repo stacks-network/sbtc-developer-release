@@ -145,7 +145,7 @@ async fn run_task(
     task: Task,
 ) -> Event {
     match task {
-        Task::GetContractBlockHeight => get_contract_block_height(config, stacks_client).await,
+        Task::Initialize => initialize(config, &stacks_client).await,
         Task::CreateMint(deposit_info) => {
             mint_asset(config, bitcoin_client, stacks_client, deposit_info).await
         }
@@ -162,7 +162,13 @@ async fn run_task(
     }
 }
 
-async fn get_contract_block_height(config: &Config, client: LockedClient) -> Event {
+async fn initialize(config: &Config, client: &LockedClient) -> Event {
+    let txid = set_bitcoin_public_key(config, client).await;
+
+    Event::SetBitcoinPublicKeyBroadcasted(txid)
+}
+
+async fn get_contract_block_height(config: &Config, client: &LockedClient) -> Event {
     let block_height = client
         .lock()
         .await
@@ -171,6 +177,49 @@ async fn get_contract_block_height(config: &Config, client: LockedClient) -> Eve
         .expect("Could not get ");
 
     Event::ContractBlockHeight(block_height)
+}
+
+async fn set_bitcoin_public_key(config: &Config, stacks_client: &LockedClient) -> StacksTxId {
+    let public_key =
+        StacksPublicKey::from_slice(&config.stacks_credentials.public_key().serialize()).unwrap();
+
+    let tx_auth = TransactionAuth::Standard(
+        TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
+    );
+
+    // use the p2wpkh public key from the config 
+    let function_args = vec![Value::buff_from(
+        config
+            .bitcoin_credentials
+            .public_key_p2wpkh()
+            .serialize()
+            .to_vec(),
+    )
+    .unwrap()];
+
+    // TODO: do we need to serialize and deserialize the address here?
+    let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
+        config.stacks_credentials.address().serialize_to_vec(),
+    ))
+    .unwrap();
+
+    let tx_payload = TransactionPayload::ContractCall(TransactionContractCall {
+        address: addr,
+        contract_name: config.contract_name.clone(),
+        function_name: ClarityName::from("set-bitcoin-public-key"),
+        function_args,
+    });
+
+    let tx = StacksTransaction::new(TransactionVersion::Testnet, tx_auth, tx_payload);
+
+    let txid = stacks_client
+        .lock()
+        .await
+        .sign_and_broadcast(tx)
+        .await
+        .expect("Unable to sign and broadcast the mint transaction");
+
+    txid
 }
 
 async fn mint_asset(
