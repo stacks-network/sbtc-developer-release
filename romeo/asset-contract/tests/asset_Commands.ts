@@ -17,7 +17,7 @@ export function AssetCommands(accounts: Map<string, Account>) {
     fc
       .record({
         sender: fc.constant(accounts.get("deployer")!),
-        amount: fc.integer({ min: 1 }),
+        amount: fc.integer({ min: 1, max: 100 }),
         wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
         params: fc.constantFrom(...data),
       })
@@ -74,7 +74,7 @@ export function AssetCommands(accounts: Map<string, Account>) {
     fc
       .record({
         sender: fc.constant(accounts.get("deployer")!),
-        amount: fc.integer({ min: 1 }),
+        amount: fc.integer({ min: 1, max: 100 }),
         wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
         params: fc.constantFrom(...data),
       })

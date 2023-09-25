@@ -81,6 +81,12 @@ export class BurnCommand implements AssetCommand {
     const balance = model.wallets.get(this.wallet.address) ?? 0;
     model.wallets.set(this.wallet.address, balance - this.amount);
 
+    model.transactions.push([
+      uint8ArrayToHexString(this.params.depositTx),
+      -this.amount,
+      this.wallet,
+    ]);
+
     console.log(
       `✓ ${this.sender.name.padStart(8, " ")} ${"burn".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")}`
     );

@@ -135,6 +135,7 @@ Clarinet.test({
     const initialChain = { chain: chain };
     const initialModel = {
       wallets: new Map<string, number>(),
+      transactions: [],
     };
     fc.assert(
       fc.property(

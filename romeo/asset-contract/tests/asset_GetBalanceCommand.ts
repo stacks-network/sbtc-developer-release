@@ -1,4 +1,5 @@
 import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
+import { assert } from "https://deno.land/std@0.202.0/assert/mod.ts";
 
 import {
   Account,
@@ -35,6 +36,14 @@ export class GetBalanceCommand implements AssetCommand {
 
     const expected = model.wallets.get(this.wallet.address) ?? 0;
     block.receipts.map(({ result }) => result.expectOk().expectUint(expected));
+
+    // sBTC DR allows several mints or burns with the same Bitcoin transaction.
+    const actual = model.transactions.reduce((sum, [_, amount, wallet]) =>
+      (wallet.address === this.wallet.address ? sum + amount : sum), 0);
+    assert(
+      expected === actual,
+      `The bitcoin transaction does not match the balance. The bitcoin transaction amount is ${actual} and the balance is ${expected}`,
+    );
 
     console.log(
       `✓ ${this.sender.name.padStart(8, " ")} ${`get-balance`.padStart(16, " ")} ${this.wallet.name.padStart(8, " ")} ${expected.toString().padStart(12, " ")}`,
