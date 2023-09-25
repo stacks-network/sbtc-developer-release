@@ -10,6 +10,7 @@
 (define-constant ERR-PROOF-TOO-SHORT (err u8))
 (define-constant ERR-INVALID-BLOCK-HEADER-LENGTH (err u9))
 
+
 (define-constant block-header-merkle-root-start u36)
 (define-constant block-header-merkle-root-end u68)
 
