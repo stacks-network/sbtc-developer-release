@@ -8,7 +8,9 @@ use anyhow::anyhow;
 use blockstack_lib::codec::StacksMessageCodec;
 use blockstack_lib::core::CHAIN_ID_TESTNET;
 use blockstack_lib::types::chainstate::StacksPrivateKey;
-use blockstack_lib::vm::types::{QualifiedContractIdentifier, StandardPrincipalData};
+use blockstack_lib::vm::types::{
+	QualifiedContractIdentifier, StandardPrincipalData,
+};
 use blockstack_lib::vm::ContractName;
 use futures::Future;
 use rand::distributions::Alphanumeric;
@@ -20,11 +22,10 @@ use stacks_core::codec::Codec;
 use stacks_core::uint::Uint256;
 use tokio::sync::{Mutex, MutexGuard};
 
-use serde::de::DeserializeOwned;
-
 use blockstack_lib::burnchains::Txid as StacksTxId;
 use blockstack_lib::chainstate::stacks::{
-    StacksTransaction, StacksTransactionSigner, TransactionAnchorMode, TransactionPostConditionMode,
+	StacksTransaction, StacksTransactionSigner, TransactionAnchorMode,
+	TransactionPostConditionMode,
 };
 use tokio::time::sleep;
 use tracing::{debug, trace};
@@ -69,16 +70,16 @@ impl StacksClient {
 		}
 	}
 
-    async fn send_request<B, T>(&self, request_builder: B) -> anyhow::Result<T>
-    where
-        B: Clone + Fn() -> Request,
-        T: DeserializeOwned,
-    {
-        let request_url = request_builder().url().to_string();
+	async fn send_request<B, T>(&self, request_builder: B) -> anyhow::Result<T>
+	where
+		B: Clone + Fn() -> Request,
+		T: DeserializeOwned,
+	{
+		let request_url = request_builder().url().to_string();
 
-        let res = retry(|| self.http_client.execute(request_builder())).await?;
-        let status = res.status();
-        let body = res.text().await?;
+		let res = retry(|| self.http_client.execute(request_builder())).await?;
+		let status = res.status();
+		let body = res.text().await?;
 
 		serde_json::from_str(&body).map_err(|err| {
             let error_details = serde_json::from_str::<Value>(&body).ok().map(|details| {
@@ -106,18 +107,18 @@ impl StacksClient {
         })
 	}
 
-    /// Sign and broadcast an unsigned stacks transaction
-    pub async fn sign_and_broadcast(
-        &mut self,
-        mut tx: StacksTransaction,
-    ) -> anyhow::Result<StacksTxId> {
-        #[cfg(debug_assertions)]
-        {
-            sleep(Duration::from_secs(3)).await;
-        }
+	/// Sign and broadcast an unsigned stacks transaction
+	pub async fn sign_and_broadcast(
+		&mut self,
+		mut tx: StacksTransaction,
+	) -> anyhow::Result<StacksTxId> {
+		#[cfg(debug_assertions)]
+		{
+			sleep(Duration::from_secs(3)).await;
+		}
 
-        tx.set_origin_nonce(self.get_nonce_info().await?.possible_next_nonce);
-        tx.set_tx_fee(self.calculate_fee(tx.tx_len()).await?);
+		tx.set_origin_nonce(self.get_nonce_info().await?.possible_next_nonce);
+		tx.set_tx_fee(self.calculate_fee(tx.tx_len()).await?);
 
 		tx.anchor_mode = TransactionAnchorMode::Any;
 		tx.post_condition_mode = TransactionPostConditionMode::Allow;
@@ -143,36 +144,36 @@ impl StacksClient {
 		let mut tx_bytes = vec![];
 		tx.consensus_serialize(&mut tx_bytes).unwrap();
 
-        let res = self
-            .send_request(|| {
-                let tx_bytes = tx_bytes.clone();
+		let res = self
+			.send_request(|| {
+				let tx_bytes = tx_bytes.clone();
 
-                self.http_client
-                    .post(self.transaction_url())
-                    .header("Content-type", "application/octet-stream")
-                    .body(tx_bytes)
-                    .build()
-                    .unwrap()
-            })
-            .await?;
+				self.http_client
+					.post(self.transaction_url())
+					.header("Content-type", "application/octet-stream")
+					.body(tx_bytes)
+					.build()
+					.unwrap()
+			})
+			.await?;
 
 		Ok(res)
 	}
 
-    /// Get transaction status for a given txid
-    pub async fn get_transation_status(
-        &mut self,
-        txid: StacksTxId,
-    ) -> anyhow::Result<TransactionStatus> {
-        let res: Value = self
-            .send_request(|| {
-                self.http_client
-                    .get(self.cachebust(self.get_transation_details_url(txid)))
-                    .header("Accept", "application/json")
-                    .build()
-                    .unwrap()
-            })
-            .await?;
+	/// Get transaction status for a given txid
+	pub async fn get_transation_status(
+		&mut self,
+		txid: StacksTxId,
+	) -> anyhow::Result<TransactionStatus> {
+		let res: Value = self
+			.send_request(|| {
+				self.http_client
+					.get(self.cachebust(self.get_transation_details_url(txid)))
+					.header("Accept", "application/json")
+					.build()
+					.unwrap()
+			})
+			.await?;
 
 		let tx_status_str = res["tx_status"]
 			.as_str()
@@ -186,15 +187,15 @@ impl StacksClient {
 		})
 	}
 
-    async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
-        self.send_request(|| {
-            self.http_client
-                .get(self.cachebust(self.nonce_url()))
-                .build()
-                .unwrap()
-        })
-        .await
-    }
+	async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
+		self.send_request(|| {
+			self.http_client
+				.get(self.cachebust(self.nonce_url()))
+				.build()
+				.unwrap()
+		})
+		.await
+	}
 
 	/// Get the block height of the contract
 	pub async fn get_contract_block_height(
@@ -210,127 +211,139 @@ impl StacksClient {
 			name,
 		);
 
-        let res: Value = self
-            .send_request(|| {
-                self.http_client
-                    .get(self.contract_info_url(id.to_string()))
-                    .build()
-                    .unwrap()
-            })
-            .await?;
+		let res: Value = self
+			.send_request(|| {
+				self.http_client
+					.get(self.contract_info_url(id.to_string()))
+					.build()
+					.unwrap()
+			})
+			.await?;
 
 		Ok(res["block_height"].as_u64().unwrap() as u32)
 	}
 
-    /// Get the Bitcoin block height for a Stacks block height
-    pub async fn get_bitcoin_block_height(&mut self, block_height: u32) -> anyhow::Result<u32> {
-        let res: Value = self
-            .send_request(|| {
-                self.http_client
-                    .get(self.block_by_height_url(block_height))
-                    .build()
-                    .unwrap()
-            })
-            .await?;
+	/// Get the Bitcoin block height for a Stacks block height
+	pub async fn get_bitcoin_block_height(
+		&mut self,
+		block_height: u32,
+	) -> anyhow::Result<u32> {
+		let res: Value = self
+			.send_request(|| {
+				self.http_client
+					.get(self.block_by_height_url(block_height))
+					.build()
+					.unwrap()
+			})
+			.await?;
 
-        Ok(res["burn_block_height"].as_u64().unwrap() as u32)
-    }
+		Ok(res["burn_block_height"].as_u64().unwrap() as u32)
+	}
 
-    /// Get the block at height
-    pub async fn get_block(&mut self, block_height: u32) -> anyhow::Result<Vec<StacksTransaction>> {
-        let res: Value = loop {
-            let inner_res: Value = self
-                .send_request(|| {
-                    self.http_client
-                        .get(self.block_by_height_url(block_height))
-                        .build()
-                        .unwrap()
-                })
-                .await?;
+	/// Get the block at height
+	pub async fn get_block(
+		&mut self,
+		block_height: u32,
+	) -> anyhow::Result<Vec<StacksTransaction>> {
+		let res: Value = loop {
+			let inner_res: Value = self
+				.send_request(|| {
+					self.http_client
+						.get(self.block_by_height_url(block_height))
+						.build()
+						.unwrap()
+				})
+				.await?;
 
-            if inner_res["txs"].is_array() {
-                trace!("Found Stacks block of height {}", block_height);
-                break inner_res;
-            }
+			if inner_res["txs"].is_array() {
+				trace!("Found Stacks block of height {}", block_height);
+				break inner_res;
+			}
 
-            trace!("Stacks block not found, retrying...");
-            sleep(BLOCK_POLLING_INTERVAL).await;
-        };
+			trace!("Stacks block not found, retrying...");
+			sleep(BLOCK_POLLING_INTERVAL).await;
+		};
 
-        let tx_ids: Vec<StacksTxId> = res["txs"]
-            .as_array()
-            .unwrap_or_else(|| panic!("Could not get txs from response: {:?}", res))
-            .iter()
-            .map(|id| {
-                let mut id = id.as_str().unwrap().to_string();
-                id = id.replace("0x", "");
+		let tx_ids: Vec<StacksTxId> = res["txs"]
+			.as_array()
+			.unwrap_or_else(|| {
+				panic!("Could not get txs from response: {:?}", res)
+			})
+			.iter()
+			.map(|id| {
+				let mut id = id.as_str().unwrap().to_string();
+				id = id.replace("0x", "");
 
-                StacksTxId::from_hex(&id).unwrap()
-            })
-            .collect();
+				StacksTxId::from_hex(&id).unwrap()
+			})
+			.collect();
 
-        let mut txs = Vec::with_capacity(tx_ids.len());
+		let mut txs = Vec::with_capacity(tx_ids.len());
 
-        for id in tx_ids {
-            let tx = self.get_transaction(id).await?;
-            txs.push(tx);
-        }
+		for id in tx_ids {
+			let tx = self.get_transaction(id).await?;
+			txs.push(tx);
+		}
 
-        Ok(txs)
-    }
+		Ok(txs)
+	}
 
-    /// Get the block at height
-    pub async fn get_transaction(&mut self, id: StacksTxId) -> anyhow::Result<StacksTransaction> {
-        let res: Value = self
-            .send_request(|| {
-                self.http_client
-                    .get(self.get_raw_transaction_url(id))
-                    .header("Accept", "application/octet-stream")
-                    .build()
-                    .unwrap()
-            })
-            .await?;
+	/// Get the block at height
+	pub async fn get_transaction(
+		&mut self,
+		id: StacksTxId,
+	) -> anyhow::Result<StacksTransaction> {
+		let res: Value = self
+			.send_request(|| {
+				self.http_client
+					.get(self.get_raw_transaction_url(id))
+					.header("Accept", "application/octet-stream")
+					.build()
+					.unwrap()
+			})
+			.await?;
 
-        let mut raw_tx: String = res["raw_tx"].as_str().unwrap().to_string();
-        raw_tx = raw_tx.replace("0x", "");
+		let mut raw_tx: String = res["raw_tx"].as_str().unwrap().to_string();
+		raw_tx = raw_tx.replace("0x", "");
 
-        let bytes = hex::decode(raw_tx).unwrap();
-        let tx = StacksTransaction::consensus_deserialize(&mut &bytes[..]).unwrap();
+		let bytes = hex::decode(raw_tx).unwrap();
+		let tx =
+			StacksTransaction::consensus_deserialize(&mut &bytes[..]).unwrap();
 
-        Ok(tx)
-    }
+		Ok(tx)
+	}
 
-    /// Get the block hash for a given Bitcoin height
-    pub async fn get_block_hash_from_bitcoin_height(
-        &mut self,
-        height: u32,
-    ) -> anyhow::Result<Uint256> {
-        let res: Value = self
-            .send_request(|| {
-                self.http_client
-                    .get(self.block_by_bitcoin_height_url(height))
-                    .header("Accept", "application/json")
-                    .build()
-                    .unwrap()
-            })
-            .await?;
+	/// Get the block hash for a given Bitcoin height
+	pub async fn get_block_hash_from_bitcoin_height(
+		&mut self,
+		height: u32,
+	) -> anyhow::Result<Uint256> {
+		let res: Value = self
+			.send_request(|| {
+				self.http_client
+					.get(self.block_by_bitcoin_height_url(height))
+					.header("Accept", "application/json")
+					.build()
+					.unwrap()
+			})
+			.await?;
 
-        let hash_str = res["hash"]
-            .as_str()
-            .unwrap_or_else(|| panic!("Could not get block hash: {:?}", res));
-        let hash_bytes = hex::decode(hash_str.replace("0x", ""))?;
+		let hash_str = res["hash"]
+			.as_str()
+			.unwrap_or_else(|| panic!("Could not get block hash: {:?}", res));
+		let hash_bytes = hex::decode(hash_str.replace("0x", ""))?;
 
-        Ok(Uint256::deserialize(&mut Cursor::new(hash_bytes))?)
-    }
+		Ok(Uint256::deserialize(&mut Cursor::new(hash_bytes))?)
+	}
 
-    async fn calculate_fee(&self, tx_len: u64) -> anyhow::Result<u64> {
-        let fee_rate: u64 = self
-            .http_client
-            .get(self.fee_url())
-            .send()
-            .await?
-            .json()
-            .await?;
+	async fn calculate_fee(&self, tx_len: u64) -> anyhow::Result<u64> {
+		let fee_rate: u64 = self
+			.http_client
+			.get(self.fee_url())
+			.send()
+			.await?
+			.json()
+			.await?;
 
 		// TODO: Figure out what's the right multiplier #98
 		Ok(fee_rate * tx_len * 100)
@@ -343,36 +356,36 @@ impl StacksClient {
 			.unwrap()
 	}
 
-    fn get_raw_transaction_url(&self, txid: StacksTxId) -> reqwest::Url {
-        self.config
-            .stacks_node_url
-            .join(&format!("/extended/v1/tx/{}/raw", txid))
-            .unwrap()
-    }
+	fn get_raw_transaction_url(&self, txid: StacksTxId) -> reqwest::Url {
+		self.config
+			.stacks_node_url
+			.join(&format!("/extended/v1/tx/{}/raw", txid))
+			.unwrap()
+	}
 
-    fn block_by_height_url(&self, height: u32) -> reqwest::Url {
-        self.config
-            .stacks_node_url
-            .join(&format!("/extended/v1/block/by_height/{}", height))
-            .unwrap()
-    }
+	fn block_by_height_url(&self, height: u32) -> reqwest::Url {
+		self.config
+			.stacks_node_url
+			.join(&format!("/extended/v1/block/by_height/{}", height))
+			.unwrap()
+	}
 
-    fn block_by_bitcoin_height_url(&self, height: u32) -> reqwest::Url {
-        self.config
-            .stacks_node_url
-            .join(&format!(
-                "/extended/v1/block/by_burn_block_height/{}",
-                height
-            ))
-            .unwrap()
-    }
+	fn block_by_bitcoin_height_url(&self, height: u32) -> reqwest::Url {
+		self.config
+			.stacks_node_url
+			.join(&format!(
+				"/extended/v1/block/by_burn_block_height/{}",
+				height
+			))
+			.unwrap()
+	}
 
-    fn contract_info_url(&self, id: impl AsRef<str>) -> reqwest::Url {
-        self.config
-            .stacks_node_url
-            .join(&format!("/extended/v1/contract/{}", id.as_ref()))
-            .unwrap()
-    }
+	fn contract_info_url(&self, id: impl AsRef<str>) -> reqwest::Url {
+		self.config
+			.stacks_node_url
+			.join(&format!("/extended/v1/contract/{}", id.as_ref()))
+			.unwrap()
+	}
 
 	fn get_transation_details_url(&self, txid: StacksTxId) -> reqwest::Url {
 		self.config
@@ -425,24 +438,29 @@ struct NonceInfo {
 
 async fn retry<T, O, Fut>(operation: O) -> anyhow::Result<T>
 where
-    O: Clone + Fn() -> Fut,
-    Fut: Future<Output = Result<T, reqwest::Error>>,
+	O: Clone + Fn() -> Fut,
+	Fut: Future<Output = Result<T, reqwest::Error>>,
 {
-    let operation = || async {
-        operation.clone()().await.map_err(|err| {
-            if err.is_request() {
-                backoff::Error::transient(anyhow::anyhow!(err))
-            } else {
-                backoff::Error::permanent(anyhow::anyhow!(err))
-            }
-        })
-    };
+	let operation = || async {
+		operation.clone()().await.map_err(|err| {
+			if err.is_request() {
+				backoff::Error::transient(anyhow::anyhow!(err))
+			} else {
+				backoff::Error::permanent(anyhow::anyhow!(err))
+			}
+		})
+	};
 
-    let notify = |err, duration| {
-        trace!("Retrying in {:?} after error: {:?}", duration, err);
-    };
+	let notify = |err, duration| {
+		trace!("Retrying in {:?} after error: {:?}", duration, err);
+	};
 
-    backoff::future::retry_notify(backoff::ExponentialBackoff::default(), operation, notify).await
+	backoff::future::retry_notify(
+		backoff::ExponentialBackoff::default(),
+		operation,
+		notify,
+	)
+	.await
 }
 
 #[cfg(test)]
