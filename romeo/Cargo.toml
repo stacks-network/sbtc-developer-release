@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
-async-trait.workspace = true
 backoff = { workspace = true, features = ["tokio"] }
 bdk = { workspace = true, features = ["rpc", "esplora", "use-esplora-async"]}
 blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }

@@ -33,8 +33,7 @@ use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::trace;
 
-use crate::bitcoin_client::rpc::RPCClient as BitcoinRPCClient;
-use crate::bitcoin_client::BitcoinClient;
+use crate::bitcoin_client::Client as BitcoinClient;
 use crate::config::Config;
 use crate::event::Event;
 use crate::proof_data::ProofData;
@@ -53,7 +52,7 @@ use crate::task::Task;
 pub async fn run(config: Config) {
     let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
     let bitcoin_client =
-        BitcoinRPCClient::new(config.clone()).expect("Failed to instantiate bitcoin client");
+        BitcoinClient::new(config.clone()).expect("Failed to instantiate bitcoin client");
     let stacks_client: LockedClient =
         StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
@@ -131,7 +130,7 @@ impl Storage {
 #[tracing::instrument(skip(config, bitcoin_client, stacks_client, result))]
 fn spawn(
     config: Config,
-    bitcoin_client: impl BitcoinClient + 'static,
+    bitcoin_client: BitcoinClient,
     stacks_client: LockedClient,
     task: Task,
     result: mpsc::Sender<Event>,
@@ -146,7 +145,7 @@ fn spawn(
 
 async fn run_task(
     config: &Config,
-    bitcoin_client: impl BitcoinClient,
+    bitcoin_client: BitcoinClient,
     stacks_client: LockedClient,
     task: Task,
 ) -> Event {
@@ -196,7 +195,7 @@ async fn get_contract_block_height(config: &Config, client: LockedClient) -> Eve
 
 async fn mint_asset(
     config: &Config,
-    bitcoin_client: impl BitcoinClient,
+    bitcoin_client: BitcoinClient,
     stacks_client: LockedClient,
     deposit_info: DepositInfo,
 ) -> Event {
@@ -256,7 +255,7 @@ async fn mint_asset(
 
 async fn burn_asset(
     config: &Config,
-    bitcoin_client: impl BitcoinClient,
+    bitcoin_client: BitcoinClient,
     stacks_client: LockedClient,
     withdrawal_info: WithdrawalInfo,
 ) -> Event {
@@ -316,7 +315,7 @@ async fn burn_asset(
 
 async fn fulfill_asset(
     config: &Config,
-    bitcoin_client: impl BitcoinClient,
+    bitcoin_client: BitcoinClient,
     stacks_client: LockedClient,
     withdrawal_info: WithdrawalInfo,
 ) -> Event {
@@ -344,7 +343,7 @@ async fn fulfill_asset(
 }
 
 async fn get_tx_proof(
-    bitcoin_client: &impl BitcoinClient,
+    bitcoin_client: &BitcoinClient,
     height: u32,
     txid: BitcoinTxId,
 ) -> ProofDataClarityValues {
@@ -364,7 +363,7 @@ async fn get_tx_proof(
 
 async fn check_bitcoin_transaction_status(
     _config: &Config,
-    client: impl BitcoinClient,
+    client: BitcoinClient,
     txid: BitcoinTxId,
 ) -> Event {
     let status = client
@@ -397,7 +396,7 @@ async fn fetch_stacks_block(client: LockedClient, block_height: u32) -> Event {
     Event::StacksBlock(block_height, txs)
 }
 
-async fn fetch_bitcoin_block(client: impl BitcoinClient, block_height: u32) -> Event {
+async fn fetch_bitcoin_block(client: BitcoinClient, block_height: u32) -> Event {
     let (height, block) = client
         .get_block(block_height)
         .await
