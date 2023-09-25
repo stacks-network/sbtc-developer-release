@@ -42,7 +42,7 @@ export class GetBalanceCommand implements AssetCommand {
       (wallet.address === this.wallet.address ? sum + amount : sum), 0);
     assert(
       expected === actual,
-      `The bitcoin transaction does not match the balance. The bitcoin transaction amount is ${actual} and the balance is ${expected}`,
+      `The bitcoin transaction does not match the balance. The bitcoin transaction amount is ${actual} and the balance is ${expected}.`,
     );
 
     console.log(
