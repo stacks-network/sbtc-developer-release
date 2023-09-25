@@ -39,6 +39,6 @@ export class GetTotalSupplyCommand implements AssetCommand {
     // fast-check will call toString() in case of errors, e.g. property failed.
     // It will then make a minimal counterexample, a process called 'shrinking'
     // https://github.com/dubzzz/fast-check/issues/2864#issuecomment-1098002642
-    return `${this.sender} get-total-supply`;
+    return `${this.sender.name} get-total-supply`;
   }
 }
