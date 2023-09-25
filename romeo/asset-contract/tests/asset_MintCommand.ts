@@ -1,8 +1,8 @@
 import {
   AssetCommand,
+  BitcoinTxData,
   Real,
   Stub,
-  BitcoinTxData,
 } from "./asset_CommandModel.ts";
 
 import {
