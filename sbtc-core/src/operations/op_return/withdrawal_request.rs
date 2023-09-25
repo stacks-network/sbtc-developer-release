@@ -162,13 +162,6 @@ pub struct WithdrawalRequestData {
     pub signature: RecoverableSignature,
 }
 
-impl WithdrawalRequestData {
-    /// Recovers the signature and computes the Stacks address to be burned from
-    pub fn get_drawee_address(&self) -> StacksAddress {
-        todo!()
-    }
-}
-
 /// Construct a withdrawal request transaction
 pub fn build_withdrawal_tx(
     wallet: &Wallet<impl BatchDatabase>,
