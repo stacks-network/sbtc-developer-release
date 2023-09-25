@@ -3,10 +3,9 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use async_trait::async_trait;
 use bdk::{
     bitcoin::{Block, PrivateKey, Script, Transaction, Txid},
-    bitcoincore_rpc::{self, Auth, Client, RpcApi},
+    bitcoincore_rpc::{self, Auth, Client as RPCClient, RpcApi},
     blockchain::{ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig},
     database::MemoryDatabase,
     template::P2Wpkh,
@@ -16,15 +15,15 @@ use sbtc_core::operations::op_return::utils::reorder_outputs;
 use tokio::{task::spawn_blocking, time::sleep};
 use tracing::trace;
 
-use crate::{bitcoin_client::BitcoinClient, config::Config, event::TransactionStatus};
+use crate::{config::Config, event::TransactionStatus};
 
 const BLOCK_POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Bitcoin RPC client
 #[derive(Debug, Clone)]
-pub struct RPCClient(Config);
+pub struct Client(Config);
 
-impl RPCClient {
+impl Client {
     /// Create a new RPC client
     pub fn new(config: Config) -> anyhow::Result<Self> {
         Ok(Self(config))
@@ -32,7 +31,7 @@ impl RPCClient {
 
     async fn execute<F, T>(&self, f: F) -> anyhow::Result<bitcoincore_rpc::Result<T>>
     where
-        F: FnOnce(Client) -> bitcoincore_rpc::Result<T> + Send + 'static,
+        F: FnOnce(RPCClient) -> bitcoincore_rpc::Result<T> + Send + 'static,
         T: Send + 'static,
     {
         let mut url = self.0.bitcoin_node_url.clone();
@@ -51,23 +50,21 @@ impl RPCClient {
         url.set_username("").unwrap();
         url.set_password(None).unwrap();
 
-		let client =
-			Client::new(url.as_ref(), Auth::UserPass(username, password))?;
+        let client = RPCClient::new(url.as_ref(), Auth::UserPass(username, password))?;
 
-		Ok(spawn_blocking(move || f(client)).await?)
-	}
-}
+        Ok(spawn_blocking(move || f(client)).await?)
+    }
 
-#[async_trait]
-impl BitcoinClient for RPCClient {
-	async fn broadcast(&self, tx: Transaction) -> anyhow::Result<()> {
-		self.execute(move |client| client.send_raw_transaction(&tx))
-			.await??;
+    /// Broadcast a transaction
+    pub async fn broadcast(&self, tx: Transaction) -> anyhow::Result<()> {
+        self.execute(move |client| client.send_raw_transaction(&tx))
+            .await??;
 
 		Ok(())
 	}
 
-    async fn get_tx_status(&self, txid: Txid) -> anyhow::Result<TransactionStatus> {
+    /// Get transaction status
+    pub async fn get_tx_status(&self, txid: Txid) -> anyhow::Result<TransactionStatus> {
         let is_confirmed = self
             .execute(move |client| client.get_raw_transaction_info(&txid, None))
             .await?
@@ -93,7 +90,8 @@ impl BitcoinClient for RPCClient {
         Ok(res)
     }
 
-    async fn get_block(&self, block_height: u32) -> anyhow::Result<(u32, Block)> {
+    /// Get block
+    pub async fn get_block(&self, block_height: u32) -> anyhow::Result<(u32, Block)> {
         let block_hash = loop {
             let res = self
                 .execute(move |client| client.get_block_hash(block_height as u64))
@@ -128,15 +126,17 @@ impl BitcoinClient for RPCClient {
 		Ok((block_height, block))
 	}
 
-	async fn get_height(&self) -> anyhow::Result<u32> {
-		let info = self
-			.execute(|client| client.get_blockchain_info())
-			.await??;
+    /// Get current block height
+    pub async fn get_height(&self) -> anyhow::Result<u32> {
+        let info = self
+            .execute(|client| client.get_blockchain_info())
+            .await??;
 
         Ok(info.blocks as u32)
     }
 
-    async fn sign_and_broadcast(&self, outputs: Vec<(Script, u64)>) -> anyhow::Result<Txid> {
+    /// Sign and broadcast a transaction
+    pub async fn sign_and_broadcast(&self, outputs: Vec<(Script, u64)>) -> anyhow::Result<Txid> {
         sleep(Duration::from_secs(1)).await;
 
         let url = self.0.electrum_node_url.as_str().to_string();
