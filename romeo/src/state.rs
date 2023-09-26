@@ -335,17 +335,21 @@ fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
         .filter_map(|tx| {
             let txid = tx.txid();
 
-            op_return::deposit::Deposit::parse(config.bitcoin_credentials.network(), tx)
-                .ok()
-                .map(|parsed_deposit| Deposit {
-                    info: DepositInfo {
-                        txid,
-                        amount: parsed_deposit.amount,
-                        recipient: convert_principal_data(parsed_deposit.recipient),
-                        block_height: height,
-                    },
-                    mint: None,
-                })
+            op_return::deposit::Deposit::parse(
+                config.bitcoin_credentials.network(),
+                config.bitcoin_credentials.address_p2tr(),
+                tx,
+            )
+            .ok()
+            .map(|parsed_deposit| Deposit {
+                info: DepositInfo {
+                    txid,
+                    amount: parsed_deposit.amount,
+                    recipient: convert_principal_data(parsed_deposit.recipient),
+                    block_height: height,
+                },
+                mint: None,
+            })
         })
         .collect()
 }
@@ -368,34 +372,38 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
         .filter_map(|tx| {
             let txid = tx.txid();
 
-            op_return::withdrawal_request::try_parse_withdrawal_request(config.bitcoin_network, tx)
-                .ok()
-                .map(
-                    |WithdrawalRequestData {
-                         payee_bitcoin_address,
-                         drawee_stacks_address,
-                         amount,
-                         ..
-                     }| {
-                        let blockstack_lib_address = StacksAddress::consensus_deserialize(
-                            &mut Cursor::new(drawee_stacks_address.serialize_to_vec()),
-                        )
-                        .unwrap();
-                        let source = PrincipalData::from(blockstack_lib_address);
+            op_return::withdrawal_request::try_parse_withdrawal_request(
+                config.bitcoin_network,
+                config.bitcoin_credentials.address_p2tr(),
+                tx,
+            )
+            .ok()
+            .map(
+                |WithdrawalRequestData {
+                     payee_bitcoin_address,
+                     drawee_stacks_address,
+                     amount,
+                     ..
+                 }| {
+                    let blockstack_lib_address = StacksAddress::consensus_deserialize(
+                        &mut Cursor::new(drawee_stacks_address.serialize_to_vec()),
+                    )
+                    .unwrap();
+                    let source = PrincipalData::from(blockstack_lib_address);
 
-                        Withdrawal {
-                            info: WithdrawalInfo {
-                                txid,
-                                amount,
-                                source,
-                                recipient: payee_bitcoin_address,
-                                block_height,
-                            },
-                            burn: None,
-                            fulfillment: None,
-                        }
-                    },
-                )
+                    Withdrawal {
+                        info: WithdrawalInfo {
+                            txid,
+                            amount,
+                            source,
+                            recipient: payee_bitcoin_address,
+                            block_height,
+                        },
+                        burn: None,
+                        fulfillment: None,
+                    }
+                },
+            )
         })
         .collect()
 }

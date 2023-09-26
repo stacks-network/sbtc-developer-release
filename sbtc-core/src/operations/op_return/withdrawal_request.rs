@@ -94,6 +94,7 @@ pub const STACKS_SIGNATURE_PREFIX: &[u8] = b"Stacks Signed Message:\n";
 /// Tries to parse a Bitcoin transation into a withdrawal request
 pub fn try_parse_withdrawal_request(
     network: BitcoinNetwork,
+    sbtc_wallet_address: BitcoinAddress,
     tx: Transaction,
 ) -> SBTCResult<WithdrawalRequestData> {
     let mut output_iter = tx.output.into_iter();
@@ -135,6 +136,10 @@ pub fn try_parse_withdrawal_request(
 
     let peg_wallet = BitcoinAddress::from_script(&fulfillment_fee_output.script_pubkey, network)
         .map_err(|_| SBTCError::NotSBTCOperation)?;
+
+    if peg_wallet != sbtc_wallet_address {
+        return Err(SBTCError::NotSBTCOperation);
+    }
 
     Ok(WithdrawalRequestData {
         payee_bitcoin_address: recipient_address,
