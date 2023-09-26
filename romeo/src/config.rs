@@ -30,14 +30,14 @@ pub struct Config {
 	/// Directory to persist the state of the system to
 	pub state_directory: PathBuf,
 
-    /// Stacks network
-    pub stacks_network: StacksNetwork,
+	/// Stacks network
+	pub stacks_network: StacksNetwork,
 
-    /// Bitcoin network
-    pub bitcoin_network: BitcoinNetwork,
+	/// Bitcoin network
+	pub bitcoin_network: BitcoinNetwork,
 
-    /// Credentials used to interact with the Stacks network
-    pub stacks_credentials: Credentials,
+	/// Credentials used to interact with the Stacks network
+	pub stacks_credentials: Credentials,
 
 	/// Credentials used to interact with the Bitcoin network
 	pub bitcoin_credentials: BitcoinCredentials,
@@ -48,11 +48,11 @@ pub struct Config {
 	/// Address of a bitcoin node
 	pub bitcoin_node_url: Url,
 
-    /// Address of the Electrum node
-    pub electrum_node_url: Url,
+	/// Address of the Electrum node
+	pub electrum_node_url: Url,
 
-    /// sBTC asset contract name
-    pub contract_name: ContractName,
+	/// sBTC asset contract name
+	pub contract_name: ContractName,
 }
 
 impl Config {
@@ -67,9 +67,9 @@ impl Config {
 		let state_directory =
 			normalize(config_root.clone(), config_file.state_directory);
 
-        let stacks_node_url = Url::parse(&config_file.stacks_node_url)?;
-        let bitcoin_node_url = Url::parse(&config_file.bitcoin_node_url)?;
-        let electrum_node_url = Url::parse(&config_file.electrum_node_url)?;
+		let stacks_node_url = Url::parse(&config_file.stacks_node_url)?;
+		let bitcoin_node_url = Url::parse(&config_file.bitcoin_node_url)?;
+		let electrum_node_url = Url::parse(&config_file.electrum_node_url)?;
 
 		let wallet = Wallet::new(&config_file.mnemonic)?;
 
@@ -78,18 +78,20 @@ impl Config {
 		let bitcoin_credentials =
 			wallet.bitcoin_credentials(config_file.bitcoin_network, 0)?;
 
-        Ok(Self {
-            state_directory,
-            stacks_network: config_file.stacks_network,
-            bitcoin_network: config_file.bitcoin_network,
-            stacks_credentials,
-            bitcoin_credentials,
-            stacks_node_url,
-            bitcoin_node_url,
-            electrum_node_url,
-            contract_name: ContractName::from(config_file.contract_name.as_str()),
-        })
-    }
+		Ok(Self {
+			state_directory,
+			stacks_network: config_file.stacks_network,
+			bitcoin_network: config_file.bitcoin_network,
+			stacks_credentials,
+			bitcoin_credentials,
+			stacks_node_url,
+			bitcoin_node_url,
+			electrum_node_url,
+			contract_name: ContractName::from(
+				config_file.contract_name.as_str(),
+			),
+		})
+	}
 }
 
 fn normalize(root_dir: PathBuf, path: impl AsRef<Path>) -> PathBuf {
@@ -120,11 +122,11 @@ struct ConfigFile {
 	/// Address of a bitcoin node
 	pub bitcoin_node_url: String,
 
-    /// Address of the Electrum node
-    pub electrum_node_url: String,
+	/// Address of the Electrum node
+	pub electrum_node_url: String,
 
-    /// sBTC asset contract name
-    pub contract_name: String,
+	/// sBTC asset contract name
+	pub contract_name: String,
 }
 
 impl ConfigFile {
