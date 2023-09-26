@@ -40,7 +40,7 @@
 //! type     version        hash          name                name
 //! length (N)
 //! ```
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, str::FromStr};
 
 use bdk::{
 	bitcoin::{
@@ -123,6 +123,7 @@ impl Deposit {
 	/// Parse a deposit from a transaction
 	pub fn parse(
 		network: Network,
+		sbtc_wallet_address: BitcoinAddress,
 		tx: Transaction,
 	) -> Result<Self, DepositParseError> {
 		let mut output_iter = tx.output.into_iter();
@@ -154,6 +155,10 @@ impl Deposit {
 		let amount = amount_output.value;
 		let address =
 			BitcoinAddress::from_script(&amount_output.script_pubkey, network)?;
+
+		if address != sbtc_wallet_address {
+			return Err(DepositParseError::NotSbtcOp);
+		}
 
 		Ok(Self {
 			amount,
@@ -413,6 +418,7 @@ mod tests {
 		let assertions = [
             DepositParseScenario {
                 given_tx_hex: "010000000001019131d69f4616c2a17f3d2519a3dc697136a56846794e677982f565f79295e0370100000000feffffff0300000000000000001b6a1954323c051af0bf935f1ba62167f89c1fff2d9369f972ad0f7e6e0a020000000000225120b85fdda4ae0f69883280360a9b91555a2f23c5b9e34173fabec5d903416c2aaf7b850800000000001600147c969cfcab0d2ad171aa3f201c94b51b0e8eca6602473044022036663b723c79333f9c8b7d5d9db3b6cd301fc6bf82515e62303713eb69b4d18d0220548939af6e1d86fcf8a54da1f6942f25f36ed0488a0d3616c47daa49f59bc7b601210215bd6d522931e602fde924571eb472bc1db953484b29ba6542774ebbf083412329c62500",
+                given_sbtc_wallet_address: "tb1php0amf9wpa5csv5qxc9fhy24tghj83deudqh8747chvsxstv92hs62uegc",
                 expected_amount: 133742,
                 expected_recipient: recipient.clone(),
             }
@@ -423,8 +429,32 @@ mod tests {
 		}
 	}
 
+	#[test]
+	fn deposit_parse_should_fail_given_a_valid_transaction_for_different_asset()
+	{
+		let recipient: StacksAddress =
+			"ST3RBZ4TZ3EK22SZRKGFZYBCKD7WQ5B8FFRS57TT6"
+				.try_into()
+				.unwrap();
+		let recipient: PrincipalData = recipient.into();
+
+		let assertions = [
+            DepositParseScenario {
+                given_tx_hex: "010000000001019131d69f4616c2a17f3d2519a3dc697136a56846794e677982f565f79295e0370100000000feffffff0300000000000000001b6a1954323c051af0bf935f1ba62167f89c1fff2d9369f972ad0f7e6e0a020000000000225120b85fdda4ae0f69883280360a9b91555a2f23c5b9e34173fabec5d903416c2aaf7b850800000000001600147c969cfcab0d2ad171aa3f201c94b51b0e8eca6602473044022036663b723c79333f9c8b7d5d9db3b6cd301fc6bf82515e62303713eb69b4d18d0220548939af6e1d86fcf8a54da1f6942f25f36ed0488a0d3616c47daa49f59bc7b601210215bd6d522931e602fde924571eb472bc1db953484b29ba6542774ebbf083412329c62500",
+                given_sbtc_wallet_address: "tb1qy9pqmk2pd9sv63g27jt8r657wy0d9ueeh0nqur",
+                expected_amount: 133742,
+                expected_recipient: recipient.clone(),
+            }
+        ];
+
+		for assertion in assertions {
+			assertion.assert_error();
+		}
+	}
+
 	struct DepositParseScenario {
 		given_tx_hex: &'static str,
+		given_sbtc_wallet_address: &'static str,
 		expected_amount: u64,
 		expected_recipient: PrincipalData,
 	}
@@ -435,10 +465,30 @@ mod tests {
 
 			let data = hex::decode(self.given_tx_hex).unwrap();
 			let tx: Transaction = encode::deserialize(&data).unwrap();
-			let deposit = Deposit::parse(Network::Testnet, tx).unwrap();
+			let deposit = Deposit::parse(
+				Network::Testnet,
+				BitcoinAddress::from_str(self.given_sbtc_wallet_address)
+					.unwrap(),
+				tx,
+			)
+			.unwrap();
 
 			assert_eq!(deposit.amount, self.expected_amount);
 			assert_eq!(deposit.recipient, self.expected_recipient);
+		}
+
+		fn assert_error(&self) {
+			use bdk::bitcoin::consensus::encode;
+
+			let data = hex::decode(self.given_tx_hex).unwrap();
+			let tx: Transaction = encode::deserialize(&data).unwrap();
+			Deposit::parse(
+				Network::Testnet,
+				BitcoinAddress::from_str(&self.given_sbtc_wallet_address)
+					.unwrap(),
+				tx,
+			)
+			.expect_err("Expected DepositParseError");
 		}
 	}
 }
