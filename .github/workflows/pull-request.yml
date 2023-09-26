@@ -106,3 +106,21 @@ jobs:
           verbose: false
           flags: unittests
           ignore: tests
+
+  vitest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Use Node
+        uses: action/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+        working-directory: ./romeo/asset-contract
+      - run: npm run test
+        working-directory: ./romeo/asset-contract
+

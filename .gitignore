@@ -5,3 +5,4 @@ romeo/testing/
 romeo/asset-contract/.test
 romeo/asset-contract/.coverage
 **/.DS_Store
+node_modules

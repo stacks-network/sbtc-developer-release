@@ -1,0 +1,20 @@
+{
+  "name": "asset-contract",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "friedger",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run -- --coverage true",
+    "test:watch": "chokidar \"unit-tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm t\""
+  },
+  "dependencies": {
+    "@hirosystems/clarinet-sdk": "^0.4.0",
+    "@stacks/transactions": "^6.8.1",
+    "typescript": "^5.2.2",
+    "vite": "^4.4.9",
+    "vitest": "^0.34.4",
+    "vitest-environment-clarinet": "^0.1.1"
+  }
+}

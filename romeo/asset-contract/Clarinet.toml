@@ -18,6 +18,11 @@ path = 'contracts/clarity-bitcoin-mini.clar'
 clarity_version = 2
 epoch = 2.1
 
+[contracts.clarity-bitcoin-mini-deploy]
+path = 'contracts/clarity-bitcoin-mini-deploy.clar'
+clarity_version = 2
+epoch = 2.1
+
 [contracts.asset_test]
 path = 'tests/asset_test.clar'
 clarity_version = 2
