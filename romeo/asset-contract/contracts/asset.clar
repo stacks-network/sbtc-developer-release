@@ -70,7 +70,6 @@
     (block-header (buff 80)))
     (begin
         (asserts! (is-contract-owner) err-forbidden)
-        (asserts! (> amount u0) err-bad-request)
         (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
         (try! (ft-burn? sbtc amount owner))
         (print {notification: "burn", payload: withdraw-txid})
@@ -81,8 +80,7 @@
 ;; #[allow(unchecked_data)]
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-        (asserts! (is-eq sender tx-sender) err-forbidden)
-		(asserts! (> amount u0) err-bad-request)
+        (asserts! (or (is-eq tx-sender sender) (is-eq contract-caller sender)) err-forbidden)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
