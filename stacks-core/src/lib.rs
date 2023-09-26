@@ -73,10 +73,10 @@ pub type StacksResult<T> = Result<T, StacksError>;
 pub struct BlockId(Uint256);
 
 impl BlockId {
-    /// Creates a new StacksBlockId from a slice of bytes
-    pub fn new(number: Uint256) -> Self {
-        Self(number)
-    }
+	/// Creates a new StacksBlockId from a slice of bytes
+	pub fn new(number: Uint256) -> Self {
+		Self(number)
+	}
 }
 
 impl Codec for BlockId {

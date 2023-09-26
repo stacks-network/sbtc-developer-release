@@ -1,33 +1,32 @@
 //! Stacks client
 
-use std::io::Cursor;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{io::Cursor, sync::Arc, time::Duration};
 
 use anyhow::anyhow;
-use blockstack_lib::codec::StacksMessageCodec;
-use blockstack_lib::core::CHAIN_ID_TESTNET;
-use blockstack_lib::types::chainstate::StacksPrivateKey;
-use blockstack_lib::vm::types::{
-	QualifiedContractIdentifier, StandardPrincipalData,
+use blockstack_lib::{
+	burnchains::Txid as StacksTxId,
+	chainstate::stacks::{
+		StacksTransaction, StacksTransactionSigner, TransactionAnchorMode,
+		TransactionPostConditionMode,
+	},
+	codec::StacksMessageCodec,
+	core::CHAIN_ID_TESTNET,
+	types::chainstate::StacksPrivateKey,
+	vm::{
+		types::{QualifiedContractIdentifier, StandardPrincipalData},
+		ContractName,
+	},
 };
-use blockstack_lib::vm::ContractName;
 use futures::Future;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use reqwest::Request;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use stacks_core::codec::Codec;
-use stacks_core::uint::Uint256;
-use tokio::sync::{Mutex, MutexGuard};
-
-use blockstack_lib::burnchains::Txid as StacksTxId;
-use blockstack_lib::chainstate::stacks::{
-	StacksTransaction, StacksTransactionSigner, TransactionAnchorMode,
-	TransactionPostConditionMode,
+use stacks_core::{codec::Codec, uint::Uint256};
+use tokio::{
+	sync::{Mutex, MutexGuard},
+	time::sleep,
 };
-use tokio::time::sleep;
 use tracing::{debug, trace};
 
 use crate::{config::Config, event::TransactionStatus};
