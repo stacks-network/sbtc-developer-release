@@ -115,7 +115,7 @@ jobs:
         with:
           submodules: recursive
       - name: Use Node
-        uses: action/setup-node@v3
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
           cache: 'npm'
