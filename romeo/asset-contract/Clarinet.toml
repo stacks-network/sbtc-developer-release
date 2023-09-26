@@ -5,9 +5,6 @@ authors = []
 telemetry = true
 cache_dir = './.cache'
 
-[[project.requirements]]
-contract_id = "ST1NXBK3K5YYMD6FD41MVNP3JS1GABZ8TRVX023PT.sip-010-trait-ft-standard"
-
 [contracts.asset]
 path = 'contracts/asset.clar'
 clarity_version = 2
@@ -16,12 +13,12 @@ epoch = 2.4
 [contracts.clarity-bitcoin-mini]
 path = 'contracts/clarity-bitcoin-mini.clar'
 clarity_version = 2
-epoch = 2.1
+epoch = 2.4
 
 [contracts.clarity-bitcoin-mini-deploy]
 path = 'contracts/clarity-bitcoin-mini-deploy.clar'
 clarity_version = 2
-epoch = 2.1
+epoch = 2.4
 
 [contracts.asset_test]
 path = 'tests/asset_test.clar'
