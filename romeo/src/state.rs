@@ -238,11 +238,12 @@ fn process_bitcoin_block(
 	bitcoin_height: u32,
 	block: Block,
 ) -> (State, Vec<Task>) {
+	let sbtc_wallet_address = config.sbtc_wallet_address();
 	state.deposits.extend(
 		parse_deposits(config, bitcoin_height, &block)
 			.into_iter()
 			.filter(|deposit| {
-				deposit.info.sbtc_wallet_address == config.sbtc_wallet_address()
+				deposit.info.sbtc_wallet_address == sbtc_wallet_address
 			})
 			.collect::<Vec<_>>(),
 	);
@@ -251,7 +252,7 @@ fn process_bitcoin_block(
 			.into_iter()
 			.filter(|withdrawal| {
 				withdrawal.info.sbtc_wallet_address
-					== config.sbtc_wallet_address()
+					== sbtc_wallet_address
 			})
 			.collect::<Vec<_>>(),
 	);
