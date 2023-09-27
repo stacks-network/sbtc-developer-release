@@ -177,6 +177,7 @@ async fn run_task(
 		Task::FetchBitcoinBlock(block_height) => {
 			fetch_bitcoin_block(bitcoin_client, block_height).await
 		}
+		_ => panic!(),
 	}
 }
 

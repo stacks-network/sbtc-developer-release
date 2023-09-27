@@ -8,15 +8,18 @@ use crate::state;
 /// Represents I/O operations performed by the system
 #[derive(Debug)]
 pub enum Task {
+	/// Get the block height of the contract deployment
+	GetContractBlockHeight,
+
+	/// Updates the contract public key
+	UpdateContractPublicKey,
+
 	/// Create and broadcast a mint stacks transaction
 	CreateMint(state::DepositInfo),
 	/// Create and broadcast a burn stacks transaction
 	CreateBurn(state::WithdrawalInfo),
 	/// Create and broadcast a fulfill bitcoin transaction
 	CreateFulfillment(state::WithdrawalInfo),
-
-	/// Get the block height of the contract deployment
-	GetContractBlockHeight,
 
 	/// Poll a bitcoin node for the status of a transaction
 	CheckBitcoinTransactionStatus(BitcoinTxId),
