@@ -92,6 +92,12 @@ impl Config {
 			),
 		})
 	}
+
+	/// The sbtc wallet address is the taproot address
+	/// of the bitcoin credentials
+	pub fn sbtc_wallet_address(&self) -> bdk::bitcoin::Address {
+		self.bitcoin_credentials.address_p2tr()
+	}
 }
 
 fn normalize(root_dir: PathBuf, path: impl AsRef<Path>) -> PathBuf {

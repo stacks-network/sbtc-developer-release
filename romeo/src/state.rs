@@ -66,6 +66,9 @@ pub struct DepositInfo {
 
 	/// Height of the Bitcoin blockchain where this deposit transaction exists
 	pub block_height: u32,
+
+	/// BTC recipient
+	pub sbtc_wallet_address: BitcoinAddress,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -93,6 +96,9 @@ pub struct WithdrawalInfo {
 	/// Height of the Bitcoin blockchain where this withdrawal request
 	/// transaction exists
 	pub block_height: u32,
+
+	/// BTC recipient
+	pub sbtc_wallet_address: BitcoinAddress,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -232,10 +238,23 @@ fn process_bitcoin_block(
 	bitcoin_height: u32,
 	block: Block,
 ) -> (State, Vec<Task>) {
-	state
-		.deposits
-		.extend(parse_deposits(config, bitcoin_height, &block));
-	state.withdrawals.extend(parse_withdrawals(config, &block));
+	state.deposits.extend(
+		parse_deposits(config, bitcoin_height, &block)
+			.into_iter()
+			.filter(|deposit| {
+				deposit.info.sbtc_wallet_address == config.sbtc_wallet_address()
+			})
+			.collect::<Vec<_>>(),
+	);
+	state.withdrawals.extend(
+		parse_withdrawals(config, &block)
+			.into_iter()
+			.filter(|withdrawal| {
+				withdrawal.info.sbtc_wallet_address
+					== config.sbtc_wallet_address()
+			})
+			.collect::<Vec<_>>(),
+	);
 	state.bitcoin_block_height = Some(bitcoin_height);
 
 	let mut tasks = vec![Task::FetchBitcoinBlock(bitcoin_height + 1)];
@@ -356,6 +375,7 @@ fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
 					amount: parsed_deposit.amount,
 					recipient: convert_principal_data(parsed_deposit.recipient),
 					block_height: height,
+					sbtc_wallet_address: parsed_deposit.sbtc_wallet_address,
 				},
 				mint: None,
 			})
@@ -393,6 +413,7 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 				     payee_bitcoin_address,
 				     drawee_stacks_address,
 				     amount,
+				     peg_wallet,
 				     ..
 				 }| {
 					let blockstack_lib_address =
@@ -409,6 +430,7 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 							source,
 							recipient: payee_bitcoin_address,
 							block_height,
+							sbtc_wallet_address: peg_wallet,
 						},
 						burn: None,
 						fulfillment: None,
