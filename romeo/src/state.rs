@@ -244,16 +244,14 @@ fn process_bitcoin_block(
 			.into_iter()
 			.filter(|deposit| {
 				deposit.info.sbtc_wallet_address == sbtc_wallet_address
-			})
-			.into_iter(),
+			}),
 	);
 	state.withdrawals.extend(
 		parse_withdrawals(config, &block)
 			.into_iter()
 			.filter(|withdrawal| {
 				withdrawal.info.sbtc_wallet_address == sbtc_wallet_address
-			})
-			.into_iter(),
+			}),
 	);
 	state.bitcoin_block_height = Some(bitcoin_height);
 
