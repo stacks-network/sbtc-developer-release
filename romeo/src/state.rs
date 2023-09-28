@@ -245,7 +245,7 @@ fn process_bitcoin_block(
 			.filter(|deposit| {
 				deposit.info.sbtc_wallet_address == sbtc_wallet_address
 			})
-			.collect::<Vec<_>>(),
+			.into_iter(),
 	);
 	state.withdrawals.extend(
 		parse_withdrawals(config, &block)
@@ -253,7 +253,7 @@ fn process_bitcoin_block(
 			.filter(|withdrawal| {
 				withdrawal.info.sbtc_wallet_address == sbtc_wallet_address
 			})
-			.collect::<Vec<_>>(),
+			.into_iter(),
 	);
 	state.bitcoin_block_height = Some(bitcoin_height);
 
