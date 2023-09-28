@@ -23,7 +23,7 @@ plan:
             contract-name: clarity-bitcoin-mini
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             cost: 54370
-            path: contracts/clarity-bitcoin-mini.clar
+            path: contracts/clarity-bitcoin-mini-deploy.clar
             anchor-block-only: true
             clarity-version: 2
       epoch: "2.1"
