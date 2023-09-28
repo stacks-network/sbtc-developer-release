@@ -3,9 +3,8 @@ use std::{
 	io::{self, Read, Write},
 };
 
-use bdk::bitcoin::{
-	blockdata::{opcodes::all::OP_CHECKMULTISIG, script::Builder},
-	secp256k1::PublicKey,
+use bdk::bitcoin::blockdata::{
+	opcodes::all::OP_CHECKMULTISIG, script::Builder,
 };
 use serde::Serialize;
 use strum::{EnumIter, FromRepr};
@@ -16,7 +15,7 @@ use crate::{
 	crypto::{
 		hash160::{Hash160Hasher, HASH160_LENGTH},
 		sha256::Sha256Hasher,
-		Hashing,
+		Hashing, PublicKey,
 	},
 	StacksError, StacksResult,
 };
@@ -94,6 +93,12 @@ impl StacksAddress {
 		signature_threshold: usize,
 	) -> Self {
 		Self::new(version, hash_p2wsh(keys, signature_threshold))
+	}
+
+	/// Create a Stacks address from the public key. This is always a P2PKH
+	/// address, by convention.
+	pub fn from_public_key(version: AddressVersion, key: &PublicKey) -> Self {
+		Self::p2pkh(version, key)
 	}
 }
 
