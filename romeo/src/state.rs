@@ -275,11 +275,17 @@ fn get_bitcoin_transactions(state: &mut State) -> Vec<Task> {
 	state
 		.withdrawals
 		.iter_mut()
-		.filter_map(|withdrawal| match withdrawal.fulfillment.as_mut() {
-			None => {
-				withdrawal.fulfillment = Some(TransactionRequest::Created);
-				Some(Task::CreateFulfillment(withdrawal.info.clone()))
-			}
+		.filter_map(|withdrawal| match withdrawal.burn {
+			Some(TransactionRequest::Acknowledged {
+				status: TransactionStatus::Confirmed,
+				..
+			}) => match withdrawal.fulfillment.as_mut() {
+				None => {
+					withdrawal.fulfillment = Some(TransactionRequest::Created);
+					Some(Task::CreateFulfillment(withdrawal.info.clone()))
+				}
+				_ => None,
+			},
 			_ => None,
 		})
 		.collect()
@@ -470,10 +476,6 @@ fn process_stacks_transaction_update(
 	txid: StacksTxId,
 	status: TransactionStatus,
 ) -> (State, Vec<Task>) {
-	if status == TransactionStatus::Rejected {
-		panic!("Stacks transaction failed: {}", txid);
-	}
-
 	let statuses_updated: usize = get_mut_stacks_transaction_requests(&mut state)
         .map(|response| {
             let status_updated = match response {
