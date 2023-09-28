@@ -1,6 +1,9 @@
 //! RPC Bitcoin client
 
-use std::time::Duration;
+use std::{
+	sync::{Arc, Mutex},
+	time::Duration,
+};
 
 use anyhow::anyhow;
 use bdk::{
@@ -22,13 +25,44 @@ use crate::{config::Config, event::TransactionStatus};
 const BLOCK_POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Bitcoin RPC client
-#[derive(Debug, Clone)]
-pub struct Client(Config);
+#[derive(Clone)]
+pub struct Client {
+	config: Config,
+	blockchain: Arc<ElectrumBlockchain>,
+	wallet: Arc<Mutex<Wallet<MemoryDatabase>>>,
+}
 
 impl Client {
 	/// Create a new RPC client
 	pub fn new(config: Config) -> anyhow::Result<Self> {
-		Ok(Self(config))
+		let url = config.electrum_node_url.as_str().to_string();
+		let network = config.bitcoin_network;
+		let private_key = PrivateKey::from_wif(
+			&config.bitcoin_credentials.wif_p2wpkh().to_string(),
+		)?;
+
+		let blockchain =
+			ElectrumBlockchain::from_config(&ElectrumBlockchainConfig {
+				url,
+				socks5: None,
+				retry: 3,
+				timeout: Some(10),
+				stop_gap: 10,
+				validate_domain: false,
+			})?;
+
+		let wallet = Wallet::new(
+			P2Wpkh(private_key),
+			Some(P2Wpkh(private_key)),
+			network,
+			MemoryDatabase::default(),
+		)?;
+
+		Ok(Self {
+			config,
+			blockchain: Arc::new(blockchain),
+			wallet: Arc::new(Mutex::new(wallet)),
+		})
 	}
 
 	async fn execute<F, T>(
@@ -39,7 +73,7 @@ impl Client {
 		F: FnOnce(RPCClient) -> bitcoincore_rpc::Result<T> + Send + 'static,
 		T: Send + 'static,
 	{
-		let mut url = self.0.bitcoin_node_url.clone();
+		let mut url = self.config.bitcoin_node_url.clone();
 
 		let username = url.username().to_string();
 		let password = url.password().unwrap_or_default().to_string();
@@ -163,33 +197,16 @@ impl Client {
 		&self,
 		outputs: Vec<(Script, u64)>,
 	) -> anyhow::Result<Txid> {
-		sleep(Duration::from_secs(1)).await;
+		sleep(Duration::from_secs(3)).await;
 
-		let url = self.0.electrum_node_url.as_str().to_string();
-		let network = self.0.bitcoin_network;
-		let private_key = PrivateKey::from_wif(
-			&self.0.bitcoin_credentials.wif_p2wpkh().to_string(),
-		)?;
+		let blockchain = self.blockchain.clone();
+		let wallet = self.wallet.clone();
 
 		let tx: Transaction =
 			spawn_blocking::<_, anyhow::Result<Transaction>>(move || {
-				let blockchain = ElectrumBlockchain::from_config(
-					&ElectrumBlockchainConfig {
-						url,
-						socks5: None,
-						retry: 3,
-						timeout: Some(10),
-						stop_gap: 10,
-						validate_domain: false,
-					},
-				)?;
-
-				let wallet = Wallet::new(
-					P2Wpkh(private_key),
-					Some(P2Wpkh(private_key)),
-					network,
-					MemoryDatabase::default(),
-				)?;
+				let wallet = wallet
+					.lock()
+					.map_err(|_| anyhow!("Cannot get wallet read lock"))?;
 
 				wallet.sync(&blockchain, SyncOptions::default())?;
 
@@ -203,6 +220,7 @@ impl Client {
 
 				partial_tx.unsigned_tx.output =
 					reorder_outputs(partial_tx.unsigned_tx.output, outputs);
+
 				wallet.sign(&mut partial_tx, SignOptions::default())?;
 
 				Ok(partial_tx.extract_tx())

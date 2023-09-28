@@ -2,7 +2,7 @@
 
 use std::{fs::create_dir_all, io::Cursor};
 
-use bdk::bitcoin::Txid as BitcoinTxId;
+use bdk::bitcoin::{consensus::Encodable, Txid as BitcoinTxId};
 use blockstack_lib::{
 	burnchains::Txid as StacksTxId,
 	chainstate::stacks::{
@@ -423,7 +423,24 @@ async fn get_tx_proof(
 		.position(|tx| tx.txid() == txid)
 		.expect("Failed to find transaction in block");
 
-	ProofData::from_block_and_index(&block, index).to_values()
+	let foo = ProofData::from_block_and_index(&block, index).to_values();
+
+	let mut bar = vec![];
+	block
+		.header
+		.consensus_encode(&mut Cursor::new(&mut bar))
+		.unwrap();
+
+	debug!(
+		"!!! {} {} {} - {} {}",
+		txid,
+		foo.block_header,
+		foo.block_height,
+		block.header.block_hash(),
+		hex::encode(bar)
+	);
+
+	foo
 }
 
 async fn check_bitcoin_transaction_status(

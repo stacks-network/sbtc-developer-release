@@ -350,7 +350,7 @@ impl State2 {
 					has_pending_task,
 				} = req
 				else {
-					panic!("Got an {:?} status update for a Bitcoin transaction that is not acknowledged: {}", status, txid);
+					panic!("Got an {:?} status update for a Bitcoin transaction that is not acknowledged: txid {} req {:?}", status, txid, req);
 				};
 
 				if txid != *current_txid {
