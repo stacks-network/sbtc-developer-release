@@ -21,6 +21,7 @@ use crate::{
 };
 
 /// Romeo internal state
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum State2 {
 	/// Starting state without any data
 	Uninitialized,
@@ -59,7 +60,7 @@ pub enum State2 {
 impl State2 {
 	/// Creates uninitialized state
 	pub fn new() -> Self {
-		Self::Uninitialized
+		Default::default()
 	}
 
 	/// Spawn initial tasks given a recovered state
@@ -124,6 +125,7 @@ impl State2 {
 	}
 
 	/// Updates the state and return new tasks to be schedules
+	#[tracing::instrument(skip(config))]
 	pub fn update(&mut self, event: Event, config: &Config) -> Vec<Task> {
 		match event {
 			Event::ContractBlockHeight(stacks_height, bitcoin_height) => self
@@ -214,64 +216,115 @@ impl State2 {
 		txid: StacksTxId,
 		status: TransactionStatus,
 	) -> Vec<Task> {
-		let State2::Initialized {
-			deposits,
-			withdrawals,
-			..
-		} = self
-		else {
-			panic!("Cannot process Stacks transaction update when state is not initialized");
-		};
+		let mut tasks = self.get_bitcoin_transactions();
 
-		if status == TransactionStatus::Rejected {
-			panic!("Stacks transaction rejected: {}", txid);
-		}
-
-		let statuses_updated: usize = iter::empty()
-			.chain(
-				deposits
-					.iter_mut()
-					.filter_map(|deposit| deposit.mint.as_mut()),
-			)
-			.chain(
-				withdrawals
-					.iter_mut()
-					.filter_map(|withdrawal| withdrawal.burn.as_mut()),
-			)
-			.map(|req| {
+		let statuses_updated = match self {
+			State2::Uninitialized => None,
+			State2::ContractDetected { .. } => None,
+			State2::ContractPublicKeySetup {
+				stacks_block_height,
+				bitcoin_block_height,
+				public_key_setup,
+			} => {
 				let TransactionRequest::Acknowledged {
 					txid: current_txid,
 					status: current_status,
 					has_pending_task,
-				} = req
+				} = public_key_setup
 				else {
-					panic!("Got an {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
+					panic!("Got an {:?} status update for a public key set Stacks transaction that is not acknowledged: {}", status, txid);
 				};
 
 				if txid != *current_txid {
-					return false;
+					panic!("Got an {:?} status update for a Stacks transaction that is not public key set: {}", status, txid);
 				}
 
-			    if !*has_pending_task {
-			        panic!(
-			            "Got an {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
+				if !*has_pending_task {
+					panic!(
+			            "Got an {:?} status update for a public key set Stacks transaction that doesn't have a pending task: {}", status, txid
 			        );
-			    }
+				}
 
-			    *current_status = status.clone();
-			    *has_pending_task = false;
+				*current_status = status.clone();
+				*has_pending_task = false;
 
-			    true
-			}).map(|updated| updated as usize).sum();
+				if *current_status == TransactionStatus::Confirmed {
+					let bitcoin_block_height = *bitcoin_block_height;
 
-		if statuses_updated != 1 {
-			panic!(
-				"Unexpected number of Stacks statuses updated: {}",
-				statuses_updated
-			);
+					*self = Self::Initialized {
+						stacks_block_height: *stacks_block_height,
+						bitcoin_block_height,
+						deposits: vec![],
+						withdrawals: vec![],
+					};
+
+					tasks.push(Task::FetchBitcoinBlock(
+						bitcoin_block_height + 1,
+					));
+				}
+
+				Some(1)
+			}
+			State2::Initialized {
+				deposits,
+				withdrawals,
+				..
+			} => {
+				if status == TransactionStatus::Rejected {
+					panic!("Stacks transaction rejected: {}", txid);
+				}
+
+				let statuses_updated: usize = iter::empty()
+					.chain(
+						deposits
+							.iter_mut()
+							.filter_map(|deposit| deposit.mint.as_mut()),
+					)
+					.chain(
+						withdrawals
+							.iter_mut()
+							.filter_map(|withdrawal| withdrawal.burn.as_mut()),
+					)
+					.map(|req| {
+						let TransactionRequest::Acknowledged {
+							txid: current_txid,
+							status: current_status,
+							has_pending_task,
+						} = req
+						else {
+							panic!("Got an {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
+						};
+
+						if txid != *current_txid {
+							return false;
+						}
+
+					    if !*has_pending_task {
+					        panic!(
+					            "Got an {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
+					        );
+					    }
+
+					    *current_status = status.clone();
+					    *has_pending_task = false;
+
+					    true
+					}).map(|updated| updated as usize).sum();
+
+				Some(statuses_updated)
+			}
+		};
+
+		if let Some(statuses_updated) = statuses_updated {
+			if statuses_updated != 1 {
+				panic!(
+					"Unexpected number of Stacks statuses updated: {}",
+					statuses_updated
+				);
+			}
 		}
 
-		self.get_bitcoin_transactions()
+		tasks
 	}
 
 	fn process_bitcoin_transaction_update(
@@ -384,7 +437,7 @@ impl State2 {
 
 	fn get_bitcoin_transactions(&mut self) -> Vec<Task> {
 		let State2::Initialized { withdrawals, .. } = self else {
-			panic!("Cannot get Bitcoin transactions if not initialized")
+			return vec![];
 		};
 
 		withdrawals
@@ -574,6 +627,12 @@ impl State2 {
 			status: TransactionStatus::Broadcasted,
 			has_pending_task: false,
 		});
+	}
+}
+
+impl Default for State2 {
+	fn default() -> Self {
+		Self::Uninitialized
 	}
 }
 
@@ -896,7 +955,11 @@ fn get_bitcoin_status_checks(state: &mut State) -> Vec<Task> {
 		.collect()
 }
 
-fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
+fn parse_deposits(
+	config: &Config,
+	bitcoin_height: u32,
+	block: &Block,
+) -> Vec<Deposit> {
 	block
 		.txdata
 		.iter()
@@ -914,7 +977,7 @@ fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
 					txid,
 					amount: parsed_deposit.amount,
 					recipient: convert_principal_data(parsed_deposit.recipient),
-					block_height: height,
+					block_height: bitcoin_height,
 				},
 				mint: None,
 			})
