@@ -2,7 +2,7 @@
 
 ;; it can only check if a txid is part of a burn chain block
 
-(define-constant DEBUG-MODE false)
+(define-constant DEBUG-MODE true)
 
 ;; Error codes
 (define-constant ERR-HEADER-HEIGHT-MISMATCH (err u6))
