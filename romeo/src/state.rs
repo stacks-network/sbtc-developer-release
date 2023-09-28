@@ -251,8 +251,7 @@ fn process_bitcoin_block(
 		parse_withdrawals(config, &block)
 			.into_iter()
 			.filter(|withdrawal| {
-				withdrawal.info.sbtc_wallet_address
-					== sbtc_wallet_address
+				withdrawal.info.sbtc_wallet_address == sbtc_wallet_address
 			})
 			.collect::<Vec<_>>(),
 	);
