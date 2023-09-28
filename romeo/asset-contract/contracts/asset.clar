@@ -14,7 +14,8 @@
 
 ;; constants
 ;;
-(define-constant err-invalid-caller (err u403))
+(define-constant err-invalid-caller (err u4))
+(define-constant err-forbidden (err u403))
 
 ;; data vars
 ;;
@@ -35,7 +36,7 @@
 ;; #[allow(unchecked_data)]
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
-    (try! (is-contract-owner))
+        (try! (is-contract-owner))
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
     )
 )
@@ -72,7 +73,7 @@
         (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
         (try! (ft-burn? sbtc amount owner))
         (print {notification: "burn", payload: withdraw-txid})
-    		(ok true)
+    	(ok true)
     )
 )
 
@@ -123,7 +124,7 @@
 ;; private functions
 ;;
 (define-private (is-contract-owner)
-    (ok (asserts! (is-eq (var-get contract-owner) contract-caller) err-invalid-caller))
+    (ok (asserts! (is-eq (var-get contract-owner) contract-caller) err-forbidden))
 )
 
 (define-read-only (verify-txid-exists-on-burn-chain (txid (buff 32)) (burn-chain-height uint) (merkle-proof (list 14 (buff 32))) (tx-index uint) (tree-depth uint) (block-header (buff 80)))

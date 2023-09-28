@@ -7,8 +7,8 @@
 (define-constant expected-symbol "sBTC")
 (define-constant expected-decimals u8)
 
-(define-constant err-invalid-caller (err u403))
-(define-constant err-bad-request (err u400))
+(define-constant err-invalid-caller (err u4))
+(define-constant err-forbidden (err u403))
 
 (define-constant test-burn-height u1)
 (define-constant test-block-header 0x02000000000000000000000000000000000000000000000000000000000000000000000075b8bf903d0153e1463862811283ffbec83f55411c9fa5bd24e4207dee0dc1f1000000000000000000000000)
@@ -75,7 +75,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-mint-external)
-	(assert-eq (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
 )
 
 ;; @name Protocol can burn tokens
@@ -88,7 +88,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-burn-external)
-	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
 )
 
 ;; @name Protocol can set wallet address
@@ -102,7 +102,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-set-wallet-public-key-external)
-	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-invalid-caller "Should have returned err forbidden")
+	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-forbidden "Should have returned err forbidden")
 )
 
 ;; --- SIP010 tests
@@ -162,11 +162,11 @@
 ;; @name Set valid new owner
 ;; @caller deployer
 (define-public (test-set-valid-owner)
-(begin
-    (try! (contract-call? .asset set-contract-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y))
-    ;; Check new owner set
-    (asserts! (is-eq (contract-call? .asset get-contract-owner) 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y) (err u100))
-	(ok true)
+	(begin
+		(try! (contract-call? .asset set-contract-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y))
+		;; Check new owner set
+		(asserts! (is-eq (contract-call? .asset get-contract-owner) 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y) (err u100))
+		(ok true)
 	)
 )
 
@@ -174,5 +174,5 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-set-invalid-owner)
-	(assert-eq (contract-call? .asset set-contract-owner wallet-2) err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset set-contract-owner wallet-2) err-forbidden "Should have failed")
 )
