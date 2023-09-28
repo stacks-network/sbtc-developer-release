@@ -14,8 +14,7 @@
 
 ;; constants
 ;;
-(define-constant err-forbidden (err u403))
-(define-constant err-bad-request (err u400))
+(define-constant err-invalid-caller (err u403))
 
 ;; data vars
 ;;
@@ -28,15 +27,15 @@
 ;; #[allow(unchecked_data)]
 (define-public (set-contract-owner (new-owner principal))
   (begin
-    (asserts! (is-contract-owner) err-forbidden)
-    (var-set contract-owner new-owner)
-    (ok true))
+    (try! (is-contract-owner))
+    (ok (var-set contract-owner new-owner))
+  )
 )
 
 ;; #[allow(unchecked_data)]
 (define-public (set-bitcoin-wallet-public-key (public-key (buff 33)))
     (begin
-    (asserts! (is-contract-owner) err-forbidden)
+    (try! (is-contract-owner))
         (ok (var-set bitcoin-wallet-public-key (some public-key)))
     )
 )
@@ -51,7 +50,7 @@
     (tree-depth uint)
     (block-header (buff 80)))
     (begin
-        (asserts! (is-contract-owner) err-forbidden)
+        (try! (is-contract-owner))
         (try! (verify-txid-exists-on-burn-chain deposit-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
         (try! (ft-mint? sbtc amount destination))
         (print {notification: "mint", payload: deposit-txid})
@@ -69,7 +68,7 @@
     (tree-depth uint)
     (block-header (buff 80)))
     (begin
-        (asserts! (is-contract-owner) err-forbidden)
+        (try! (is-contract-owner))
         (try! (verify-txid-exists-on-burn-chain withdraw-txid burn-chain-height merkle-proof tx-index tree-depth block-header))
         (try! (ft-burn? sbtc amount owner))
         (print {notification: "burn", payload: withdraw-txid})
@@ -80,7 +79,7 @@
 ;; #[allow(unchecked_data)]
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
 	(begin
-        (asserts! (or (is-eq tx-sender sender) (is-eq contract-caller sender)) err-forbidden)
+        (asserts! (or (is-eq tx-sender sender) (is-eq contract-caller sender)) err-invalid-caller)
 		(try! (ft-transfer? sbtc amount sender recipient))
 		(match memo to-print (print to-print) 0x)
 		(ok true)
@@ -124,7 +123,7 @@
 ;; private functions
 ;;
 (define-private (is-contract-owner)
-    (is-eq (var-get contract-owner) contract-caller)
+    (ok (asserts! (is-eq (var-get contract-owner) contract-caller) err-invalid-caller))
 )
 
 (define-read-only (verify-txid-exists-on-burn-chain (txid (buff 32)) (burn-chain-height uint) (merkle-proof (list 14 (buff 32))) (tx-index uint) (tree-depth uint) (block-header (buff 80)))
