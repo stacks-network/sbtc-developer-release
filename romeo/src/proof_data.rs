@@ -163,6 +163,7 @@ mod tests {
 		let proof_data = ProofData::from_block_and_index(&block, txindex);
 
 		assert_eq!(proof_data.block_height, block_height);
+		// converted to big endian through DISPLAY_BACKWARDS
 		assert_eq!(proof_data.reversed_txid.to_string(), txid);
 		assert_eq!(proof_data.block_header.block_hash().to_string(), hash);
 	}
@@ -202,6 +203,7 @@ mod tests {
 		let txindex: usize = 0;
 		let proof_data = ProofData::from_block_and_index(&block, txindex);
 		let values = proof_data.to_values();
+		assert_eq!(values.txid.to_string(), "0xd574f343976d8e70d91cb278d21044dd8a396019e6db70755a0a50e4783dba38");
 		assert_eq!(values.block_header.to_string(), "0x0200000035ab154183570282ce9afc0b494c9fc6a3cfea05aa8c1add2ecc56490000000038ba3d78e4500a5a7570dbe61960398add4410d278b21cd9708e6d9743f374d544fc055227f1001c29c1ea3b");
 		assert_eq!(values.block_height.to_string(), "u100000");
 		assert_eq!(values.merkle_tree_depth.to_string(), "u1");
