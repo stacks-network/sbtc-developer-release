@@ -2,7 +2,7 @@
 
 use std::{fs::create_dir_all, io::Cursor};
 
-use bdk::bitcoin::{consensus::Encodable, Txid as BitcoinTxId};
+use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::{
 	burnchains::Txid as StacksTxId,
 	chainstate::stacks::{
@@ -21,7 +21,7 @@ use tokio::{
 	sync::mpsc,
 	task::JoinHandle,
 };
-use tracing::{debug, trace};
+use tracing::{info, trace};
 
 use crate::{
 	bitcoin_client::Client as BitcoinClient,
@@ -46,10 +46,12 @@ pub async fn run(config: Config) {
 	let stacks_client: LockedClient =
 		StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
-	tracing::info!("Starting replay of persisted events");
+	info!("Starting replay of persisted events");
+
 	let (mut storage, mut state) =
 		Storage::load_and_replay(&config, state::State2::new()).await;
-	tracing::info!("Replay finished with state: {:?}", state);
+
+	info!("Replay finished with state: {:?}", state);
 
 	let bootstrap_tasks = state.bootstrap();
 
@@ -67,7 +69,6 @@ pub async fn run(config: Config) {
 	while let Some(event) = rx.recv().await {
 		storage.record(&event).await;
 
-		trace!("Event: {:?}", &event);
 		let tasks = state.update(event, &config);
 		trace!("State: {}", serde_json::to_string(&state).unwrap());
 
@@ -128,7 +129,7 @@ fn spawn(
 	task: Task,
 	result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
-	debug!("Spawning task");
+	info!("Spawning");
 
 	tokio::task::spawn(async move {
 		let event =
@@ -423,24 +424,7 @@ async fn get_tx_proof(
 		.position(|tx| tx.txid() == txid)
 		.expect("Failed to find transaction in block");
 
-	let foo = ProofData::from_block_and_index(&block, index).to_values();
-
-	let mut bar = vec![];
-	block
-		.header
-		.consensus_encode(&mut Cursor::new(&mut bar))
-		.unwrap();
-
-	debug!(
-		"!!! {} {} {} - {} {}",
-		txid,
-		foo.block_header,
-		foo.block_height,
-		block.header.block_hash(),
-		hex::encode(bar)
-	);
-
-	foo
+	ProofData::from_block_and_index(&block, index).to_values()
 }
 
 async fn check_bitcoin_transaction_status(
