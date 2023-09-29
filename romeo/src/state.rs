@@ -22,7 +22,7 @@ use crate::{
 
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum State2 {
+pub enum State {
 	/// Starting state without any data
 	Uninitialized,
 
@@ -57,7 +57,7 @@ pub enum State2 {
 	},
 }
 
-impl State2 {
+impl State {
 	/// Creates uninitialized state
 	pub fn new() -> Self {
 		Default::default()
@@ -66,17 +66,17 @@ impl State2 {
 	/// Spawn initial tasks given a recovered state
 	pub fn bootstrap(&mut self) -> Vec<Task> {
 		match self {
-			State2::Uninitialized => vec![Task::GetContractBlockHeight],
-			State2::ContractDetected { .. } => {
+			State::Uninitialized => vec![Task::GetContractBlockHeight],
+			State::ContractDetected { .. } => {
 				vec![Task::UpdateContractPublicKey]
 			}
-			State2::ContractPublicKeySetup {
+			State::ContractPublicKeySetup {
 				stacks_block_height,
 				..
 			} => {
 				vec![Task::FetchStacksBlock(*stacks_block_height + 1)]
 			}
-			State2::Initialized {
+			State::Initialized {
 				stacks_block_height,
 				bitcoin_block_height,
 				deposits,
@@ -173,11 +173,11 @@ impl State2 {
 		contract_bitcoin_block_height: u32,
 	) -> Vec<Task> {
 		assert!(
-			matches!(self, State2::Uninitialized),
+			matches!(self, State::Uninitialized),
 			"Cannot process contract block height when state is initialized"
 		);
 
-		*self = State2::ContractDetected {
+		*self = State::ContractDetected {
 			stacks_block_height: contract_stacks_block_height,
 			bitcoin_block_height: contract_bitcoin_block_height,
 		};
@@ -189,7 +189,7 @@ impl State2 {
 		&mut self,
 		txid: StacksTxId,
 	) -> Vec<Task> {
-		let State2::ContractDetected {
+		let State::ContractDetected {
 			stacks_block_height,
 			bitcoin_block_height,
 		} = self
@@ -200,7 +200,7 @@ impl State2 {
 		let stacks_block_height = *stacks_block_height;
 		let bitcoin_block_height = *bitcoin_block_height;
 
-		*self = State2::ContractPublicKeySetup {
+		*self = State::ContractPublicKeySetup {
 			stacks_block_height,
 			bitcoin_block_height,
 			public_key_setup: TransactionRequest::Acknowledged {
@@ -221,9 +221,9 @@ impl State2 {
 		let mut tasks = self.get_bitcoin_transactions();
 
 		let statuses_updated = match self {
-			State2::Uninitialized => None,
-			State2::ContractDetected { .. } => None,
-			State2::ContractPublicKeySetup {
+			State::Uninitialized => None,
+			State::ContractDetected { .. } => None,
+			State::ContractPublicKeySetup {
 				stacks_block_height,
 				bitcoin_block_height,
 				public_key_setup,
@@ -267,7 +267,7 @@ impl State2 {
 
 				Some(1)
 			}
-			State2::Initialized {
+			State::Initialized {
 				deposits,
 				withdrawals,
 				..
@@ -334,7 +334,7 @@ impl State2 {
 		txid: BitcoinTxId,
 		status: TransactionStatus,
 	) -> impl IntoIterator<Item = Task> {
-		let State2::Initialized { withdrawals, .. } = self else {
+		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process Bitcoin transaction update when state is not initialized");
 		};
 
@@ -387,12 +387,12 @@ impl State2 {
 		_txs: Vec<StacksTransaction>,
 	) -> Vec<Task> {
 		let stacks_block_height = match self {
-			State2::Uninitialized | State2::ContractDetected { .. } => panic!("Cannot process Stacks block if uninitialized or contract detected"),
-			State2::ContractPublicKeySetup {
+			State::Uninitialized | State::ContractDetected { .. } => panic!("Cannot process Stacks block if uninitialized or contract detected"),
+			State::ContractPublicKeySetup {
 				stacks_block_height,
 				..
 			} => stacks_block_height,
-			State2::Initialized {
+			State::Initialized {
 				stacks_block_height,
 				..
 			} => stacks_block_height,
@@ -414,7 +414,7 @@ impl State2 {
 		bitcoin_height: u32,
 		block: Block,
 	) -> Vec<Task> {
-		let State2::Initialized {
+		let State::Initialized {
 			bitcoin_block_height,
 			deposits,
 			withdrawals,
@@ -438,7 +438,7 @@ impl State2 {
 	}
 
 	fn get_bitcoin_transactions(&mut self) -> Vec<Task> {
-		let State2::Initialized { withdrawals, .. } = self else {
+		let State::Initialized { withdrawals, .. } = self else {
 			return vec![];
 		};
 
@@ -456,14 +456,14 @@ impl State2 {
 
 	fn get_stacks_transactions(&mut self) -> Vec<Task> {
 		match self {
-			State2::Uninitialized | State2::ContractPublicKeySetup { .. } => {
+			State::Uninitialized | State::ContractPublicKeySetup { .. } => {
 				vec![]
 			}
-			State2::ContractDetected { .. } => {
+			State::ContractDetected { .. } => {
 				vec![Task::UpdateContractPublicKey]
 			}
 
-			State2::Initialized {
+			State::Initialized {
 				deposits,
 				withdrawals,
 				..
@@ -497,11 +497,11 @@ impl State2 {
 
 	fn get_stacks_status_checks(&mut self) -> Vec<Task> {
 		let reqs = match self {
-			State2::Uninitialized | State2::ContractDetected { .. } => vec![],
-			State2::ContractPublicKeySetup {
+			State::Uninitialized | State::ContractDetected { .. } => vec![],
+			State::ContractPublicKeySetup {
 				public_key_setup, ..
 			} => vec![public_key_setup],
-			State2::Initialized {
+			State::Initialized {
 				deposits,
 				withdrawals,
 				..
@@ -534,7 +534,7 @@ impl State2 {
 
 	fn get_bitcoin_status_checks(&mut self) -> Vec<Task> {
 		match self {
-			State2::Initialized { withdrawals, .. } => withdrawals
+			State::Initialized { withdrawals, .. } => withdrawals
 				.iter_mut()
 				.filter_map(|withdrawal| withdrawal.fulfillment.as_mut())
 				.filter_map(|req| match req {
@@ -558,7 +558,7 @@ impl State2 {
 		deposit_info: DepositInfo,
 		txid: StacksTxId,
 	) {
-		let State2::Initialized { deposits, .. } = self else {
+		let State::Initialized { deposits, .. } = self else {
 			panic!("Cannot process broadcasted mint if uninitialized")
 		};
 
@@ -584,7 +584,7 @@ impl State2 {
 		withdrawal_info: WithdrawalInfo,
 		txid: StacksTxId,
 	) {
-		let State2::Initialized { withdrawals, .. } = self else {
+		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process broadcasted burn if uninitialized")
 		};
 
@@ -610,7 +610,7 @@ impl State2 {
 		withdrawal_info: WithdrawalInfo,
 		txid: BitcoinTxId,
 	) {
-		let State2::Initialized { withdrawals, .. } = self else {
+		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process broadcasted fulfillment if uninitialized")
 		};
 
@@ -632,7 +632,7 @@ impl State2 {
 	}
 }
 
-impl Default for State2 {
+impl Default for State {
 	fn default() -> Self {
 		Self::Uninitialized
 	}

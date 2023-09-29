@@ -49,7 +49,7 @@ pub async fn run(config: Config) {
 	info!("Starting replay of persisted events");
 
 	let (mut storage, mut state) =
-		Storage::load_and_replay(&config, state::State2::new()).await;
+		Storage::load_and_replay(&config, state::State::new()).await;
 
 	info!("Replay finished with state: {:?}", state);
 
@@ -89,8 +89,8 @@ struct Storage(BufWriter<File>);
 impl Storage {
 	async fn load_and_replay(
 		config: &Config,
-		mut state: state::State2,
-	) -> (Self, state::State2) {
+		mut state: state::State,
+	) -> (Self, state::State) {
 		create_dir_all(&config.state_directory).unwrap();
 
 		let mut file = OpenOptions::new()
