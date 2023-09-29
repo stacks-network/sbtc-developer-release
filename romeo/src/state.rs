@@ -66,9 +66,6 @@ pub struct DepositInfo {
 
 	/// Height of the Bitcoin blockchain where this deposit transaction exists
 	pub block_height: u32,
-
-	/// BTC recipient
-	pub sbtc_wallet_address: BitcoinAddress,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -96,9 +93,6 @@ pub struct WithdrawalInfo {
 	/// Height of the Bitcoin blockchain where this withdrawal request
 	/// transaction exists
 	pub block_height: u32,
-
-	/// BTC recipient
-	pub sbtc_wallet_address: BitcoinAddress,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -238,21 +232,11 @@ fn process_bitcoin_block(
 	bitcoin_height: u32,
 	block: Block,
 ) -> (State, Vec<Task>) {
-	let sbtc_wallet_address = config.sbtc_wallet_address();
-	state.deposits.extend(
-		parse_deposits(config, bitcoin_height, &block)
-			.into_iter()
-			.filter(|deposit| {
-				deposit.info.sbtc_wallet_address == sbtc_wallet_address
-			}),
-	);
-	state.withdrawals.extend(
-		parse_withdrawals(config, &block)
-			.into_iter()
-			.filter(|withdrawal| {
-				withdrawal.info.sbtc_wallet_address == sbtc_wallet_address
-			}),
-	);
+	state
+		.deposits
+		.extend(parse_deposits(config, bitcoin_height, &block));
+
+	state.withdrawals.extend(parse_withdrawals(config, &block));
 	state.bitcoin_block_height = Some(bitcoin_height);
 
 	let mut tasks = vec![Task::FetchBitcoinBlock(bitcoin_height + 1)];
@@ -355,6 +339,7 @@ fn get_bitcoin_status_checks(state: &mut State) -> Vec<Task> {
 }
 
 fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
+	let sbtc_wallet_address = config.sbtc_wallet_address();
 	block
 		.txdata
 		.iter()
@@ -367,13 +352,15 @@ fn parse_deposits(config: &Config, height: u32, block: &Block) -> Vec<Deposit> {
 				tx,
 			)
 			.ok()
+			.filter(|parsed_deposit| {
+				parsed_deposit.sbtc_wallet_address == sbtc_wallet_address
+			})
 			.map(|parsed_deposit| Deposit {
 				info: DepositInfo {
 					txid,
 					amount: parsed_deposit.amount,
 					recipient: convert_principal_data(parsed_deposit.recipient),
 					block_height: height,
-					sbtc_wallet_address: parsed_deposit.sbtc_wallet_address,
 				},
 				mint: None,
 			})
@@ -390,6 +377,7 @@ fn convert_principal_data(
 }
 
 fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
+	let sbtc_wallet_address = config.sbtc_wallet_address();
 	let block_height = block
 		.bip34_block_height()
 		.expect("Failed to get block height") as u32;
@@ -406,12 +394,14 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 				tx,
 			)
 			.ok()
+			.filter(|parsed_withdrawal| {
+				parsed_withdrawal.peg_wallet == sbtc_wallet_address
+			})
 			.map(
 				|WithdrawalRequestData {
 				     payee_bitcoin_address,
 				     drawee_stacks_address,
 				     amount,
-				     peg_wallet,
 				     ..
 				 }| {
 					let blockstack_lib_address =
@@ -428,7 +418,6 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 							source,
 							recipient: payee_bitcoin_address,
 							block_height,
-							sbtc_wallet_address: peg_wallet,
 						},
 						burn: None,
 						fulfillment: None,
