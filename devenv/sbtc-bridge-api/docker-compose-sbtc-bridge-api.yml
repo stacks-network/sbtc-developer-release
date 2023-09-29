@@ -6,7 +6,24 @@ services:
     container_name: sbtc-bridge-api   
     build:
       context: ./docker
-    environment:
-      - PORT=80
+      args:
+        BRIDGE_GIT_URI: https://github.com/stacks-network/sbtc-bridge-api.git
+        BRIDGE_GIT_BRANCH: main
     ports:
-      - "80:80"
+      - 3010:3010
+    environment:
+      NODE_ENV: dev
+      btcSchnorrReveal: changeme
+      btcSchnorrReclaim: changeme
+      btcNode: bitcoin:18443
+      btcRpcUser: devnet
+      btcRpcPwd: devnet
+      network: testnet
+      bitcoinExplorerUrl: http://bitcoin-explorer:3002/api
+      stacksExplorerUrl: http://stacks-explorer:3000
+      stacksApi: http://stacks-api:3999
+      sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
+      mongoDbUrl: mongodb
+      mongoDbName: devnet
+      mongoUser: devnet
+      mongoPwd: devnet
