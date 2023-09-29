@@ -1,0 +1,14 @@
+version: "3.2"
+
+services:
+  mongodb:
+    image: mongo:6.0   
+    container_name: mongodb 
+    build:
+      context: ./docker
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: devnet
+      MONGO_INITDB_ROOT_PASSWORD: devnet
+      MONGO_INITDB_DATABASE: devnet

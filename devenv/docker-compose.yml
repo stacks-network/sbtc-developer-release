@@ -27,6 +27,15 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: devnet
+      MONGO_INITDB_ROOT_PASSWORD: devnet
+      MONGO_INITDB_DATABASE: devnet
   miner:
     image: miner:latest
     container_name: miner
@@ -157,6 +166,42 @@ services:
       RUST_BACKTRACE: 1
     volumes:
       - $PWD/sbtc/docker/config.json:/romeo/config.json
+  sbtc-bridge-api:
+    image: sbtc-bridge-api:latest
+    container_name: sbtc-bridge-api
+    build:
+      context: ./sbtc-bridge-api/docker
+      args:
+        BRIDGE_GIT_URI: https://github.com/stacks-network/sbtc-bridge-api.git
+        BRIDGE_GIT_BRANCH: main
+    depends_on:
+      - bitcoin
+      - miner
+      - stacks
+      - stacks-api
+      - postgres
+      - stacks-explorer
+      - bitcoin-explorer
+      - mongodb
+      - sbtc
+    ports:
+      - 3010:3010
+    environment:
+      NODE_ENV: dev
+      btcSchnorrReveal: changeme
+      btcSchnorrReclaim: changeme
+      btcNode: bitcoin:18443
+      btcRpcUser: devnet
+      btcRpcPwd: devnet
+      network: testnet
+      bitcoinExplorerUrl: http://bitcoin-explorer:3002/api
+      stacksExplorerUrl: http://stacks-explorer:3000
+      stacksApi: http://stacks-api:3999
+      sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
+      mongoDbUrl: mongodb
+      mongoDbName: devnet
+      mongoUser: devnet
+      mongoPwd: devnet
   sbtc-bridge-web:
     image: sbtc-bridge-web:latest
     container_name: sbtc-bridge-web
@@ -170,5 +215,6 @@ services:
       - bitcoin-explorer
       - miner
       - sbtc
+      - sbtc-bridge-api
     ports:
       - 8080:8080
