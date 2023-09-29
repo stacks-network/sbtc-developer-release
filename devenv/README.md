@@ -62,6 +62,7 @@ There is a helper script at the top level directory to facilitate logging:
 ./log sbtc
 ./log electrs
 ./log sbtc-bridge-web
+./log sbtc-bridge-api
 ```
 ## Services
 
@@ -110,7 +111,11 @@ The sBTC bridge app is running at:
 http://127.0.0.1:8080/
 ```
 ### sBTC Bridge API
-TBD
+The sBTC bridge api is running at:
+
+```
+http://127.0.0.1:3010/
+```
 
 ### Electrs (Electrum Rust Server)
 The electrs service is running at:
