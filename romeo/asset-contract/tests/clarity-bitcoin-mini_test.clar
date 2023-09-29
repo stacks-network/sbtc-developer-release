@@ -8,6 +8,10 @@
   (contract-call? .clarity-bitcoin-mini debug-insert-burn-header-hash (contract-call? .clarity-bitcoin-mini reverse-buff32 (sha256 (sha256 header))) burn-height)
 )
 
+(define-private (assert-eq (result (response bool uint)) (compare (response bool uint)) (message (string-ascii 100)))
+	(ok (asserts! (is-eq result compare) (err message)))
+)
+
 (define-public (prepare)
 	(begin
         (unwrap-panic (add-burnchain-block-header-hash u807525 0x00001733539613a8d931b08f0d3f746879572a6d3e12623b16d20000000000000000000034f521522fba52c2c5c75609d261b490ee620661319ab23c68f24d756ff4ced801230265ae32051718d9aadb))
@@ -23,11 +27,14 @@
         ;; block id: 0000000000000000000104cf6179ece70fe28f1f6a24126e8d8c91d42d5eafb4
         (raw-block-header 0x00001733539613a8d931b08f0d3f746879572a6d3e12623b16d20000000000000000000034f521522fba52c2c5c75609d261b490ee620661319ab23c68f24d756ff4ced801230265ae32051718d9aadb))
             
-            (asserts! (contract-call? .clarity-bitcoin-mini verify-block-header
+            (assert-eq 
+                (ok (contract-call? .clarity-bitcoin-mini verify-block-header
                 0x00001733539613a8d931b08f0d3f746879572a6d3e12623b16d20000000000000000000034f521522fba52c2c5c75609d261b490ee620661319ab23c68f24d756ff4ced801230265ae32051718d9aadb
-                burnchain-block-height) ERR-HEADER-HEIGHT-MISMATCH)
-            (ok true)))
+                burnchain-block-height)) 
+                (ok true) 
+                "Block header verification failed")))
 
+;;(proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
 ;; @name check valid verify-merkle-proof-1
 (define-public (test-verify-merkle-proof-pass)
     (let (
@@ -39,10 +46,13 @@
         (proof {
             tx-index: u3,
             hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8),
-            tree-depth: u2})
-        (proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
-            (asserts! proof-response ERR-INVALID-MERKLE-PROOF)
-            (ok true)))
+            tree-depth: u2}))
+            (assert-eq 
+                (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
+                (ok true) 
+                "Witness merkle proof verification 1 failed")
+                
+                ))
 
 ;; @name check valid verify-merkle-proof-2
 (define-public (test-verify-merkle-proof-pass-2)
