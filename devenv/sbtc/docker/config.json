@@ -1,13 +1,10 @@
 {
+  "state_directory": "./state",
+  "mnemonic": "foster raise devote wear great volcano spring chapter among violin bleak syrup rent sphere coyote client govern spirit good risk cruise twice trick jealous",
   "stacks_network": "testnet",
   "bitcoin_network": "regtest",
-  "state_directory": "./state",
-  "wif": "cToZ7x3Ju96xHxS8ZuEFmGxqMWJDbAQWsUgh48CG5zgtkzt1yRJj",
-  "mnemonic": "foster raise devote wear great volcano spring chapter among violin bleak syrup rent sphere coyote client govern spirit good risk cruise twice trick jealous",
-  "bitcoin_node_url": "http://devnet:devnet@bitcoin-explorer:3002/api",
   "stacks_node_url": "http://stacks-api:3999",
-  "stacks_transaction_fee": 2000,
-  "bitcoin_transaction_fee": 2000,
-  "contract": "../asset-contract/contracts/asset.clar",
+  "bitcoin_node_url": "http://devnet:devnet@bitcoin-explorer:3002/api",
+  "electrum_node_url": "tcp://electrs:60401",
   "contract_name": "sbtc-alpha-romeo-testing"
 }
