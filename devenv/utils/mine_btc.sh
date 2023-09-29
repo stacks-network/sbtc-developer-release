@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Mines some BTC to the default BTC address
+
 num_blocks=$1
 dir="$(dirname "$0")"
 

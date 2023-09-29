@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Gets the default devnet credentials and makes a deposit
+
 dir="$(dirname "$0")"
 
 btc_wif=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2wpkh.wif')
@@ -15,6 +17,11 @@ json=$(sbtc deposit \
     -a $amount \
     -d $btc_p2tr_address \
     -u localhost:60401)
+
+if [ $? -ne 0 ]; then
+    echo 'The deposit failed, did you forget to run "mine_btc.sh"?'
+    exit 1
+fi
 
 tx=$(echo -n $json | jq -r .hex)
 
