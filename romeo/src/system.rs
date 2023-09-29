@@ -21,7 +21,7 @@ use tokio::{
 	sync::mpsc,
 	task::JoinHandle,
 };
-use tracing::{debug, trace};
+use tracing::{info, trace};
 
 use crate::{
 	bitcoin_client::Client as BitcoinClient,
@@ -46,12 +46,14 @@ pub async fn run(config: Config) {
 	let stacks_client: LockedClient =
 		StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
-	tracing::info!("Starting replay of persisted events");
-	let (mut storage, state) =
-		Storage::load_and_replay(&config, state::State::default()).await;
-	tracing::info!("Replay finished with state: {:?}", state);
+	info!("Starting replay of persisted events");
 
-	let (mut state, bootstrap_tasks) = state::bootstrap(state);
+	let (mut storage, mut state) =
+		Storage::load_and_replay(&config, state::State::new()).await;
+
+	info!("Replay finished with state: {:?}", state);
+
+	let bootstrap_tasks = state.bootstrap();
 
 	// Bootstrap
 	for task in bootstrap_tasks {
@@ -67,9 +69,8 @@ pub async fn run(config: Config) {
 	while let Some(event) = rx.recv().await {
 		storage.record(&event).await;
 
-		let (next_state, tasks) = state::update(&config, state, event);
-
-		trace!("State: {}", serde_json::to_string(&next_state).unwrap());
+		let tasks = state.update(event, &config);
+		trace!("State: {}", serde_json::to_string(&state).unwrap());
 
 		for task in tasks {
 			spawn(
@@ -80,8 +81,6 @@ pub async fn run(config: Config) {
 				tx.clone(),
 			);
 		}
-
-		state = next_state;
 	}
 }
 
@@ -107,7 +106,8 @@ impl Storage {
 
 		while let Some(line) = r.next_line().await.unwrap() {
 			let event: Event = serde_json::from_str(&line).unwrap();
-			state = state::update(config, state, event).0;
+
+			state.update(event, config);
 		}
 
 		(Self(BufWriter::new(file)), state)
@@ -129,7 +129,7 @@ fn spawn(
 	task: Task,
 	result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
-	debug!("Spawning task");
+	info!("Spawning");
 
 	tokio::task::spawn(async move {
 		let event =
@@ -147,6 +147,9 @@ async fn run_task(
 	match task {
 		Task::GetContractBlockHeight => {
 			get_contract_block_height(config, stacks_client).await
+		}
+		Task::UpdateContractPublicKey => {
+			update_contract_public_key(config, stacks_client).await
 		}
 		Task::CreateMint(deposit_info) => {
 			mint_asset(config, bitcoin_client, stacks_client, deposit_info)
@@ -199,6 +202,53 @@ async fn get_contract_block_height(
 		.expect("Could not get burnchain block height");
 
 	Event::ContractBlockHeight(block_height, bitcoin_block_height)
+}
+
+async fn update_contract_public_key(
+	config: &Config,
+	stacks_client: LockedClient,
+) -> Event {
+	let public_key = StacksPublicKey::from_slice(
+		&config.stacks_credentials.public_key().serialize(),
+	)
+	.unwrap();
+
+	let tx_auth = TransactionAuth::Standard(
+		TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
+	);
+
+	let function_args =
+		vec![Value::buff_from(public_key.to_bytes_compressed())
+			.expect("Cannot convert public key into a Clarity Value")];
+
+	let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
+		config.stacks_credentials.address().serialize_to_vec(),
+	))
+	.unwrap();
+
+	let tx_payload =
+		TransactionPayload::ContractCall(TransactionContractCall {
+			address: addr,
+			contract_name: config.contract_name.clone(),
+			function_name: ClarityName::from("set-bitcoin-wallet-public-key"),
+			function_args,
+		});
+
+	let tx_version = match config.stacks_network {
+		StacksNetwork::Mainnet => TransactionVersion::Mainnet,
+		StacksNetwork::Testnet => TransactionVersion::Testnet,
+	};
+
+	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
+
+	let txid = stacks_client
+		.lock()
+		.await
+		.sign_and_broadcast(tx)
+		.await
+		.expect("Unable to sign and broadcast the mint transaction");
+
+	Event::ContractPublicKeySetBroadcasted(txid)
 }
 
 async fn mint_asset(

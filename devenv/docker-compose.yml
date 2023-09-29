@@ -65,7 +65,7 @@ services:
        GIT_BRANCH: 'v7.3.0'
     ports:
       - 3999:3999
-      - 3700:3700 
+      - 3700:3700
     depends_on:
       - postgres
       - stacks

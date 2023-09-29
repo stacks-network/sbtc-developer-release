@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Gets the default devnet credentials and makes a withdrawal
+
+
 dir="$(dirname "$0")"
 
 btc_wif=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2wpkh.wif')
@@ -19,6 +22,12 @@ json=$(sbtc withdraw \
     -f $fulfillment_fee \
     -p $btc_p2tr_address \
     -u localhost:60401)
+
+
+if [ $? -ne 0 ]; then
+    echo 'The withdrawal failed, did you forget to run "mine_btc.sh"?'
+    exit 1
+fi
 
 tx=$(echo -n $json | jq -r .hex)
 
