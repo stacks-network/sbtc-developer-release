@@ -4,9 +4,12 @@
 
 dir="$(dirname "$0")"
 
-btc_wif=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2wpkh.wif')
+# the sbtc wallet
 btc_p2tr_address=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2tr.address')
-stacks_address=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].stacks.address')
+# Alice's btc address
+btc_wif=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].bitcoin.p2wpkh.wif')
+# Alice's stx address
+stacks_address=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].stacks.address')
 
 amount=$((RANDOM%9000+1000))
 
