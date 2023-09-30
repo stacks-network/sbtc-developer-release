@@ -646,6 +646,7 @@ fn parse_deposits(
 	bitcoin_height: u32,
 	block: &Block,
 ) -> Vec<Deposit> {
+	let sbtc_wallet_address = config.sbtc_wallet_address();
 	block
 		.txdata
 		.iter()
@@ -658,6 +659,9 @@ fn parse_deposits(
 				tx,
 			)
 			.ok()
+			.filter(|parsed_deposit| {
+				parsed_deposit.sbtc_wallet_address == sbtc_wallet_address
+			})
 			.map(|parsed_deposit| {
 				let bytes = parsed_deposit.recipient.serialize_to_vec();
 				let recipient = PrincipalData::consensus_deserialize(
@@ -680,6 +684,7 @@ fn parse_deposits(
 }
 
 fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
+	let sbtc_wallet_address = config.sbtc_wallet_address();
 	let block_height = block
 		.bip34_block_height()
 		.expect("Failed to get block height") as u32;
@@ -696,6 +701,9 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 				tx,
 			)
 			.ok()
+			.filter(|parsed_withdrawal| {
+				parsed_withdrawal.peg_wallet == sbtc_wallet_address
+			})
 			.map(
 				|WithdrawalRequestData {
 				     payee_bitcoin_address,
