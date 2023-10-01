@@ -188,8 +188,6 @@ services:
       - 3010:3010
     environment:
       NODE_ENV: dev
-      btcSchnorrReveal: changeme
-      btcSchnorrReclaim: changeme
       btcNode: bitcoin:18443
       btcRpcUser: devnet
       btcRpcPwd: devnet
