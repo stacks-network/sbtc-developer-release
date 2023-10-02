@@ -14,6 +14,6 @@ RUN cargo nextest list
 
 RUN apk --no-cache add curl jq
 
-COPY ./devenv/tests/docker/entrypoint /bin/entrypoint
+COPY ./devenv/integration/docker/entrypoint /bin/entrypoint
 
 ENTRYPOINT [ "entrypoint" ]

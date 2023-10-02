@@ -8,7 +8,7 @@ services:
   testbed:
     image: testbed:latest
     build:
-      dockerfile: devenv/tests/docker/Dockerfile
+      dockerfile: devenv/integration/docker/Dockerfile
       context: ./../../
     networks:
       - devenv_default
