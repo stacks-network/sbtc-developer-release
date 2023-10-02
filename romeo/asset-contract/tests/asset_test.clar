@@ -10,7 +10,6 @@
 (define-constant err-invalid-caller (err u4))
 (define-constant err-forbidden (err u403))
 (define-constant err-btc-tx-already-used (err u500))
-(define-constant err-expected-err (err u9999))
 
 (define-constant test-burn-height u1)
 (define-constant test-block-header 0x02000000000000000000000000000000000000000000000000000000000000000000000075b8bf903d0153e1463862811283ffbec83f55411c9fa5bd24e4207dee0dc1f1000000000000000000000000)
@@ -116,21 +115,41 @@
 ;; @name Protocol can burn tokens
 ;; @caller deployer
 (define-public (test-protocol-burn)
-	(contract-call? .asset burn u10000000 wallet-2 test-txid-4 u4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4)
+	(contract-call? .asset burn u10000000 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4)
 )
 
 ;; @name Non-protocol contracts cannot burn tokens
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-burn-external)
-	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
+	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid test-burn-height test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
+)
+
+;; @name Protocol can burn tokens with the same bitcoin transaction only once
+;; @caller deployer
+(define-public (test-protocol-burn-twice)
+	(begin
+		(unwrap! (contract-call? .asset burn u10000000 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4) (err "Should succeed"))
+		(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4) err-btc-tx-already-used "Should have failed with err-btc-tx-already-used")
+	)
+)
+
+;; @name Protocol cannot burn tokens than owned by wallet
+;; @caller deployer
+(define-public (test-protocol-burn-max-amount)
+	(assert-eq (contract-call? .asset burn u10000001 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4) (err u1) "Should have failed with err-btc-tx-already-used")
 )
 
 ;; @name Protocol can set wallet address
 ;; @no-prepare
 ;; @caller deployer
 (define-public (test-protocol-set-wallet-public-key)
-	(contract-call? .asset set-bitcoin-wallet-public-key 0x1234)
+	(begin 
+		(asserts! (is-eq (contract-call? .asset get-bitcoin-wallet-public-key) none) (err "Public key should be none"))
+		(try! (assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) (ok true) "Should have succeeded"))
+		(asserts! (is-eq (contract-call? .asset get-bitcoin-wallet-public-key) (some 0x1234)) (err "Public key should be 0x1234"))
+		(ok true)
+	)
 )
 
 ;; @name Non-protocol contracts cannot set wallet public key
@@ -140,12 +159,28 @@
 	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-forbidden "Should have returned err forbidden")
 )
 
+;; @name Amounts can be retrieved by btc transaction id
+(define-public (test-get-amounts-by-txid)
+	(begin
+	 	(asserts! (is-eq (contract-call? .asset get-amount-by-btc-txid test-txid) (some 10000000)) (err "Amounts do not match"))
+		(asserts! (is-eq (contract-call? .asset get-amount-by-btc-txid test-txid-2) (some 10000000)) (err "Amounts do not match"))
+		(asserts! (is-eq (contract-call? .asset get-amount-by-btc-txid 0x1234) none) (err "Amount should be none"))
+		(ok true)
+	)
+)
+
 ;; --- SIP010 tests
 
 ;; @name Token owner can transfer their tokens
 ;; @caller wallet_1
 (define-public (test-transfer)
 	(contract-call? .asset transfer u100 contract-caller wallet-2 none)
+)
+
+;; @name Token owner can transfer their tokens with memo
+;; @caller wallet_1
+(define-public (test-transfer-with-memo)
+	(contract-call? .asset transfer u200 contract-caller wallet-2 (some 0x1357))
 )
 
 ;; @name User can transfer tokens owned by contract
