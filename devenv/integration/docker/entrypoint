@@ -21,4 +21,4 @@ done
 # any other service checks
 
 echo with filter: "'$@'"
-cargo nextest run -E "$@"
+cargo nextest run -E "$@ and kind(test)"
