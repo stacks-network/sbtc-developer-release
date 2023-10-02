@@ -113,28 +113,6 @@
                     (ok false) 
                     "Invalid witness merkle proof verification 3 passed")))
 
-;; @name check valid was-tx-mined
-;; (define-public (test-valid-was-tx-mined-1)
-;;     (let
-;;         (
-
-;;         )
-;;         (assert-eq 
-;;             (contract-call? .clarity-bitcoin-mini was-txid-mined 
-;;                 u2431087 
-;;                 0x3b3a7a31c949048fabf759e670a55ffd5b9472a12e748b684db5d264b6852084 
-;;                 0x0000a02065bc9201b5b5a1d695a18e4d5efe5d52d8ccc4129a2499141d000000000000009160ba7ae5f29f9632dc0cd89f466ee64e2dddfde737a40808ddc147cd82406f18b8486488a127199842cec7 
-;;                 {
-;;                     tx-index: u3,
-;;                     hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b 0x122f3217765b6e8f3163f6725d4aa3d303e4ffe4b99a5e85fb4ff91a026c17a8),
-;;                     tree-depth: u2
-;;                 }
-;;             )
-;;             (ok true)
-;;         "Was tx mined 1 failed")
-;;     )
-;; )
-
 ;; @name check incorrect verify-merkle-proof (too short)
 (define-public (test-incorrect-verify-merkle-proof-too-short-improved)
     (let (
@@ -144,9 +122,8 @@
         (proof {
             tx-index: u3,
             hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b),
-            tree-depth: u2}    
-        ))
-        (assert-eq 
-            (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
-            ERR-PROOF-TOO-SHORT
-            "Witness merkle proof verification failed")))
+            tree-depth: u2}))
+            (assert-eq 
+                (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
+                ERR-PROOF-TOO-SHORT
+                "Witness merkle proof verification failed")))
