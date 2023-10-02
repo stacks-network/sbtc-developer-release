@@ -36,7 +36,7 @@
 
 ;;(proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
 ;; @name check valid verify-merkle-proof-1
-(define-public (test-verify-merkle-proof-pass)
+(define-public (test-verify-merkle-proof-pass-1)
     (let (
         ;; hash256 wtx raw hex of tx 3b3a7a31c949048fabf759e670a55ffd5b9472a12e748b684db5d264b6852084
         (hash-wtx-le 0x04117dc370c45b8a44bf86a3ae4fa8d0b186b5b27d50939cda7501723fa12ec6)
@@ -50,9 +50,7 @@
             (assert-eq 
                 (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
                 (ok true) 
-                "Witness merkle proof verification 1 failed")
-                
-                ))
+                "Witness merkle proof verification 1 failed")))
 
 ;; @name check valid verify-merkle-proof-2
 (define-public (test-verify-merkle-proof-pass-2)
@@ -64,10 +62,11 @@
         (proof {
             tx-index: u2,
             hashes: (list 0x073782910dca06f17d09828a116b1b991e1255d1da2f541a465e681e11ebf32b 0x1bd75b05fec22e8436fa721115f5a8843ba3d2d17640df9653303b186c6a3701),
-            tree-depth: u2})
-        (proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
-            (asserts! proof-response ERR-INVALID-MERKLE-PROOF)
-            (ok true)))
+            tree-depth: u2}))
+            (assert-eq 
+                (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
+                (ok true) 
+                "Witness merkle proof verification 2 failed")))
 
 ;; @name check valid verify-merkle-proof-3
 (define-public (test-verify-merkle-proof-pass-3)
@@ -79,10 +78,11 @@
         (proof {
             tx-index: u2,
             hashes: (list 0x060f653adf158c9765994dcc38c2d29c4722b4415e56468aae2908cc26d5b7fc 0x438e9befc51be8d8570386ce9b5050e75ddcd410c92d0e7693b11c82b4c73f2f),
-            tree-depth: u2})
-        (proof-response (unwrap! (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof) ERR-OK-EXPECTED)))
-            (asserts! proof-response ERR-INVALID-MERKLE-PROOF)
-            (ok true)))
+            tree-depth: u2}))
+            (assert-eq 
+                    (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
+                    (ok true) 
+                    "Witness merkle proof verification 3 failed")))
 
 ;; @name check incorrect verify-merkle-proof (too short)
 (define-public (test-incorrect-verify-merkle-proof-too-short)
