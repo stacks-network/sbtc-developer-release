@@ -56,7 +56,7 @@ args = ["fmt", "--check", "--verbose"]
 [tasks.format-clippy]
 install_crate = "clippy" # uses the stable version.
 command = "cargo"
-args = ["clippy", "--", "-D", "warnings", "-W", "clippy::all"]
+args = ["clippy","--all-features", "--all-targets", "--", "-D", "warnings", "-W", "clippy::all"]
 
 [tasks.format]
 dependencies = ["format-clippy", "format-fmt"]
