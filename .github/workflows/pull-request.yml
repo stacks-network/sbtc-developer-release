@@ -34,8 +34,9 @@ jobs:
 
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: nightly
         override: true
+        components: rustfmt, clippy
 
     - uses: davidB/rust-cargo-make@v1
       with:
