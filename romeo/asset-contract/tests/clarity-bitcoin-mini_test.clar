@@ -84,8 +84,25 @@
                     (ok true) 
                     "Witness merkle proof verification 3 failed")))
 
+;; @name check invalid verify-merkle-proof-3
+(define-public (test-verify-merkle-proof-fail-3)
+    (let (
+        ;; hash256 wtx raw hex of tx f95ece8dde2672891df03a79ed6099c0de4ebfdaee3c31145fe497946368cbb0
+        (hash-wtx-le 0x060f653adf158c9765994dcc38c2d29c4722b4415e56468aae2908cc26d5b7fc)
+        ;; witness merkle root found in coinbase op_return (below concatenated with 32-bytes of 0x00 then hash256)
+        ;; this was modified to be incorrect
+        (merkle-root 0x466c4677e2f40e524b773344401f1de980ec9a9cb3453620cd1ff652b9c1d53e)
+        (proof {
+            tx-index: u2,
+            hashes: (list 0x060f653adf158c9765994dcc38c2d29c4722b4415e56468aae2908cc26d5b7fc 0x438e9befc51be8d8570386ce9b5050e75ddcd410c92d0e7693b11c82b4c73f2f),
+            tree-depth: u2}))
+            (assert-eq 
+                    (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
+                    (ok false) 
+                    "Witness merkle proof verification 3 failed")))
+
 ;; @name check incorrect verify-merkle-proof (too short)
-(define-public (test-incorrect-verify-merkle-proof-too-short)
+(define-public (test-incorrect-verify-merkle-proof-too-short-improved)
     (let (
         (hash-wtx-le 0x04117dc370c45b8a44bf86a3ae4fa8d0b186b5b27d50939cda7501723fa12ec6)
         (hash-wtx-be 0xc62ea13f720175da9c93507db2b586b1d0a84faea386bf448a5bc470c37d1104)
@@ -94,8 +111,8 @@
             tx-index: u3,
             hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b),
             tree-depth: u2}    
-        )
-        (proof-result (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)))
-            (asserts! (is-err proof-result) ERR-ERROR-EXPECTED)
-		    (asserts! (is-eq proof-result ERR-PROOF-TOO-SHORT) ERR-ERROR-EXPECTED)
-            (ok true)))
+        ))
+        (assert-eq 
+            (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
+            ERR-PROOF-TOO-SHORT
+            "Witness merkle proof verification failed")))
