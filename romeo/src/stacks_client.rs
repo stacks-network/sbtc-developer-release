@@ -19,7 +19,7 @@ use blockstack_lib::{
 };
 use futures::Future;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use reqwest::Request;
+use reqwest::{Request, RequestBuilder};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use stacks_core::{codec::Codec, uint::Uint256};
@@ -76,7 +76,11 @@ impl StacksClient {
 	{
 		let request_url = request_builder().url().to_string();
 
-		let res = retry(|| self.http_client.execute(request_builder())).await?;
+		let res = retry(|| {
+			self.http_client
+				.execute(self.add_stacks_api_key(request_builder()))
+		})
+		.await?;
 		let status = res.status();
 		let body = res.text().await?;
 
@@ -104,6 +108,19 @@ impl StacksClient {
                 error_details.unwrap_or_default()
             )
         })
+	}
+
+	/// if hiro_api_key is set, add it to the request
+	fn add_stacks_api_key(&self, request: Request) -> Request {
+		match &self.config.hiro_api_key {
+			Some(api_key) => {
+				RequestBuilder::from_parts(self.http_client.clone(), request)
+					.header("x-hiro-api-key", api_key)
+					.build()
+					.unwrap()
+			}
+			None => request,
+		}
 	}
 
 	/// Sign and broadcast an unsigned stacks transaction

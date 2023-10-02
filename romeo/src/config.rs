@@ -53,6 +53,9 @@ pub struct Config {
 
 	/// sBTC asset contract name
 	pub contract_name: ContractName,
+
+	/// optional api key used for the stacks node
+	pub hiro_api_key: Option<String>,
 }
 
 impl Config {
@@ -77,6 +80,7 @@ impl Config {
 			wallet.credentials(config_file.stacks_network, 0)?;
 		let bitcoin_credentials =
 			wallet.bitcoin_credentials(config_file.bitcoin_network, 0)?;
+		let hiro_api_key = config_file.hiro_api_key;
 
 		Ok(Self {
 			state_directory,
@@ -90,6 +94,7 @@ impl Config {
 			contract_name: ContractName::from(
 				config_file.contract_name.as_str(),
 			),
+			hiro_api_key,
 		})
 	}
 }
@@ -127,6 +132,9 @@ struct ConfigFile {
 
 	/// sBTC asset contract name
 	pub contract_name: String,
+
+	/// optional api key used for the stacks node
+	pub hiro_api_key: Option<String>,
 }
 
 impl ConfigFile {
