@@ -45,7 +45,7 @@ jobs:
       run: cargo make --profile github-actions format
 
   coverage:
-    needs: generate-lockfile
+    needs: clarinet
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -72,6 +72,7 @@ jobs:
         fail_ci_if_error: true
 
   clarinet:
+    needs: linter
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
