@@ -17,8 +17,8 @@ for filter in "${filters[@]}"; do
     echo Working project: $project
     projects+=($project)
 
-    ./tests/bin/down docker-compose.yml $project
-    ./tests/bin/up docker-compose.yml $project
+    ./integration/bin/down docker-compose.yml $project
+    ./integration/bin/up docker-compose.yml $project
 
     network=${project}_default
     id=$(docker run -td --network $network -e PROJECT_NAME=$project testbed "$filter")
@@ -37,8 +37,8 @@ project="remainder--"
 echo Working project: $project
 projects+=($project)
 
-./tests/bin/down docker-compose.yml $project
-./tests/bin/up docker-compose.yml $project
+./integration/bin/down docker-compose.yml $project
+./integration/bin/up docker-compose.yml $project
 
 network=${project}_default
 id=($(docker run -td --network $network -e PROJECT_NAME=$project testbed "not ($filter_union)"))
@@ -55,5 +55,5 @@ for id in ${ids[@]}; do
 done
 
 for project in ${projects[@]}; do
-    ./tests/bin/down docker-compose.yml $project
+    ./integration/bin/down docker-compose.yml $project
 done
