@@ -7,8 +7,8 @@
 (define-constant expected-symbol "sBTC")
 (define-constant expected-decimals u8)
 
-(define-constant err-invalid-caller (err u403))
-(define-constant err-not-token-owner (err u2))
+(define-constant err-invalid-caller (err u4))
+(define-constant err-forbidden (err u403))
 
 (define-constant test-burn-height u1)
 (define-constant test-block-header 0x02000000000000000000000000000000000000000000000000000000000000000000000075b8bf903d0153e1463862811283ffbec83f55411c9fa5bd24e4207dee0dc1f1000000000000000000000000)
@@ -75,7 +75,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-mint-external)
-	(assert-eq (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
 )
 
 ;; @name Protocol can burn tokens
@@ -88,7 +88,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-burn-external)
-	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-invalid-caller "Should have failed")
+	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
 )
 
 ;; @name Protocol can set wallet address
@@ -102,7 +102,7 @@
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-set-wallet-public-key-external)
-	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-invalid-caller "Should have returned err forbidden")
+	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-forbidden "Should have returned err forbidden")
 )
 
 ;; --- SIP010 tests
@@ -110,13 +110,13 @@
 ;; @name Token owner can transfer their tokens
 ;; @caller wallet_1
 (define-public (test-transfer)
-	(contract-call? .asset transfer u100 tx-sender wallet-2 none)
+	(contract-call? .asset transfer u100 contract-caller wallet-2 none)
 )
 
 ;; @name User can transfer tokens owned by contract
 ;; @caller wallet_1
 (define-public (test-transfer-contract)
-	(distribute-tokens u100 (as-contract tx-sender) wallet-2)
+	(as-contract (distribute-tokens u100 tx-sender wallet-2))
 )
 
 (define-public (distribute-tokens (amount uint) (from principal) (to principal))
@@ -124,9 +124,9 @@
 )
 
 ;; @name Cannot transfer someone else's tokens
-;; @caller wallet_1
+;; @caller deployer
 (define-public (test-transfer-external)
-	(assert-eq (contract-call? .asset transfer u100 wallet-2 tx-sender none) err-not-token-owner "Should have failed")
+	(assert-eq (contract-call? .asset transfer u100 wallet-2 wallet-1 none) err-invalid-caller "Should have failed")
 )
 
 ;; @name Can get name
@@ -157,4 +157,22 @@
 ;; @name Can get token URI
 (define-public (test-get-token-uri)
 	(ok (asserts! (is-eq (contract-call? .asset get-token-uri) (ok expected-token-uri)) (err "Token uri does not match")))
+)
+
+;; @name Set valid new owner
+;; @caller deployer
+(define-public (test-set-valid-owner)
+	(begin
+		(try! (contract-call? .asset set-contract-owner 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y))
+		;; Check new owner set
+		(asserts! (is-eq (contract-call? .asset get-contract-owner) 'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y) (err u100))
+		(ok true)
+	)
+)
+
+;; @name Try to set owner without being current owner
+;; @prepare prepare-revoke-contract-owner
+;; @caller wallet_1
+(define-public (test-set-invalid-owner)
+	(assert-eq (contract-call? .asset set-contract-owner wallet-2) err-forbidden "Should have failed")
 )

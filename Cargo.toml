@@ -5,7 +5,6 @@ resolver = "2"
 [workspace.dependencies]
 anyhow = "1.0"
 array-bytes = "6.1.0"
-async-trait = "0.1.73"
 backoff = "0.4.0"
 bdk = "0.28.1"
 bitcoin = "0.29.2"
