@@ -13,7 +13,8 @@ WORKDIR /app
 RUN apk add --no-cache git
 
 # Bundle app source
-RUN git clone ${BRIDGE_GIT_URI} -b ${BRIDGE_GIT_BRANCH} .
+RUN git clone ${BRIDGE_GIT_URI} .
+RUN git checkout ${BRIDGE_GIT_BRANCH}
 
 WORKDIR /app/sbtc-bridge-api
 
