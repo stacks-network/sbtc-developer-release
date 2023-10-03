@@ -2,7 +2,7 @@
 
 use std::{io::Cursor, sync::Arc, time::Duration};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Error};
 use blockstack_lib::{
 	burnchains::Txid as StacksTxId,
 	chainstate::stacks::{
@@ -236,7 +236,11 @@ impl StacksClient {
 			})
 			.await?;
 
-		Ok(res["block_height"].as_u64().unwrap() as u32)
+		if let Some(err) = res["error"].as_str() {
+			Err(Error::msg(err.to_string()))
+		} else {
+			Ok(res["block_height"].as_u64().unwrap() as u32)
+		}
 	}
 
 	/// Get the Bitcoin block height for a Stacks block height
