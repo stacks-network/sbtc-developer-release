@@ -30,6 +30,12 @@ pub struct Config {
 	/// Directory to persist the state of the system to
 	pub state_directory: PathBuf,
 
+	/// Stacks network
+	pub stacks_network: StacksNetwork,
+
+	/// Bitcoin network
+	pub bitcoin_network: BitcoinNetwork,
+
 	/// Credentials used to interact with the Stacks network
 	pub stacks_credentials: Credentials,
 
@@ -42,8 +48,14 @@ pub struct Config {
 	/// Address of a bitcoin node
 	pub bitcoin_node_url: Url,
 
+	/// Address of the Electrum node
+	pub electrum_node_url: Url,
+
 	/// sBTC asset contract name
 	pub contract_name: ContractName,
+
+	/// optional api key used for the stacks node
+	pub hiro_api_key: Option<String>,
 }
 
 impl Config {
@@ -60,6 +72,7 @@ impl Config {
 
 		let stacks_node_url = Url::parse(&config_file.stacks_node_url)?;
 		let bitcoin_node_url = Url::parse(&config_file.bitcoin_node_url)?;
+		let electrum_node_url = Url::parse(&config_file.electrum_node_url)?;
 
 		let wallet = Wallet::new(&config_file.mnemonic)?;
 
@@ -67,16 +80,21 @@ impl Config {
 			wallet.credentials(config_file.stacks_network, 0)?;
 		let bitcoin_credentials =
 			wallet.bitcoin_credentials(config_file.bitcoin_network, 0)?;
+		let hiro_api_key = config_file.hiro_api_key;
 
 		Ok(Self {
 			state_directory,
+			stacks_network: config_file.stacks_network,
+			bitcoin_network: config_file.bitcoin_network,
 			stacks_credentials,
 			bitcoin_credentials,
 			stacks_node_url,
 			bitcoin_node_url,
+			electrum_node_url,
 			contract_name: ContractName::from(
 				config_file.contract_name.as_str(),
 			),
+			hiro_api_key,
 		})
 	}
 }
@@ -109,8 +127,14 @@ struct ConfigFile {
 	/// Address of a bitcoin node
 	pub bitcoin_node_url: String,
 
+	/// Address of the Electrum node
+	pub electrum_node_url: String,
+
 	/// sBTC asset contract name
 	pub contract_name: String,
+
+	/// optional api key used for the stacks node
+	pub hiro_api_key: Option<String>,
 }
 
 impl ConfigFile {

@@ -2,7 +2,7 @@
 The sBTC CLI allows creating and broadcasting sBTC transactions from the command line. The purpose is to aid experimenting with sBTC and testing it. The resulting transactions can be broadcasted to Bitcoin, or kept in hex format as test vectors.
 
 # Installation
-From the root of the `core-eng` repo, run
+From the root of the `sbtc` repo, run
 ```
 cargo install --path sbtc-cli
 ```

@@ -605,7 +605,7 @@ mod tests {
 
 	impl<const N: usize> Uint<N> {
 		fn bit(&self, index: usize) -> bool {
-			let &Uint(ref arr) = self;
+			let Uint(arr) = self;
 
 			arr[index / 64] & (1 << (index % 64)) != 0
 		}
@@ -615,7 +615,7 @@ mod tests {
 		}
 
 		fn mask(&self, n: usize) -> Self {
-			let &Uint(ref arr) = self;
+			let Uint(arr) = self;
 
 			let mut ret = [0; N];
 			for i in 0..N {
@@ -961,21 +961,21 @@ mod tests {
 		let hex_init =
 			"0807060504030201efbeaddeefbeadde00000000000000000000000000000000";
 		assert_eq!(
-			Uint256::from_le_bytes(&hex::decode(hex_init).unwrap()).unwrap(),
+			Uint256::from_le_bytes(hex::decode(hex_init).unwrap()).unwrap(),
 			init
 		);
 		assert_eq!(hex::encode(init.to_le_bytes()), hex_init);
-		assert_eq!(Uint256::from_le_bytes(&init.to_le_bytes()).unwrap(), init);
+		assert_eq!(Uint256::from_le_bytes(init.to_le_bytes()).unwrap(), init);
 
 		// big-endian representation
 		let hex_init =
 			"00000000000000000000000000000000deadbeefdeadbeef0102030405060708";
 		assert_eq!(
-			Uint256::from_be_bytes(&hex::decode(hex_init).unwrap()).unwrap(),
+			Uint256::from_be_bytes(hex::decode(hex_init).unwrap()).unwrap(),
 			init
 		);
 		assert_eq!(hex::encode(init.to_be_bytes()), hex_init);
-		assert_eq!(Uint256::from_be_bytes(&init.to_be_bytes()).unwrap(), init);
+		assert_eq!(Uint256::from_be_bytes(init.to_be_bytes()).unwrap(), init);
 	}
 
 	#[test]

@@ -1,11 +1,12 @@
 {
     "compilerOptions": {
-        "target": "ESNext",
+        "target": "es6",
         "useDefineForClassFields": true,
-        "module": "ESNext",
+        "module": "es6",
         "lib": [
-            "ESNext"
+            "es6"
         ],
+        "esModuleInterop": true,
         "skipLibCheck": true,
         "moduleResolution": "bundler",
         "allowImportingTsExtensions": true,
@@ -16,7 +17,7 @@
         "noImplicitAny": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
-        "noFallthroughCasesInSwitch": true
+        "noFallthroughCasesInSwitch": true,
     },
     "include": [
         "node_modules/@hirosystems/clarinet-sdk/vitest-helpers/src",

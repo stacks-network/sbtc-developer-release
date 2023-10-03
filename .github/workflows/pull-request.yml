@@ -34,8 +34,9 @@ jobs:
 
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: nightly
         override: true
+        components: rustfmt, clippy
 
     - uses: davidB/rust-cargo-make@v1
       with:
@@ -45,7 +46,7 @@ jobs:
       run: cargo make --profile github-actions format
 
   coverage:
-    needs: generate-lockfile
+    needs: clarinet
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -72,6 +73,7 @@ jobs:
         fail_ci_if_error: true
 
   clarinet:
+    needs: linter
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -106,6 +108,26 @@ jobs:
           verbose: false
           flags: unittests
           ignore: tests
+  devenv:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            devenv:
+              - 'devenv/**'
+
+      - name: Checkout
+        if: steps.changes.outputs.devenv == 'true'
+        uses: actions/checkout@v3
+
+      - name: Build devenv containers
+        if: steps.changes.outputs.devenv == 'true'
+        run: ./devenv/build.sh
 
   vitest:
     runs-on: ubuntu-latest
