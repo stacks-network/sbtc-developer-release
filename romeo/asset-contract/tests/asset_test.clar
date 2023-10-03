@@ -9,6 +9,7 @@
 
 (define-constant err-invalid-caller (err u4))
 (define-constant err-forbidden (err u403))
+(define-constant err-btc-tx-already-used (err u500))
 
 (define-constant test-burn-height u1)
 (define-constant test-block-header 0x02000000000000000000000000000000000000000000000000000000000000000000000075b8bf903d0153e1463862811283ffbec83f55411c9fa5bd24e4207dee0dc1f1000000000000000000000000)
@@ -18,6 +19,32 @@
 (define-constant test-tree-depth u1)
 (define-constant test-merkle-proof (list 0x582b1900f55dad47d575138e91321c441d174e20a43336780c352a0b556ecc8b))
 
+;; testnet block 2
+(define-constant test-burn-height-2 u2)
+(define-constant test-block-header-2 0x020000002840bc6c31378c0a314609fb50f21811c5370f7df387b30d109d620000000000a9858cc9be942ea7459f026b09e3c25287706bc3d0d9ba2d59d8ea39168c6ce72400065227f1001c4a0c9887)
+(define-constant test-block-header-hash-2 0x0000000000977ac3d9f5261efc88a3c2d25af92a91350750d00ad67744fa8d03)
+(define-constant test-txid-2 0x3fe5373efdada483b5fa7bdf2249d8274f1b8c04ab5a98bce3edfb732d8e2f86)
+(define-constant test-tx-index-2 u1)
+(define-constant test-tree-depth-2 u1)
+(define-constant test-merkle-proof-2 (list 0xf823d9b527ee0427d95d355d03e95bd30639cda85bcf65050ca32bd7d11ee1f7))
+
+;; used to mint for contract
+(define-constant test-burn-height-3 u3)
+(define-constant test-block-header-3 0x00000000000000000000000000000000000000000000000000000000000000000000000019f249885791b56b8b24ddb8d625522a6fb42629a56cad300da6213a808005b2000000000000000000000000)
+(define-constant test-block-header-hash-3 0x2ee611e1b02c558e838f531b6fa3e33dd66747ca57532bee2be4efd9f3d85292)
+(define-constant test-txid-3 0x6801cb417573220564c3cec34dd39a0879e24ea75a7ca1ba6a3b8c11c1c6c6b3)
+(define-constant test-tx-index-3 u1)
+(define-constant test-tree-depth-3 u1)
+(define-constant test-merkle-proof-3 (list 0xcfd12454d95e1f7af0f7e183862b5adf8bf7be7414c7afb0c549f360b960471d))
+
+;; used to burn
+(define-constant test-burn-height-4 u4)
+(define-constant test-block-header-4 0x00000000000000000000000000000000000000000000000000000000000000000000000041918a58bf1189a6eaeb80766ddea620363cf3f4e4a93ab101b0bb3b08e5eed1000000000000000000000000)
+(define-constant test-block-header-hash-4 0xf83d0cb1e608b3402de733bd655a644714309801edb151ae274e0ccb03cfc981)
+(define-constant test-txid-4 0x2d1f657e970f724c4cd690494152a83bd297cd10e86ed930daa2dd76576d974c)
+(define-constant test-tx-index-4 u1)
+(define-constant test-tree-depth-4 u1)
+(define-constant test-merkle-proof-4 (list 0xe79e0239e1f9d0f23613387a4831495fd5179943419bcad3a2c20c6931ab1abc))
 
 (define-private (assert-eq (result (response bool uint)) (compare (response bool uint)) (message (string-ascii 100)))
 	(ok (asserts! (is-eq result compare) (err message)))
@@ -32,7 +59,14 @@
 )
 
 (define-public (prepare-insert-header-hash)
-	(ok (asserts! (unwrap-panic (contract-call? .clarity-bitcoin-mini debug-insert-burn-header-hash test-block-header-hash test-burn-height)) (err "Block header hash insert failed")))
+	(begin
+		(asserts! (unwrap-panic (contract-call? .clarity-bitcoin-mini debug-insert-burn-header-hash test-block-header-hash test-burn-height)) (err "Block header hash insert failed"))
+		(asserts! (unwrap-panic (contract-call? .clarity-bitcoin-mini debug-insert-burn-header-hash test-block-header-hash-2 test-burn-height-2)) (err "Block header hash-2 insert failed"))
+		(asserts! (unwrap-panic (contract-call? .clarity-bitcoin-mini debug-insert-burn-header-hash test-block-header-hash-3 test-burn-height-3)) (err "Block header hash-3 insert failed"))
+		(asserts! (unwrap-panic (contract-call? .clarity-bitcoin-mini debug-insert-burn-header-hash test-block-header-hash-4 test-burn-height-4)) (err "Block header hash-4 insert failed"))
+		(ok true)
+
+	)
 )
 
 (define-public (prepare-revoke-contract-owner)
@@ -44,9 +78,9 @@
 	(begin
 		;; Mint some tokens to test principals.
 		(try! (prepare-insert-header-hash))
-		(unwrap! (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Mint to wallet-1 failed"))
-		(unwrap! (contract-call? .asset mint u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Mint to wallet-2 failed"))
-		(unwrap! (contract-call? .asset mint u10000000 (as-contract tx-sender) test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Mint to asset_test failed"))
+		(unwrap! (contract-call? .asset mint u10000000 wallet-1 test-txid test-burn-height test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Mint to wallet-1 failed"))
+		(unwrap! (contract-call? .asset mint u10000000 wallet-2 test-txid-2 test-burn-height-2 test-merkle-proof-2 test-tx-index-2 test-tree-depth-2 test-block-header-2) (err "Mint to wallet-2 failed"))
+		(unwrap! (contract-call? .asset mint u10000000 (as-contract tx-sender) test-txid-3 test-burn-height-3 test-merkle-proof-3 test-tx-index-3 test-tree-depth-3 test-block-header-3) (err "Mint to asset_test failed"))
 		(ok true)
 	)
 )
@@ -66,8 +100,8 @@
 ;; @caller deployer
 (define-public (test-protocol-mint-twice)
 	(begin
-		(try! (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header))
-		(contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header)
+		(unwrap! (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) (err "Should succeed"))
+		(assert-eq (contract-call? .asset mint u10000000 wallet-1 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-btc-tx-already-used "Should have failed with err-btc-tx-already-used")
 	)
 )
 
@@ -81,21 +115,41 @@
 ;; @name Protocol can burn tokens
 ;; @caller deployer
 (define-public (test-protocol-burn)
-	(contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header)
+	(contract-call? .asset burn u10000000 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4)
 )
 
 ;; @name Non-protocol contracts cannot burn tokens
 ;; @prepare prepare-revoke-contract-owner
 ;; @caller wallet_1
 (define-public (test-protocol-burn-external)
-	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid u1 test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
+	(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid test-burn-height test-merkle-proof test-tx-index test-tree-depth test-block-header) err-forbidden "Should have failed")
+)
+
+;; @name Protocol can burn tokens with the same bitcoin transaction only once
+;; @caller deployer
+(define-public (test-protocol-burn-twice)
+	(begin
+		(unwrap! (contract-call? .asset burn u10000000 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4) (err "Should succeed"))
+		(assert-eq (contract-call? .asset burn u10000000 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4) err-btc-tx-already-used "Should have failed with err-btc-tx-already-used")
+	)
+)
+
+;; @name Protocol cannot burn tokens than owned by wallet
+;; @caller deployer
+(define-public (test-protocol-burn-max-amount)
+	(assert-eq (contract-call? .asset burn u10000001 wallet-2 test-txid-4 test-burn-height-4 test-merkle-proof-4 test-tx-index-4 test-tree-depth-4 test-block-header-4) (err u1) "Should have failed with err-btc-tx-already-used")
 )
 
 ;; @name Protocol can set wallet address
 ;; @no-prepare
 ;; @caller deployer
 (define-public (test-protocol-set-wallet-public-key)
-	(contract-call? .asset set-bitcoin-wallet-public-key 0x1234)
+	(begin 
+		(asserts! (is-eq (contract-call? .asset get-bitcoin-wallet-public-key) none) (err "Public key should be none"))
+		(try! (assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) (ok true) "Should have succeeded"))
+		(asserts! (is-eq (contract-call? .asset get-bitcoin-wallet-public-key) (some 0x1234)) (err "Public key should be 0x1234"))
+		(ok true)
+	)
 )
 
 ;; @name Non-protocol contracts cannot set wallet public key
@@ -105,12 +159,28 @@
 	(assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) err-forbidden "Should have returned err forbidden")
 )
 
+;; @name Amounts can be retrieved by btc transaction id
+(define-public (test-get-amounts-by-txid)
+	(begin
+	 	(asserts! (is-eq (contract-call? .asset get-amount-by-btc-txid test-txid) (some 10000000)) (err "Amounts do not match"))
+		(asserts! (is-eq (contract-call? .asset get-amount-by-btc-txid test-txid-2) (some 10000000)) (err "Amounts do not match"))
+		(asserts! (is-eq (contract-call? .asset get-amount-by-btc-txid 0x1234) none) (err "Amount should be none"))
+		(ok true)
+	)
+)
+
 ;; --- SIP010 tests
 
 ;; @name Token owner can transfer their tokens
 ;; @caller wallet_1
 (define-public (test-transfer)
 	(contract-call? .asset transfer u100 contract-caller wallet-2 none)
+)
+
+;; @name Token owner can transfer their tokens with memo
+;; @caller wallet_1
+(define-public (test-transfer-with-memo)
+	(contract-call? .asset transfer u200 contract-caller wallet-2 (some 0x1357))
 )
 
 ;; @name User can transfer tokens owned by contract
