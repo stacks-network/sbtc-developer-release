@@ -143,8 +143,8 @@ mod tests {
 
 	#[test]
 	fn should_convert_to_uint_correctly() {
-		let expected_num = Uint256::from(0xDEADBEEFDEADBEEF as u64) << 64
-			| Uint256::from(0x0102030405060708 as u64);
+		let expected_num = Uint256::from(0xDEADBEEFDEADBEEF_u64) << 64
+			| Uint256::from(0x0102030405060708_u64);
 		let num_bytes = hex::decode(
 			"0807060504030201efbeaddeefbeadde00000000000000000000000000000000",
 		)

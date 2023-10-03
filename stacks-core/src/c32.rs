@@ -270,7 +270,7 @@ mod tests {
 	#[test]
 	fn test_c32_encode() {
 		let input = vec![1, 2, 3, 4, 6, 1, 2, 6, 2, 3, 6, 9, 4, 0, 0];
-		let encoded = encode(&input);
+		let encoded = encode(input);
 
 		assert_eq!(encoded, "41061060410C0G30R4G8000");
 	}
@@ -322,7 +322,7 @@ mod tests {
 			let bytes = rng.gen::<[u8; 20]>();
 
 			for version in AddressVersion::iter() {
-				let encoded = encode_address(version, &bytes);
+				let encoded = encode_address(version, bytes);
 				let (decoded_version, decoded) =
 					decode_address(encoded).unwrap();
 
