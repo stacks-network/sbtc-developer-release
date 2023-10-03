@@ -12,6 +12,10 @@
 	(ok (asserts! (is-eq result compare) (err message)))
 )
 
+(define-private (assert-eq-buff (result (buff 32)) (compare (buff 32)) (message (string-ascii 100)))
+	(ok (asserts! (is-eq result compare) (err message)))
+)
+
 (define-public (prepare)
 	(begin
         (unwrap-panic (add-burnchain-block-header-hash u807525 0x00001733539613a8d931b08f0d3f746879572a6d3e12623b16d20000000000000000000034f521522fba52c2c5c75609d261b490ee620661319ab23c68f24d756ff4ced801230265ae32051718d9aadb))
@@ -46,6 +50,18 @@
                 burnchain-block-height))
                 (ok true)
                 "Block header 2 verification failed")))
+
+;; @name check was-txid-mined-1
+;; currently wtxid & might be txid
+(define-public (test-was-txid-mined-1)
+    (begin 
+        (assert-eq 
+            (contract-call? .clarity-bitcoin-mini was-txid-mined u2431087 0x3b3a7a31c949048fabf759e670a55ffd5b9472a12e748b684db5d264b6852084 0x0000a02065bc9201b5b5a1d695a18e4d5efe5d52d8ccc4129a2499141d000000000000009160ba7ae5f29f9632dc0cd89f466ee64e2dddfde737a40808ddc147cd82406f18b8486488a127199842cec7 
+                { tx-index: u3,
+                hashes: (list 0x3313f803502a6f9a89ac09ff9e8f9d8032aa7c35cc6d1679487622e944c8ccb8 0xc4e620f495d8a30d8d919fc148fe55c8873b4aefe43116bc6ef895aa51572215),
+                tree-depth: u2})
+            (ok true)
+            "txid 1 was not mined")))
 
 ;; @name check valid verify-merkle-proof-1
 (define-public (test-verify-merkle-proof-pass-1)
@@ -127,3 +143,10 @@
                 (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
                 ERR-PROOF-TOO-SHORT
                 "Witness merkle proof verification failed")))
+
+;; @name check reverse-buff32-1
+(define-public (test-reverse-buff32-1)
+    (assert-eq-buff 
+        (contract-call? .clarity-bitcoin-mini reverse-buff32 0x3313f803502a6f9a89ac09ff9e8f9d8032aa7c35cc6d1679487622e944c8ccb8)
+         0xb8ccc844e922764879166dcc357caa32809d8f9eff09ac899a6f2a5003f81333 
+        "reverse-buff32 failed"))
