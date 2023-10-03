@@ -106,3 +106,23 @@ jobs:
           verbose: false
           flags: unittests
           ignore: tests
+  devenv:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            devenv:
+              - 'devenv/**'
+
+      - name: Checkout
+        if: steps.changes.outputs.devenv == 'true'
+        uses: actions/checkout@v3
+
+      - name: Build devenv containers
+        if: steps.changes.outputs.devenv == 'true'
+        run: ./devenv/build.sh  
