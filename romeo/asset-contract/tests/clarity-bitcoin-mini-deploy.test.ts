@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 describe("test deploy version and unit test version of clarity-bitcoin-mini", () => {
   it("ensures the versions differ only in DEBUG flag", () => {
-    const sourceForUnitTests = vm.getContractSource("clarity-bitcoin-mini")!;
-    const sourceForDeploy = vm.getContractSource(
+    const sourceForUnitTests = simnet.getContractSource("clarity-bitcoin-mini")!;
+    const sourceForDeploy = simnet.getContractSource(
       "clarity-bitcoin-mini-deploy"
     )!;
     expect(sourceForDeploy).not.toEqual(sourceForUnitTests);
