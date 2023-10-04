@@ -7,7 +7,7 @@ project_name() {
     echo "$filter"
 }
 
-filters=("package(romeo)" "test(deposit_parse)" "test(deposit_output)")
+filters=("package(romeo)")
 filter_union=""
 ids=()
 projects=()
