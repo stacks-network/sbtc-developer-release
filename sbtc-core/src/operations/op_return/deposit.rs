@@ -327,32 +327,28 @@ mod tests {
 		let contract_name_length: u8 =
 			rng.gen_range(1..CONTRACT_MAX_NAME_LENGTH as u8);
 
-		let contract_name = {
-			let mut contract_name_char_iter =
-				rng.sample_iter(&Alphanumeric).map(char::from);
+		let mut contract_name_char_iter =
+			rng.sample_iter(&Alphanumeric).map(char::from);
 
-			let first_letter = loop {
-				let letter = contract_name_char_iter.next().unwrap();
+		let first_letter = loop {
+			let letter = contract_name_char_iter.next().unwrap();
 
-				if letter.is_digit(10) {
-					continue;
-				} else {
-					break letter;
-				};
+			if letter.is_ascii_digit() {
+				continue;
+			} else {
+				break letter;
 			};
-
-			let other_letters =
-				contract_name_char_iter.take(contract_name_length as usize - 1);
-
-			let contract_name_string = [first_letter]
-				.into_iter()
-				.chain(other_letters)
-				.collect::<String>();
-
-			ContractName::new(&contract_name_string).unwrap()
 		};
 
-		contract_name
+		let other_letters =
+			contract_name_char_iter.take(contract_name_length as usize - 1);
+
+		let contract_name_string = [first_letter]
+			.into_iter()
+			.chain(other_letters)
+			.collect::<String>();
+
+		ContractName::new(&contract_name_string).unwrap()
 	}
 
 	fn generate_standard_principal_data(rng: &mut impl Rng) -> PrincipalData {

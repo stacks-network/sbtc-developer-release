@@ -501,8 +501,6 @@ mod tests {
 
 		let nonce_info = stacks_client.get_nonce_info().await.unwrap();
 		assert_eq!(nonce_info.possible_next_nonce, 122);
-
-		assert!(true);
 	}
 
 	#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
