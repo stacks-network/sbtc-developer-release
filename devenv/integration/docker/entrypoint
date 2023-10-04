@@ -19,6 +19,10 @@ while [ "$(curl -s $API_URL | jq '.burn_block_height')" -lt $DEV_READY_HEIGHT ];
     sleep 2
 done
 # any other service checks
+# push contracts
+cd romeo/asset-contract
+clarinet deployments apply -d -p deployments/default.devnet-plan.yaml
+cd -
 
 echo with filter: "'$@'"
-cargo nextest run -E "$@ and kind(test)"
+cargo nextest run -E "$@ and kind(test)" --archive-file integration-tests.tar.zst
