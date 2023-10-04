@@ -1,5 +1,5 @@
 import {
-  initVM,
+  initSimnet,
   ContractInterfaceFunctionAccess,
 } from "@hirosystems/clarinet-sdk";
 
