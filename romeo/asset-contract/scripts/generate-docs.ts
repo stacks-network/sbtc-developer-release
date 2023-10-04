@@ -4,10 +4,10 @@ import {
 } from "@hirosystems/clarinet-sdk";
 
 async function main() {
-  const vm = await initVM();
-  for (let [contractId, abi] of vm.getContractsInterfaces()) {
-    const ast = vm.getContractAST(contractId);
-    const source = vm.getContractSource(contractId);
+  const simnet = await initVM();
+  for (let [contractId, abi] of simnet.getContractsInterfaces()) {
+    const ast = simnet.getContractAST(contractId);
+    const source = simnet.getContractSource(contractId);
     const [_, contractName] = contractId.split(".");
     if (!["asset", "clarity-bitcoin-mini-deploy"].includes(contractName)) {
       continue;
