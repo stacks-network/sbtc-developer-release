@@ -3,10 +3,12 @@ set -ueo >/dev/null
 
 STACKS=$PROJECT_NAME-stacks-1
 API_URL=http://$STACKS:20443/v2/info
+BITCOIN=$PROJECT_NAME-bitcoin-1
 
-# makes sure the node is ready before proceeding
+# --- make sure the node is ready before proceeding
+
 # stacks node get info
-echo "Waiting on Stacks API"
+echo "Waiting on Stacks API $API_URL"
 while ! curl -s $API_URL >/dev/null; do
     sleep 1
 done
@@ -18,10 +20,21 @@ echo "Waiting on burn block height $DEV_READY_HEIGHT"
 while [ "$(curl -s $API_URL | jq '.burn_block_height')" -lt $DEV_READY_HEIGHT ]; do
     sleep 2
 done
+
+#stacks ready to take contracts
+STACKS_HEIGHT=1
+echo "Waiting on Stacks height $STACKS_HEIGHT"
+while [ "$(curl -s $API_URL | jq '.stacks_tip_height')" -lt $STACKS_HEIGHT ]; do
+    sleep 2
+done
+
 # any other service checks
+
 # push contracts
 cd romeo/asset-contract
-clarinet deployments apply -d -p deployments/default.devnet-plan.yaml
+sed -i "s/localhost:20443/$STACKS:20443/" deployments/default.devnet-plan.yaml
+sed -i "s/localhost:18443/$BITCOIN:18443/" deployments/default.devnet-plan.yaml
+clarinet deployments apply --no-dashboard -d -p deployments/default.devnet-plan.yaml
 cd -
 
 echo with filter: "'$@'"
