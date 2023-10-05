@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -ueo >/dev/null
 
+ENTRYPOINT_PATH="./integration/docker/entrypoint"
+
 project_name() {
     local input="$1"
     local filter="${input//[![:alnum:]]/_}"
@@ -21,7 +23,7 @@ for filter in "${filters[@]}"; do
     ./integration/bin/up docker-compose.yml $project
 
     network=${project}_default
-    id=$(docker run -td --network $network -e PROJECT_NAME=$project testbed "$filter")
+    id=$(docker run -td --network $network -v $ENTRYPOINT_PATH:/usr/local/bin/entrypoint -e PROJECT_NAME=$project testbed "$filter")
     ids+=($id)
     echo with container id: $id
 
@@ -41,7 +43,7 @@ projects+=($project)
 ./integration/bin/up docker-compose.yml $project
 
 network=${project}_default
-id=($(docker run -td --network $network -e PROJECT_NAME=$project testbed "not ($filter_union)"))
+id=($(docker run -td --network $network -v $ENTRYPOINT_PATH:/usr/local/bin/entrypoint -e PROJECT_NAME=$project testbed "not ($filter_union)"))
 ids+=($id)
 echo with container id: $id
 
