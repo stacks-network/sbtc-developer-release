@@ -272,10 +272,6 @@ impl State {
 				withdrawals,
 				..
 			} => {
-				if status == TransactionStatus::Rejected {
-					panic!("Stacks transaction rejected: {}", txid);
-				}
-
 				let statuses_updated: usize = iter::empty()
 					.chain(
 						deposits
@@ -444,11 +440,18 @@ impl State {
 
 		withdrawals
 			.iter_mut()
-			.filter_map(|withdrawal| match withdrawal.fulfillment.as_mut() {
-				None => {
-					withdrawal.fulfillment = Some(TransactionRequest::Created);
-					Some(Task::CreateFulfillment(withdrawal.info.clone()))
-				}
+			.filter_map(|withdrawal| match withdrawal.burn {
+				Some(TransactionRequest::Acknowledged {
+					status: TransactionStatus::Confirmed,
+					..
+				}) => match withdrawal.fulfillment.as_mut() {
+					None => {
+						withdrawal.fulfillment =
+							Some(TransactionRequest::Created);
+						Some(Task::CreateFulfillment(withdrawal.info.clone()))
+					}
+					_ => None,
+				},
 				_ => None,
 			})
 			.collect()
