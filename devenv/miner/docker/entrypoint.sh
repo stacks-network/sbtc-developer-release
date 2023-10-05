@@ -12,13 +12,16 @@ curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "m
 echo "devnet bitcoin wallet created"
 # Import miner address
 curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "importaddress", "params": ["n3GRiDLKWuKLCw1DZmV75W1mE35qmW2tQm"]}' -H 'content-type: text/plain;' http://bitcoin:18443/
-# Mine the first N blocks
+# Mine the first N blocks to the stacks miner wallet address
 curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "generatetoaddress", "params": ['''${INIT_BTC_BLOCKS}''', "n3GRiDLKWuKLCw1DZmV75W1mE35qmW2tQm"]}' -H 'content-type: text/plain;' http://bitcoin:18443/
-echo "mined initial blocks"
-# Mine a single block every 10 seconds
+echo "mined initial blocks to stacks miner wallet"
+# Mine the first N blocks to the stacks deployer wallet address
+curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "generatetoaddress", "params": ['''${INIT_BTC_BLOCKS}''', "bcrt1q3zl64vadtuh3vnsuhdgv6pm93n82ye8q6cr4ch"]}' -H 'content-type: text/plain;' http://bitcoin:18443/
+echo "mined initial blocks to stacks deployer wallet"
+# Mine a single block every 10 seconds to the stacks deployer wallet address
 while true
 do
-	curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "generatetoaddress", "params": [1, "n3GRiDLKWuKLCw1DZmV75W1mE35qmW2tQm"]}' -H 'content-type: text/plain;' http://bitcoin:18443/
+	curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "generatetoaddress", "params": [1, "bcrt1q3zl64vadtuh3vnsuhdgv6pm93n82ye8q6cr4ch"]}' -H 'content-type: text/plain;' http://bitcoin:18443/
 	echo "mined a single block"
 	sleep ${BTC_BLOCK_GEN_TIME}
 done
