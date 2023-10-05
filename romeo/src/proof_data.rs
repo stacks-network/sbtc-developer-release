@@ -3,7 +3,7 @@ use bdk::bitcoin::{Block, BlockHeader, Transaction, Txid as BitcoinTxId};
 use blockstack_lib::vm::types::{
 	ListData, ListTypeData, SequenceData, Value, BUFF_32,
 };
-use rs_merkle::{Hasher, MerkleTree};
+use rs_merkle::Hasher;
 use stacks_core::crypto::{sha256::DoubleSha256Hasher, Hashing};
 /// The double sha256 algorithm used for bitcoin
 #[derive(Clone)]
@@ -59,35 +59,142 @@ pub struct ProofDataClarityValues {
 	pub merkle_tree_depth: Value,
 }
 
+/// Merkle tree for Bitcoin block transactions
+pub struct BitcoinMerkleTree {
+	data: Vec<Vec<[u8; 32]>>,
+}
+
+impl BitcoinMerkleTree {
+	/// Make a new Merkle tree out of the given Bitcoin txids
+	pub fn new(txs: &[BitcoinTxId]) -> Self {
+		if txs.len() == 0 {
+			return Self { data: vec![] };
+		}
+
+		let mut tree = vec![];
+
+		// fill in leaf hashes
+		let mut leaf_hashes = vec![];
+		for tx in txs {
+			let mut hash_slice = [0u8; 32];
+			hash_slice.copy_from_slice(&tx);
+			leaf_hashes.push(hash_slice);
+		}
+		// must have an even number of hashes
+		if txs.len() % 2 == 1 {
+			let last_hash_slice = leaf_hashes
+				.last()
+				.expect(
+					"FATAL: unreachable: non-empty vec does not have `last()`",
+				)
+				.to_owned();
+			leaf_hashes.push(last_hash_slice);
+		}
+
+		tree.push(leaf_hashes);
+
+		// calculate parent hashes until we reach the root
+		let mut last_row_len =
+			tree.last().expect("FATAL: unreachable: empty tree").len();
+		loop {
+			let mut next_row = vec![];
+			let last_row = tree.last().expect("FATAL: unreachable: empty tree");
+			for i in 0..(last_row_len / 2) {
+				let mut intermediate_preimage = [0u8; 64];
+				intermediate_preimage[0..32].copy_from_slice(&last_row[2 * i]);
+				intermediate_preimage[32..64]
+					.copy_from_slice(&last_row[2 * i + 1]);
+
+				let intermediate_hash =
+					DoubleSha256Algorithm::hash(&intermediate_preimage);
+				next_row.push(intermediate_hash);
+			}
+
+			// reached the root
+			if next_row.len() == 1 {
+				tree.push(next_row);
+				break;
+			}
+
+			// have more to go -- this row must have an even number of nodes
+			if next_row.len() % 2 == 1 {
+				let last_hash_slice = next_row
+					.last()
+					.expect("FATAL: unreachable: next_row is empty")
+					.to_owned();
+				next_row.push(last_hash_slice);
+			}
+
+			last_row_len = next_row.len();
+			tree.push(next_row);
+		}
+
+		Self { data: tree }
+	}
+
+	/// Get the Merkle root.
+	/// It will be None if the tree is empty
+	pub fn root(&self) -> Option<[u8; 32]> {
+		self.data.last().map(|root_row| root_row[0].clone())
+	}
+
+	/// Calculate a merkle proof for a transaction, given its index.
+	/// This algorithm uses the following insight: the ith bit in the index tells us
+	/// which sibling to use (left or right) at the ith level of the Merkle tree.
+	/// * if the ith bit of `index` is 0, then use the _right_ sibling at height i
+	/// * if the ith bit of `index` is 1, then use the _left_ sibling at height i
+	pub fn proof(&self, mut index: usize) -> Option<Vec<[u8; 32]>> {
+		if self.data.len() == 0 {
+			// empty tree
+			return None;
+		}
+		if index >= self.data[0].len() {
+			// off the end of the leaf row
+			return None;
+		}
+
+		let mut proof = vec![];
+		for i in 0..(self.data.len() - 1) {
+			let sibling = if index % 2 == 0 {
+				assert!(
+					index + 1 < self.data[i].len(),
+					"BUG: {} + 1 >= data[{}].len() ({})",
+					index,
+					i,
+					self.data[i].len()
+				);
+				self.data[i][index + 1].clone()
+			} else {
+				assert!(index > 0, "BUG: index == 0");
+				self.data[i][index - 1].clone()
+			};
+			proof.push(sibling);
+			index >>= 1;
+		}
+
+		Some(proof)
+	}
+
+	/// Calculate the tree depth, including leaves.
+	/// This value is always greater than 0, unless the tree is empty.
+	pub fn depth(&self) -> usize {
+		self.data.len()
+	}
+}
+
 impl ProofData {
 	/// Create a new proof from a bitcoin transaction and a block
 	pub fn from_block_and_index(block: &Block, index: usize) -> Self {
 		let tx: &Transaction =
 			block.txdata.get(index).expect("Invalid tx index");
-		let mut merkle_tree = MerkleTree::<DoubleSha256Algorithm>::new();
-		for tx in &block.txdata {
-			merkle_tree.insert(tx.txid().to_vec().try_into().unwrap());
-		}
-		// append last tx id if number of leaves is odd
-		if block.txdata.len() % 2 == 1 {
-			merkle_tree.insert(
-				block
-					.txdata
-					.last()
-					.unwrap()
-					.txid()
-					.to_vec()
-					.try_into()
-					.unwrap(),
-			);
-		}
-		merkle_tree.commit();
-		let merkle_path = merkle_tree.proof(&[index]);
 
-		// rs_merkle tree depth counts leaves as well
-		// we only care about the layers above
-		// therefore minus 1.
+		let txids: Vec<BitcoinTxId> =
+			block.txdata.iter().map(|tx| tx.txid()).collect();
+		let merkle_tree = BitcoinMerkleTree::new(&txids);
 		let merkle_tree_depth = merkle_tree.depth() - 1;
+		let merkle_path = merkle_tree
+			.proof(index)
+			.expect("FATAL: index is out-of-bounds");
 
 		Self {
 			reversed_txid: tx.txid(),
@@ -96,11 +203,7 @@ impl ProofData {
 				.bip34_block_height()
 				.expect("Failed to get block height"),
 			block_header: block.header,
-			merkle_path: merkle_path
-				.proof_hashes()
-				.iter()
-				.map(|h| h.to_vec())
-				.collect(),
+			merkle_path: merkle_path.into_iter().map(|h| h.to_vec()).collect(),
 			merkle_tree_depth: merkle_tree_depth as u32,
 			merkle_root: hex::encode(merkle_tree.root().unwrap()),
 		}
@@ -249,7 +352,7 @@ mod tests {
         );
 		assert_eq!(values.block_header.to_string(), "0x00002020b8a796757a3e087dfdbb0d68d7b74a632579561d5be646f015010000000000003b576e83c8e964e5a56fb443e5b8b10a001e9641328144a28f223ac45acee665802e1d6530b2031a4ddc3ff0");
 		assert_eq!(values.block_height.to_string(), "u2529382");
-		assert_eq!(values.merkle_tree_depth.to_string(), "u3");
+		assert_eq!(values.merkle_tree_depth.to_string(), "u4");
 		assert_eq!(values.merkle_path.to_string(), "(0xa9db8b2c0b4de3ee6945db550541adcc18852acef9148dc59747a31c9fbf8327 0xde7c38d3e809bcb86fa94695de178e1b27d8d9b6d25a5683b598c36deca50580 0x02f0523e28df15bf268ab52b9a3826d7f933467ea2708c0d7e7d7cd5b2e44892 0x7f37d80a06a9c7d9db4cf14d63e826ecf136b59df3583cb2b94e0a438d3ae506)");
 	}
 }
