@@ -7,3 +7,4 @@ romeo/asset-contract/.coverage
 **/.DS_Store
 **/romeo.log
 node_modules
+**/data/**
