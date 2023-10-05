@@ -1,5 +1,7 @@
 (define-constant wallet-1 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
 (define-constant wallet-2 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
+(define-constant wallet-3 'ST2JHG361ZXG51QTKY2NQCVBPPRRE2KZB1HR05NNC)
+
 (define-constant test-mint-amount u10000000)
 (define-constant expected-total-supply (* u3 test-mint-amount))
 (define-constant expected-token-uri (some u"https://gateway.pinata.cloud/ipfs/Qma5P7LFGQAXt7gzkNZGxet5qJcVxgeXsenDXwu9y45hpr?_gl=1*1mxodt*_ga*OTU1OTQzMjE2LjE2OTQwMzk2MjM.*_ga_5RMPXG14TE*MTY5NDA4MzA3OC40LjEuMTY5NDA4MzQzOC42MC4wLjA"))
@@ -144,7 +146,7 @@
 ;; @no-prepare
 ;; @caller deployer
 (define-public (test-protocol-set-wallet-public-key)
-	(begin 
+	(begin
 		(asserts! (is-eq (contract-call? .asset get-bitcoin-wallet-public-key) none) (err "Public key should be none"))
 		(try! (assert-eq (contract-call? .asset set-bitcoin-wallet-public-key 0x1234) (ok true) "Should have succeeded"))
 		(asserts! (is-eq (contract-call? .asset get-bitcoin-wallet-public-key) (some 0x1234)) (err "Public key should be 0x1234"))
@@ -245,4 +247,27 @@
 ;; @caller wallet_1
 (define-public (test-set-invalid-owner)
 	(assert-eq (contract-call? .asset set-contract-owner wallet-2) err-forbidden "Should have failed")
+)
+
+
+
+;; @name User can request to send sbtc to many and fulfill the request
+;; @caller wallet_1
+(define-public (test-send-many)
+	(begin
+		(try! (contract-call? .sbtc-send-many request-send-sbtc-many
+			(list {to: wallet-2, sbtc-in-sats: u2222, memo: 0x}
+			 {to: wallet-3, sbtc-in-sats: u3333, memo: 0x})))
+		(try! (contract-call? .asset transfer u5555 tx-sender .sbtc-send-many none))
+		(try! (contract-call? .sbtc-send-many fulfill-send-request u1))
+		(let (
+			(balance-contract (contract-call? .asset get-balance .sbtc-send-many))
+			(balance-wallet-2 (contract-call? .asset get-balance wallet-2))
+			(balance-wallet-3 (contract-call? .asset get-balance wallet-3)))
+			(asserts! (is-eq balance-contract (ok u0)) (err u991))
+			(asserts! (is-eq balance-wallet-2 (ok u10002222)) (err u992))
+			(asserts! (is-eq balance-wallet-3 (ok u3333)) (err u993))
+			(ok true)
+		)
+	)
 )

@@ -6,7 +6,7 @@ export function bootstrap(chain: Chain, deployer: Account) {
 		Tx.contractCall(
 			`${deployer.address}.asset`,
 			'set-contract-owner',
-			[types.principal(`${deployer.address}.sbtc-send-many_test`)],
+			[types.principal(`${deployer.address}.asset_test`)],
 			deployer.address
 		)
 	]);

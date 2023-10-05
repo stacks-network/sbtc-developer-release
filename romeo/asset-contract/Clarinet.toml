@@ -35,12 +35,6 @@ path = 'tests/clarity-bitcoin-mini_test.clar'
 clarity_version = 2
 epoch = 2.4
 
-
-[contracts.sbtc-send-many_test]
-path = 'tests/sbtc-send-many_test.clar'
-clarity_version = 2
-epoch = 2.4
-
 [repl.analysis]
 passes = ['check_checker']
 
