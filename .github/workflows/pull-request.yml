@@ -127,4 +127,23 @@ jobs:
 
       - name: Build devenv containers
         if: steps.changes.outputs.devenv == 'true'
-        run: ./devenv/build.sh  
+        run: ./devenv/build.sh
+
+  vitest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Use Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./romeo/asset-contract/package-lock.json
+      - run: npm ci
+        working-directory: ./romeo/asset-contract
+      - run: npm run test
+        working-directory: ./romeo/asset-contract
+
