@@ -32,7 +32,8 @@ jobs:
 
       - name: Audit
         uses: actions-rs/audit-check@v1
-        token: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           deny-warnings: true
           ignore: [RUSTSEC-2022-0093,RUSTSEC-2022-0090,RUSTSEC-2020-0016,RUSTSEC-2020-0056,RUSTSEC-2021-0145]
         #run: cargo make --profile github-actions audit --ignore RUSTSEC-2022-0093,RUSTSEC-2022-0090
