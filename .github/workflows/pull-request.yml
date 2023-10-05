@@ -109,7 +109,7 @@ jobs:
           flags: unittests
           ignore: tests
   devenv:
-    timeout-minutes: 60
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
