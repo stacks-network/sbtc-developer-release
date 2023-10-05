@@ -38,6 +38,4 @@ COPY --from=romeo integration-tests.tar.zst .
 
 COPY . .
 
-COPY ./devenv/integration/docker/entrypoint /bin/entrypoint
-
 ENTRYPOINT [ "entrypoint" ]
