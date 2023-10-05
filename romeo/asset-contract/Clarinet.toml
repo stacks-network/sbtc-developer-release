@@ -20,6 +20,11 @@ path = 'contracts/clarity-bitcoin-mini-deploy.clar'
 clarity_version = 2
 epoch = 2.4
 
+[contracts.sbtc-send-many]
+path = 'contracts/sbtc-send-many.clar'
+clarity_version = 2
+epoch = 2.4
+
 [contracts.asset_test]
 path = 'tests/asset_test.clar'
 clarity_version = 2
@@ -27,6 +32,12 @@ epoch = 2.4
 
 [contracts.clarity-bitcoin-mini_test]
 path = 'tests/clarity-bitcoin-mini_test.clar'
+clarity_version = 2
+epoch = 2.4
+
+
+[contracts.sbtc-send-many_test]
+path = 'tests/sbtc-send-many_test.clar'
 clarity_version = 2
 epoch = 2.4
 
