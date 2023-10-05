@@ -41,6 +41,8 @@ services:
     container_name: mempool-db
     user: "1000:1000"
     restart: on-failure
+    ports:
+      - 3306:3306
     environment:
       MYSQL_DATABASE: "mempool"
       MYSQL_USER: "mempool"
@@ -253,6 +255,8 @@ services:
       - mempool-db
     user: "1000:1000"
     restart: on-failure
+    ports:
+      - 8999:8999
     environment:
       # Connect to electrs host
       MEMPOOL_BACKEND: "electrum"
