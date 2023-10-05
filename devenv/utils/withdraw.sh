@@ -18,7 +18,7 @@ stacks_wif=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].stacks.wi
 amount=$((RANDOM%1000+1000))
 fulfillment_fee=$((RANDOM%1000+1000))
 
-json=$(sbtc withdraw \
+json=$($dir/../sbtc/bin/sbtc withdraw \
     -w $btc_wif \
     -n regtest \
     -d $stacks_wif \
@@ -26,7 +26,7 @@ json=$(sbtc withdraw \
     -a $amount \
     -f $fulfillment_fee \
     -p $btc_p2tr_address \
-    -u localhost:60401)
+    -u electrs:60401)
 
 
 if [ $? -ne 0 ]; then
@@ -36,4 +36,4 @@ fi
 
 tx=$(echo -n $json | jq -r .hex)
 
-sbtc broadcast localhost:60401 $tx | jq -r .
+$dir/../sbtc/bin/sbtc broadcast electrs:60401 $tx | jq -r .
