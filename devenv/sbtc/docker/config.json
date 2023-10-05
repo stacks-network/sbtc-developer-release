@@ -4,7 +4,7 @@
   "stacks_network": "testnet",
   "bitcoin_network": "regtest",
   "stacks_node_url": "http://stacks-api:3999",
-  "bitcoin_node_url": "http://devnet:devnet@bitcoin-explorer:3002/api",
+  "bitcoin_node_url": "http://devnet:devnet@bitcoin:18443",
   "electrum_node_url": "tcp://electrs:60401",
   "contract_name": "asset"
 }
