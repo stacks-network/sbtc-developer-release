@@ -1,0 +1,25 @@
+---
+id: 0
+name: Testnet deployment
+network: testnet
+stacks-node: "http://api.testnet.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoind.testnet.stacks.co:18332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: clarity-bitcoin-mini
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 54380
+            path: contracts/clarity-bitcoin-mini.clar
+            anchor-block-only: true
+            clarity-version: 2
+        - contract-publish:
+            contract-name: asset
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 39620
+            path: contracts/asset.clar
+            anchor-block-only: true
+            clarity-version: 2
+      epoch: "2.4"
