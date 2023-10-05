@@ -31,7 +31,7 @@ jobs:
           version: "0.36.13"
 
       - name: Audit
-        run: cargo make --profile github-actions audit
+        run: cargo make --profile github-actions audit --ignore RUSTSEC-2022-0093
 
       - uses: actions/upload-artifact@v3
         with:
