@@ -4,6 +4,7 @@ services:
   bitcoin:
     image: bitcoin:latest
     container_name: bitcoin
+    stop_grace_period: 5s
     build:
       context: ./bitcoin/docker
       args:
@@ -22,6 +23,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres
+    stop_grace_period: 5s
     ports:
       - 5432:5432
     environment:
@@ -30,6 +32,7 @@ services:
   mongodb:
     image: mongo:6.0
     container_name: mongodb
+    stop_grace_period: 5s
     ports:
       - 27017:27017
     environment:
@@ -39,6 +42,7 @@ services:
   mempool-db:
     image: mariadb:10.5.21
     container_name: mempool-db
+    stop_grace_period: 5s
     user: "1000:1000"
     restart: on-failure
     ports:
@@ -53,6 +57,7 @@ services:
   miner:
     image: miner:latest
     container_name: miner
+    stop_grace_period: 5s
     build:
       context: ./miner/docker
     depends_on:
@@ -63,6 +68,7 @@ services:
   stacks:
     image: stacks:latest
     container_name: stacks
+    stop_grace_period: 5s
     build:
       context: ./stacks/docker
       args:
@@ -81,6 +87,7 @@ services:
   stacks-api:
     image: stacks-api:latest
     container_name: stacks-api
+    stop_grace_period: 5s
     build:
       context: ./stacks-api/docker
       args:
@@ -112,6 +119,7 @@ services:
   stacks-explorer:
     image: stacks-explorer
     container_name: stacks-explorer
+    stop_grace_period: 5s
     build:
       context: ./stacks-explorer/docker
       args:
@@ -130,6 +138,7 @@ services:
   bitcoin-explorer:
     image: bitcoin-explorer:latest
     container_name: bitcoin-explorer
+    stop_grace_period: 5s
     build:
       context: ./bitcoin-explorer/docker
       args:
@@ -157,6 +166,7 @@ services:
   electrs:
     image: electrs:latest
     container_name: electrs
+    stop_grace_period: 5s
     build:
       context: ./electrs/docker
     ports:
@@ -169,6 +179,7 @@ services:
   sbtc:
     image: sbtc:latest
     container_name: sbtc
+    stop_grace_period: 5s
     build:
       context: ./../
       dockerfile: ./devenv/sbtc/docker/Dockerfile
@@ -186,6 +197,7 @@ services:
   sbtc-bridge-api:
     image: sbtc-bridge-api:latest
     container_name: sbtc-bridge-api
+    stop_grace_period: 5s
     build:
       context: ./sbtc-bridge-api/docker
       args:
@@ -220,6 +232,7 @@ services:
   sbtc-bridge-web:
     image: sbtc-bridge-web:latest
     container_name: sbtc-bridge-web
+    stop_grace_period: 5s
     build:
       context: ./sbtc-bridge-web/docker
     depends_on:
@@ -236,6 +249,7 @@ services:
   mempool-web:
     image: mempool/frontend:latest
     container_name: mempool-web
+    stop_grace_period: 5s
     depends_on:
       - mempool-api
       - mempool-db
@@ -250,6 +264,7 @@ services:
   mempool-api:
     image: mempool/backend:latest
     container_name: mempool-api
+    stop_grace_period: 5s
     depends_on:
       - electrs
       - mempool-db
