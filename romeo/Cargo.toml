@@ -23,3 +23,6 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 url.workspace = true
 rs_merkle.workspace = true
+
+[dev-dependencies]
+reqwest = { workspace = true, features = ["json", "blocking"] }
