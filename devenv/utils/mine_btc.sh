@@ -10,6 +10,6 @@ if [[ -z "$num_blocks" ]]; then
     exit 1
 fi
 
-btc_address=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2wpkh.address')
+btc_address=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].bitcoin.p2wpkh.address')
 
-bitcoin-cli -rpcconnect=localhost -rpcport=18443 -rpcuser=devnet -rpcpassword=devnet generatetoaddress $num_blocks $btc_address
+$dir/../bitcoin/bin/bitcoin-cli generatetoaddress $num_blocks $btc_address

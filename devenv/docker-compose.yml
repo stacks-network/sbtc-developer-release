@@ -4,6 +4,7 @@ services:
   bitcoin:
     image: bitcoin:latest
     container_name: bitcoin
+    stop_grace_period: 5s
     build:
       context: ./bitcoin/docker
       args:
@@ -22,6 +23,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres
+    stop_grace_period: 5s
     ports:
       - 5432:5432
     environment:
@@ -30,15 +32,28 @@ services:
   mongodb:
     image: mongo:6.0
     container_name: mongodb
+    stop_grace_period: 5s
     ports:
       - 27017:27017
     environment:
       MONGO_INITDB_ROOT_USERNAME: devnet
       MONGO_INITDB_ROOT_PASSWORD: devnet
       MONGO_INITDB_DATABASE: devnet
+  mempool-db:
+    image: mariadb:10.5.21
+    container_name: mempool-db
+    stop_grace_period: 5s
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_DATABASE: "mempool"
+      MYSQL_USER: "mempool"
+      MYSQL_PASSWORD: "mempool"
+      MYSQL_ROOT_PASSWORD: "admin"
   miner:
     image: miner:latest
     container_name: miner
+    stop_grace_period: 5s
     build:
       context: ./miner/docker
     depends_on:
@@ -49,6 +64,7 @@ services:
   stacks:
     image: stacks:latest
     container_name: stacks
+    stop_grace_period: 5s
     build:
       context: ./stacks/docker
       args:
@@ -67,6 +83,7 @@ services:
   stacks-api:
     image: stacks-api:latest
     container_name: stacks-api
+    stop_grace_period: 5s
     build:
       context: ./stacks-api/docker
       args:
@@ -98,6 +115,7 @@ services:
   stacks-explorer:
     image: stacks-explorer
     container_name: stacks-explorer
+    stop_grace_period: 5s
     build:
       context: ./stacks-explorer/docker
       args:
@@ -116,6 +134,7 @@ services:
   bitcoin-explorer:
     image: bitcoin-explorer:latest
     container_name: bitcoin-explorer
+    stop_grace_period: 5s
     build:
       context: ./bitcoin-explorer/docker
       args:
@@ -143,6 +162,7 @@ services:
   electrs:
     image: electrs:latest
     container_name: electrs
+    stop_grace_period: 5s
     build:
       context: ./electrs/docker
     ports:
@@ -155,6 +175,7 @@ services:
   sbtc:
     image: sbtc:latest
     container_name: sbtc
+    stop_grace_period: 5s
     build:
       context: ./../
       dockerfile: ./devenv/sbtc/docker/Dockerfile
@@ -172,6 +193,7 @@ services:
   sbtc-bridge-api:
     image: sbtc-bridge-api:latest
     container_name: sbtc-bridge-api
+    stop_grace_period: 5s
     build:
       context: ./sbtc-bridge-api/docker
       args:
@@ -206,6 +228,7 @@ services:
   sbtc-bridge-web:
     image: sbtc-bridge-web:latest
     container_name: sbtc-bridge-web
+    stop_grace_period: 5s
     build:
       context: ./sbtc-bridge-web/docker
     depends_on:
@@ -219,3 +242,47 @@ services:
       - sbtc-bridge-api
     ports:
       - 8080:8080
+  mempool-web:
+    image: mempool/frontend:latest
+    container_name: mempool-web
+    stop_grace_period: 5s
+    depends_on:
+      - mempool-api
+      - mempool-db
+    user: "1000:1000"
+    restart: on-failure
+    ports:
+      - 8083:8083
+    environment:
+      FRONTEND_HTTP_PORT: "8083"
+      BACKEND_MAINNET_HTTP_HOST: "mempool-api"
+    command: "./wait-for mempool-db:3306 --timeout=720 -- nginx -g 'daemon off;'"
+  mempool-api:
+    image: mempool/backend:latest
+    container_name: mempool-api
+    stop_grace_period: 5s
+    depends_on:
+      - electrs
+      - mempool-db
+    user: "1000:1000"
+    restart: on-failure
+    ports:
+      - 8999:8999
+    environment:
+      # Connect to electrs host
+      MEMPOOL_BACKEND: "electrum"
+      ELECTRUM_HOST: "electrs"
+      ELECTRUM_PORT: "60401"
+      ELECTRUM_TLS_ENABLED: "false"
+      # Connect to bitcoin rpc
+      CORE_RPC_HOST: "bitcoin"
+      CORE_RPC_PORT: "18443"
+      CORE_RPC_USERNAME: "devnet"
+      CORE_RPC_PASSWORD: "devnet"
+      DATABASE_ENABLED: "true"
+      DATABASE_HOST: "mempool-db"
+      DATABASE_DATABASE: "mempool"
+      DATABASE_USERNAME: "mempool"
+      DATABASE_PASSWORD: "mempool"
+      STATISTICS_ENABLED: "true"
+    command: "./wait-for-it.sh mempool-db:3306 --timeout=720 --strict -- ./start.sh"

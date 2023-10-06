@@ -37,8 +37,6 @@ pub struct ProofData {
 	pub block_header: BlockHeader,
 	/// The path of the bitcoin transaction in the merkle tree
 	pub merkle_path: Vec<Vec<u8>>,
-	/// The depth of the merkle tree
-	pub merkle_tree_depth: u32,
 	/// merkle root
 	pub merkle_root: String,
 }
@@ -55,8 +53,6 @@ pub struct ProofDataClarityValues {
 	pub block_header: Value,
 	/// The path of the bitcoin transaction in the merkle tree
 	pub merkle_path: Value,
-	/// The depth of the merkle tree
-	pub merkle_tree_depth: Value,
 }
 
 /// Merkle tree for Bitcoin block transactions
@@ -205,7 +201,6 @@ impl ProofData {
 				.expect("Failed to get block height"),
 			block_header: block.header,
 			merkle_path: merkle_path.into_iter().map(|h| h.to_vec()).collect(),
-			merkle_tree_depth: merkle_tree_depth as u32,
 			merkle_root: hex::encode(merkle_tree.root().unwrap()),
 		}
 	}
@@ -238,7 +233,6 @@ impl ProofData {
 				type_signature: ListTypeData::new_list(BUFF_32.clone(), 14)
 					.unwrap(),
 			})),
-			merkle_tree_depth: Value::UInt(self.merkle_tree_depth as u128),
 		}
 	}
 }
@@ -310,7 +304,6 @@ mod tests {
 		assert_eq!(values.txid.to_string(), "0xd574f343976d8e70d91cb278d21044dd8a396019e6db70755a0a50e4783dba38");
 		assert_eq!(values.block_header.to_string(), "0x0200000035ab154183570282ce9afc0b494c9fc6a3cfea05aa8c1add2ecc56490000000038ba3d78e4500a5a7570dbe61960398add4410d278b21cd9708e6d9743f374d544fc055227f1001c29c1ea3b");
 		assert_eq!(values.block_height.to_string(), "u100000");
-		assert_eq!(values.merkle_tree_depth.to_string(), "u1");
 		assert_eq!(
             values.merkle_path.to_string(),
             "(0x38ba3d78e4500a5a7570dbe61960398add4410d278b21cd9708e6d9743f374d5)"
@@ -329,7 +322,6 @@ mod tests {
 		let values = proof_data.to_values();
 		assert_eq!(values.block_header.to_string(), "0x000000205214e3b1be1007826f4537f7d86d8f890104587beae37af2fb17e31195a62325bb8940196d4479391e3460fcc904963da6726ecbb99cb9dfc3705ad9ba748f2182270865ffff7f2000000000");
 		assert_eq!(values.block_height.to_string(), "u3538");
-		assert_eq!(values.merkle_tree_depth.to_string(), "u2");
 		assert_eq!(values.merkle_path.to_string(), "(0x30955a1f27461b4ca06d68147a377a585d05499d186853a2e05e21cf4f9bf55f 0xb4a7cc817198247161027ab3584b0c6a1bd2f7319d6468d2c6e128ec3acb2a47)");
 		assert_eq!(
             values.txid.to_string(),
@@ -353,7 +345,6 @@ mod tests {
         );
 		assert_eq!(values.block_header.to_string(), "0x00002020b8a796757a3e087dfdbb0d68d7b74a632579561d5be646f015010000000000003b576e83c8e964e5a56fb443e5b8b10a001e9641328144a28f223ac45acee665802e1d6530b2031a4ddc3ff0");
 		assert_eq!(values.block_height.to_string(), "u2529382");
-		assert_eq!(values.merkle_tree_depth.to_string(), "u4");
 		assert_eq!(values.merkle_path.to_string(), "(0xa9db8b2c0b4de3ee6945db550541adcc18852acef9148dc59747a31c9fbf8327 0xde7c38d3e809bcb86fa94695de178e1b27d8d9b6d25a5683b598c36deca50580 0x02f0523e28df15bf268ab52b9a3826d7f933467ea2708c0d7e7d7cd5b2e44892 0x7f37d80a06a9c7d9db4cf14d63e826ecf136b59df3583cb2b94e0a438d3ae506)");
 	}
 }

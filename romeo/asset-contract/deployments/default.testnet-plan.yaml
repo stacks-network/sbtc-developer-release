@@ -1,9 +1,9 @@
 ---
 id: 0
-name: Devnet deployment
-network: devnet
-stacks-node: "http://localhost:20443"
-bitcoin-node: "http://devnet:devnet@localhost:18443"
+name: Testnet deployment
+network: testnet
+stacks-node: "http://api.testnet.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoind.testnet.stacks.co:18332"
 plan:
   batches:
     - id: 0
@@ -11,14 +11,14 @@ plan:
         - contract-publish:
             contract-name: clarity-bitcoin-mini
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 54370
-            path: contracts/clarity-bitcoin-mini-deploy.clar
+            cost: 54380
+            path: contracts/clarity-bitcoin-mini.clar
             anchor-block-only: true
             clarity-version: 2
         - contract-publish:
             contract-name: asset
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 38610
+            cost: 39620
             path: contracts/asset.clar
             anchor-block-only: true
             clarity-version: 2

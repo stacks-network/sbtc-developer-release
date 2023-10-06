@@ -69,7 +69,6 @@ export class BurnCommand implements AssetCommand {
           types.uint(this.params.burnChainHeight),
           types.list(this.params.merkleProof.map((p) => types.buff(p))),
           types.uint(this.params.txIndex),
-          types.uint(this.params.treeDepth),
           types.buff(this.params.blockHeader),
         ],
         this.sender.address,
