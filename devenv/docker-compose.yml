@@ -43,8 +43,6 @@ services:
     image: mariadb:10.5.21
     container_name: mempool-db
     stop_grace_period: 5s
-    user: "1000:1000"
-    restart: on-failure
     ports:
       - 3306:3306
     environment:
@@ -52,8 +50,6 @@ services:
       MYSQL_USER: "mempool"
       MYSQL_PASSWORD: "mempool"
       MYSQL_ROOT_PASSWORD: "admin"
-    volumes:
-      - $PWD/mempool/mysql/data:/var/lib/mysql
   miner:
     image: miner:latest
     container_name: miner
@@ -289,6 +285,4 @@ services:
       DATABASE_USERNAME: "mempool"
       DATABASE_PASSWORD: "mempool"
       STATISTICS_ENABLED: "true"
-    volumes:
-      - $PWD/mempool/data:/backend/cache
     command: "./wait-for-it.sh mempool-db:3306 --timeout=720 --strict -- ./start.sh"
