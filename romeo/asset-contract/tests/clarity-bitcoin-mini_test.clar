@@ -125,10 +125,10 @@
         (proof {
             tx-index: u2,
             hashes: (list 0x060f653adf158c9765994dcc38c2d29c4722b4415e56468aae2908cc26d5b7fc 0x438e9befc51be8d8570386ce9b5050e75ddcd410c92d0e7693b11c82b4c73f2f),
-            tree-depth: u3}))
+            tree-depth: u1}))
             (assert-eq 
-                    (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
-                    (ok false) 
+                    (print (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof))
+                    (ok false)
                     "Should have returned (ok false)")))
 
 ;; @name invalid merkle proofs fail (incorrect hashes)
