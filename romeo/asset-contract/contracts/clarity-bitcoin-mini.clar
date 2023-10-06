@@ -75,13 +75,11 @@
 ;; Returns (ok false) if the proof is invalid.
 ;; Returns (err ERR-PROOF-TOO-SHORT) if the proof's hashes aren't long enough to link the txid to the merkle root.
 (define-read-only (verify-merkle-proof (reversed-txid (buff 32)) (merkle-root (buff 32)) (proof { tx-index: uint, hashes: (list 14 (buff 32)), tree-depth: uint}))
-		(if (> (get tree-depth proof) (len (get hashes proof)))
-				ERR-PROOF-TOO-SHORT
-				(ok
-					(get verified
-							(fold inner-merkle-proof-verify
-									(unwrap-panic (slice? (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9 u10 u11 u12 u13) u0 (get tree-depth proof)))
-									{ path: (+ (pow u2 (get tree-depth proof)) (get tx-index proof)), root-hash: merkle-root, proof-hashes: (get hashes proof), cur-hash: reversed-txid, tree-depth: (get tree-depth proof), verified: false})))))
+	(let ((tree-depth (len (get hashes proof))))
+		(get verified
+			(fold inner-merkle-proof-verify
+					(unwrap-panic (slice? (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9 u10 u11 u12 u13) u0 tree-depth))
+					{ path: (+ (pow u2 tree-depth) (get tx-index proof)), root-hash: merkle-root, proof-hashes: (get hashes proof), cur-hash: reversed-txid, tree-depth: (get tree-depth proof), verified: false}))))
 
 
 (define-read-only (was-txid-mined
@@ -91,4 +89,4 @@
 	(proof { tx-index: uint, hashes: (list 14 (buff 32)), tree-depth: uint}))
 	(let ((merkle-root-reversed (unwrap-panic (as-max-len? (unwrap! (slice? header block-header-merkle-root-start block-header-merkle-root-end) ERR-INVALID-BLOCK-HEADER-LENGTH) u32))))
 		(asserts! (verify-block-header header height) ERR-HEADER-HEIGHT-MISMATCH)
-		(ok (asserts! (try! (verify-merkle-proof (reverse-buff32 txid) merkle-root-reversed proof)) ERR-INVALID-MERKLE-PROOF))))
+		(ok (asserts! (verify-merkle-proof (reverse-buff32 txid) merkle-root-reversed proof) ERR-INVALID-MERKLE-PROOF))))

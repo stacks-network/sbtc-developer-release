@@ -114,20 +114,6 @@
 
 ;; @name invalid merkle proofs fail (incorrect hashes)
 (define-public (test-verify-merkle-proof-fail)
-;; @name invalid merkle proofs fail (proof too short)
-(define-public (test-incorrect-verify-merkle-proof-too-short)
-    (let (
-        (hash-wtx-le 0x04117dc370c45b8a44bf86a3ae4fa8d0b186b5b27d50939cda7501723fa12ec6)
-        (hash-wtx-be 0xc62ea13f720175da9c93507db2b586b1d0a84faea386bf448a5bc470c37d1104)
-        (merkle-root 0x15424423c2614c23aceec8d732b5330c21ff3a306f52243fbeef47a192c65c86)
-        (proof {
-            tx-index: u3,
-            hashes: (list 0xb2d7ec769ce60ebc0c8fb9cc37f0ad7481690fc176b82c8d17d3c05da80fea6b),
-            tree-depth: u2}))
-            (assert-eq 
-                (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
-                ERR-PROOF-TOO-SHORT
-                "Should have failed with ERR-PROOF-TOO-SHORT")))
 	(let (
 		;; hash256 wtx raw hex of tx f95ece8dde2672891df03a79ed6099c0de4ebfdaee3c31145fe497946368cbb0
 		(hash-wtx-le 0x060f653adf158c9765994dcc38c2d29c4722b4415e56468aae2908cc26d5b7fc)
