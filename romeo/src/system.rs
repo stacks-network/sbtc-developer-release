@@ -280,7 +280,6 @@ async fn mint_asset(
 		proof_data.block_height,
 		proof_data.merkle_path,
 		proof_data.tx_index,
-		proof_data.merkle_tree_depth,
 		proof_data.block_header,
 	];
 
@@ -343,7 +342,6 @@ async fn burn_asset(
 		proof_data.block_height,
 		proof_data.merkle_path,
 		proof_data.tx_index,
-		proof_data.merkle_tree_depth,
 		proof_data.block_header,
 	];
 
