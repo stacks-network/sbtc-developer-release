@@ -131,34 +131,6 @@ services:
       - postgres
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
-  bitcoin-explorer:
-    image: bitcoin-explorer:latest
-    container_name: bitcoin-explorer
-    stop_grace_period: 5s
-    build:
-      context: ./bitcoin-explorer/docker
-      args:
-        BTCEXP_NODE_VERSION: 'v3.4.0'
-        GIT_URI: https://github.com/janoside/btc-rpc-explorer.git
-        GIT_BRANCH: 'v3.4.0'
-    ports:
-      - 3002:3002
-    depends_on:
-      - bitcoin
-      - miner
-    environment:
-      BTCEXP_HOST: 0.0.0.0
-      BTCEXP_BITCOIND_HOST: bitcoin
-      BTCEXP_BITCOIND_PORT: 18443
-      BTCEXP_BITCOIND_USER: devnet
-      BTCEXP_BITCOIND_PASS: devnet
-      BTCEXP_BITCOIND_RPC_TIMEOUT: 5000
-      BTCEXP_BITCOIND_URI: bitcoin://devnet:devnet@bitcoin:18443?timeout=10000
-      BTCEXP_ADDRESS_API: electrum
-      BTCEXP_ELECTRUM_SERVERS: tcp://electrs:60401
-      BTCEXP_ELECTRUM_TXINDEX: true
-      BTCEXP_SLOW_DEVICE_MODE: false
-      BTCEXP_UI_THEME: dark
   electrs:
     image: electrs:latest
     container_name: electrs
@@ -184,7 +156,7 @@ services:
       - stacks
       - stacks-explorer
       - stacks-api
-      - bitcoin-explorer
+      - mempool-web
       - miner
     environment:
       RUST_BACKTRACE: 1
@@ -204,9 +176,9 @@ services:
       - miner
       - stacks
       - stacks-api
+      - mempool-web
       - postgres
       - stacks-explorer
-      - bitcoin-explorer
       - mongodb
       - sbtc
     ports:
@@ -217,7 +189,7 @@ services:
       btcRpcUser: devnet
       btcRpcPwd: devnet
       network: testnet
-      bitcoinExplorerUrl: http://bitcoin-explorer:3002/api
+      bitcoinExplorerUrl: http://mempool-web:8083
       stacksExplorerUrl: http://stacks-explorer:3000
       stacksApi: http://stacks-api:3999
       sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
@@ -236,7 +208,7 @@ services:
       - stacks
       - stacks-explorer
       - stacks-api
-      - bitcoin-explorer
+      - mempool-web
       - miner
       - sbtc
       - sbtc-bridge-api

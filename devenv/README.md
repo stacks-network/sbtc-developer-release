@@ -52,7 +52,6 @@ There is a helper script at the top level directory to facilitate logging:
 
 ```
 ./log bitcoin
-./log bitcoin-explorer
 ./log stacks
 ./log stacks-api
 ./log stacks-explorer
@@ -63,6 +62,8 @@ There is a helper script at the top level directory to facilitate logging:
 ./log electrs
 ./log sbtc-bridge-web
 ./log sbtc-bridge-api
+./log mempool-web
+./log mempool-api
 ```
 ## Services
 
@@ -86,11 +87,11 @@ BTC_BLOCK_GEN_TIME: <number of seconds before the next block is mined>
 If you need the BTC wallet private key, it is listed in the stacks Config.toml
 
 ### Bitcoin
-You can access the [Bitcoin Explorer](https://github.com/janoside/btc-rpc-explorer)
+You can access the [Bitcoin Explorer](https://github.com/mempool/mempool)
 explorer at:
 
 ```
-http://127.0.0.1:3002
+http://127.0.0.1:8083
 ```
 
 ### Stacks
