@@ -240,9 +240,8 @@ impl ProofData {
 #[cfg(test)]
 // test from_block returns correct Proof
 mod tests {
-	use bdk::bitcoin::{consensus::deserialize, hashes::hex::FromHex, Block};
-
 	use super::*;
+	use bdk::bitcoin::{consensus::deserialize, hashes::hex::FromHex, Block};
 
 	#[test]
 	fn should_create_correct_proof_data() {
@@ -345,5 +344,14 @@ mod tests {
 		assert_eq!(values.block_header.to_string(), "0x00002020b8a796757a3e087dfdbb0d68d7b74a632579561d5be646f015010000000000003b576e83c8e964e5a56fb443e5b8b10a001e9641328144a28f223ac45acee665802e1d6530b2031a4ddc3ff0");
 		assert_eq!(values.block_height.to_string(), "u2529382");
 		assert_eq!(values.merkle_path.to_string(), "(0xa9db8b2c0b4de3ee6945db550541adcc18852acef9148dc59747a31c9fbf8327 0xde7c38d3e809bcb86fa94695de178e1b27d8d9b6d25a5683b598c36deca50580 0x02f0523e28df15bf268ab52b9a3826d7f933467ea2708c0d7e7d7cd5b2e44892 0x7f37d80a06a9c7d9db4cf14d63e826ecf136b59df3583cb2b94e0a438d3ae506)");
+	}
+
+	// test empty merkle tree
+	#[test]
+	fn should_create_merkle_trees_correctly() {
+		let txids0 = vec![];
+		let merkle_tree = BitcoinMerkleTree::new(&txids0);
+		assert_eq!(merkle_tree.root(), None);
+		assert_eq!(merkle_tree.proof(0), None);
 	}
 }
