@@ -80,7 +80,6 @@ impl ProofData {
 		merkle_tree.commit();
 		let merkle_path = merkle_tree.proof(&[index]);
 
-
 		Self {
 			reversed_txid: tx.txid(),
 			tx_index: index as u32,
