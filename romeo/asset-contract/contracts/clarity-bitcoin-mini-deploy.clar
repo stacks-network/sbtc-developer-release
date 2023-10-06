@@ -26,8 +26,7 @@
 (define-read-only (reverse-buff32 (input (buff 32)))
 	(unwrap-panic (as-max-len? (concat
 		(reverse-buff16 (unwrap-panic (as-max-len? (unwrap-panic (slice? input u16 u32)) u16)))
-		(reverse-buff16 (unwrap-panic (as-max-len? (unwrap-panic (slice? input u0 u16)) u16)))
-	) u32)))
+		(reverse-buff16 (unwrap-panic (as-max-len? (unwrap-panic (slice? input u0 u16)) u16)))) u32)))
 
 (define-read-only (get-burn-block-header-hash (burn-height uint))
 	(if DEBUG-MODE (map-get? debug-burn-header-hashes burn-height) (get-burn-block-info? header-hash burn-height)))
