@@ -240,8 +240,9 @@ impl ProofData {
 #[cfg(test)]
 // test from_block returns correct Proof
 mod tests {
-	use super::*;
 	use bdk::bitcoin::{consensus::deserialize, hashes::hex::FromHex, Block};
+
+	use super::*;
 
 	#[test]
 	fn should_create_correct_proof_data() {
