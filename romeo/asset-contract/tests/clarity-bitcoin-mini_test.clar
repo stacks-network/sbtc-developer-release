@@ -112,6 +112,25 @@
                     (ok true) 
                     "Should have returned (ok true)")))
 
+
+
+;; @name tree-depth must be same as proof length
+;; this test is the same as test-verify-merkle-proof-pass-3 but with tree-depth set to 3
+(define-public (test-verify-merkle-proof-fail-due-to-wrong-tree-depth)
+    (let (
+        ;; hash256 wtx raw hex of tx f95ece8dde2672891df03a79ed6099c0de4ebfdaee3c31145fe497946368cbb0
+        (hash-wtx-le 0x060f653adf158c9765994dcc38c2d29c4722b4415e56468aae2908cc26d5b7fc)
+        ;; witness merkle root found in coinbase op_return (below concatenated with 32-bytes of 0x00 then hash256)
+        (merkle-root 0x366c4677e2f40e524b773344401f1de980ec9a9cb3453620cd1ff652b9c1d53e)
+        (proof {
+            tx-index: u2,
+            hashes: (list 0x060f653adf158c9765994dcc38c2d29c4722b4415e56468aae2908cc26d5b7fc 0x438e9befc51be8d8570386ce9b5050e75ddcd410c92d0e7693b11c82b4c73f2f),
+            tree-depth: u3}))
+            (assert-eq 
+                    (contract-call? .clarity-bitcoin-mini verify-merkle-proof hash-wtx-le merkle-root proof)
+                    (ok false) 
+                    "Should have returned (ok false)")))
+
 ;; @name invalid merkle proofs fail (incorrect hashes)
 (define-public (test-verify-merkle-proof-fail)
     (let (
