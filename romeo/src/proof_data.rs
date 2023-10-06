@@ -67,7 +67,7 @@ pub struct BitcoinMerkleTree {
 impl BitcoinMerkleTree {
 	/// Make a new Merkle tree out of the given Bitcoin txids
 	pub fn new(txs: &[BitcoinTxId]) -> Self {
-		if txs.len() == 0 {
+		if txs.is_empty() {
 			return Self { data: vec![] };
 		}
 
@@ -77,7 +77,7 @@ impl BitcoinMerkleTree {
 		let mut leaf_hashes = vec![];
 		for tx in txs {
 			let mut hash_slice = [0u8; 32];
-			hash_slice.copy_from_slice(&tx);
+			hash_slice.copy_from_slice(tx);
 			leaf_hashes.push(hash_slice);
 		}
 		// must have an even number of hashes
@@ -135,7 +135,7 @@ impl BitcoinMerkleTree {
 	/// Get the Merkle root.
 	/// It will be None if the tree is empty
 	pub fn root(&self) -> Option<[u8; 32]> {
-		self.data.last().map(|root_row| root_row[0].clone())
+		self.data.last().map(|root_row| root_row[0])
 	}
 
 	/// Calculate a merkle proof for a transaction, given its index.
@@ -144,7 +144,7 @@ impl BitcoinMerkleTree {
 	/// * if the ith bit of `index` is 0, then use the _right_ sibling at height i
 	/// * if the ith bit of `index` is 1, then use the _left_ sibling at height i
 	pub fn proof(&self, mut index: usize) -> Option<Vec<[u8; 32]>> {
-		if self.data.len() == 0 {
+		if self.data.is_empty() {
 			// empty tree
 			return None;
 		}
@@ -163,10 +163,10 @@ impl BitcoinMerkleTree {
 					i,
 					self.data[i].len()
 				);
-				self.data[i][index + 1].clone()
+				self.data[i][index + 1]
 			} else {
 				assert!(index > 0, "BUG: index == 0");
-				self.data[i][index - 1].clone()
+				self.data[i][index - 1]
 			};
 			proof.push(sibling);
 			index >>= 1;
