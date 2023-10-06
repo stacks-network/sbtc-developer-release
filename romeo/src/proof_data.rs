@@ -139,8 +139,9 @@ impl BitcoinMerkleTree {
 	}
 
 	/// Calculate a merkle proof for a transaction, given its index.
-	/// This algorithm uses the following insight: the ith bit in the index tells us
-	/// which sibling to use (left or right) at the ith level of the Merkle tree.
+	/// This algorithm uses the following insight: the ith bit in the index
+	/// tells us which sibling to use (left or right) at the ith level of the
+	/// Merkle tree.
 	/// * if ith bit of `index` is 0, then use the _right_ sibling at height i
 	/// * if ith bit of `index` is 1, then use the _left_ sibling at height i
 	pub fn proof(&self, mut index: usize) -> Option<Vec<[u8; 32]>> {
