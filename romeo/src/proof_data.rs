@@ -188,7 +188,6 @@ impl ProofData {
 		let txids: Vec<BitcoinTxId> =
 			block.txdata.iter().map(|tx| tx.txid()).collect();
 		let merkle_tree = BitcoinMerkleTree::new(&txids);
-		let merkle_tree_depth = merkle_tree.depth() - 1;
 		let merkle_path = merkle_tree
 			.proof(index)
 			.expect("FATAL: index is out-of-bounds");
