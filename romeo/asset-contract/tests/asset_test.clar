@@ -9,7 +9,9 @@
 
 (define-constant err-invalid-caller (err u4))
 (define-constant err-forbidden (err u403))
+(define-constant err-not-found (err u404))
 (define-constant err-btc-tx-already-used (err u500))
+(define-constant err-request-id-already-used (err u501))
 
 (define-constant test-burn-height u1)
 (define-constant test-block-header 0x02000000000000000000000000000000000000000000000000000000000000000000000075b8bf903d0153e1463862811283ffbec83f55411c9fa5bd24e4207dee0dc1f1000000000000000000000000)
@@ -165,6 +167,15 @@
 	)
 )
 
+;; @name Withdrawal can be requested by user
+;; @caller wallet_1
+(define-public (test-request-withdrawal)
+	(let ((result (as-contract (contract-call? .asset request-withdrawal u100 {hashbytes: 0x1234, version: 0x01}))))
+		(asserts! (is-ok result) (err {msg: "Should have succeeded", result: result}))
+		(asserts! (is-eq (unwrap-panic result) u1) (err {msg: "Should have returned request id 1", result: result}))
+		(ok true)
+	)
+)
 ;; --- SIP010 tests
 
 ;; @name Token owner can transfer their tokens
