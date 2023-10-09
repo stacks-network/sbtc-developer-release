@@ -8,7 +8,7 @@
 
 > Note: This repo is still in early development and is not ready for production use.
 
-This repo contains, or will contain, packages that define sBTC primitives, signer components, helper tools such as `sbtc-cli`.
+This repo contains, or will contain, packages that define sBTC primitives, signer components, helper tools such as `sbtc-cli` and `devenv`.
 
 ## stacks-core
 
@@ -26,6 +26,18 @@ It contains fundamental types and logic such as:
 
 This package contains the core logic for sBTC. For now, most of it is sBTC operation parsing and construction.
 
+## romeo (sBTC Developer Release)
+
+This package contains a version of the sBTC token (SIP-10) for developers on testnet.
+
+Version 0.1 is a custodial solution that supports with deposit and withdrawal transaction on Bitoin only using OP_RETURN. The custodial solution is a rust binary that continuously observes the bitcoin and stacks blockchain.
+
+## sbtc-cli
+
+This package contains a command-line interface for sBTC to create and broadcast deposit and withdraw btc transactions. The cli also has a helper commands for credentials.
+## devenv
+
+This folder contains configuration files for docker images to launch services for sBTC in a local environment. Use `up.sh` to launch it, and use utility scripts to deposit and withdraw BTC. This environment can be used for demonstrations and automated testing.
 ## Contributing
 
 **Before going any further please review our [code of conduct](CODE_OF_CONDUCT.md)**
