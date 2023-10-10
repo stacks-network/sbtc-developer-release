@@ -39,7 +39,7 @@ jobs:
           path: Cargo.lock
 
     intense-tests:
-      needs: generate-lockfile-and-audit
+      #needs: generate-lockfile-and-audit
       strategy:
         matrix:
           os: [ubuntu-latest, macos-latest]
