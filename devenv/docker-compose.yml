@@ -10,6 +10,7 @@ services:
       args:
         VERSION: '25.0'
     ports:
+      - 18445:18445
       - 18444:18444
       - 18443:18443
     environment:
@@ -59,7 +60,7 @@ services:
     depends_on:
       - bitcoin
     environment:
-      INIT_BTC_BLOCKS: 200
+      INIT_BTC_BLOCKS: 101
       BTC_BLOCK_GEN_TIME: 10
   stacks:
     image: stacks:latest
@@ -92,6 +93,13 @@ services:
     ports:
       - 3999:3999
       - 3700:3700
+    healthcheck:
+      test: "wget -q -t=1 --spider http://localhost:3999/v2/info || exit 1"
+      start_period: 2m
+      start_interval: 3s
+      interval: 15s
+      timeout: 3s
+      retries: 5
     depends_on:
       - postgres
       - stacks
@@ -125,10 +133,14 @@ services:
     ports:
       - 3000:3000
     depends_on:
-      - bitcoin
-      - stacks
-      - stacks-api
-      - postgres
+      bitcoin:
+        condition: service_started
+      stacks:
+        condition: service_started
+      stacks-api:
+        condition: service_healthy
+      postgres:
+        condition: service_started
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
   electrs:
@@ -139,6 +151,7 @@ services:
       context: ./electrs/docker
     ports:
       - 60401:60401
+      - 3002:3002
     depends_on:
       - bitcoin
       - miner

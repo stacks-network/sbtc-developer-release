@@ -15,10 +15,16 @@ curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "m
 # Mine the first N blocks
 curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "generatetoaddress", "params": ['''${INIT_BTC_BLOCKS}''', "n3GRiDLKWuKLCw1DZmV75W1mE35qmW2tQm"]}' -H 'content-type: text/plain;' http://bitcoin:18443/
 echo "mined initial blocks"
-# Mine a single block every 10 seconds
+# Mine a single block every x seconds
+counter=0
 while true
 do
+	counter=$((counter+1))
 	curl --user devnet:devnet --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "generatetoaddress", "params": [1, "n3GRiDLKWuKLCw1DZmV75W1mE35qmW2tQm"]}' -H 'content-type: text/plain;' http://bitcoin:18443/
 	echo "mined a single block"
-	sleep ${BTC_BLOCK_GEN_TIME}
+	if [[ $counter -lt 20 ]]; then
+		sleep 2
+	else
+		sleep ${BTC_BLOCK_GEN_TIME}
+	fi
 done
