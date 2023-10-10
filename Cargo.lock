@@ -2337,7 +2337,7 @@ dependencies = [
  "clap",
  "hex",
  "regex",
- "sbtc-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sbtc-core 0.1.0",
  "serde",
  "serde_json",
  "stacks-core 0.1.0",
