@@ -39,7 +39,7 @@ jobs:
           path: Cargo.lock
 
     intense-tests:
-      #needs: generate-lockfile-and-audit
+      needs: generate-lockfile-and-audit
       strategy:
         matrix:
           os: [ubuntu-latest, macos-latest]
@@ -59,7 +59,7 @@ jobs:
           run: cargo make --profile github-actions test
 
     publish:
-      needs: intense-tests
+      #needs: intense-tests
       runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@v3
