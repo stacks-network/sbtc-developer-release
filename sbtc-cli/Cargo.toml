@@ -14,7 +14,7 @@ bdk = { workspace = true, features = ["keys-bip39", "rpc"] }
 clap = { workspace = true, features = ["derive"] }
 hex.workspace = true
 regex.workspace = true
-sbtc-core = { version = "0.1.0", path = "../sbtc-core" }
+sbtc-core = "0.1.0"
 serde.workspace = true
 serde_json.workspace = true
 stacks-core = { version = "0.1.0", path = "../stacks-core" }

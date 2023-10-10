@@ -2337,7 +2337,7 @@ dependencies = [
  "clap",
  "hex",
  "regex",
- "sbtc-core 0.1.0",
+ "sbtc-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "stacks-core 0.1.0",
@@ -2356,6 +2356,25 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "stacks-core 0.1.0",
+ "strum",
+ "thiserror",
+ "url",
+ "wsts",
+]
+
+[[package]]
+name = "sbtc-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "135305f56f6479efdfc4519499a2a4987951a2a7c8d339d39a884694ddc98a0e"
+dependencies = [
+ "bdk",
+ "hex",
+ "log",
+ "once_cell",
+ "p256k1",
+ "regex",
+ "stacks-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "strum",
  "thiserror",
  "url",
@@ -2744,6 +2763,24 @@ dependencies = [
 [[package]]
 name = "stacks-core"
 version = "0.1.0"
+dependencies = [
+ "bdk",
+ "hex",
+ "once_cell",
+ "rand 0.8.5",
+ "regex",
+ "ripemd",
+ "serde",
+ "sha2 0.10.8",
+ "strum",
+ "thiserror",
+]
+
+[[package]]
+name = "stacks-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d24311eaa6f793dff9b30df9ed71f0c8e40fed070036c889a607d624c23055a"
 dependencies = [
  "bdk",
  "hex",
