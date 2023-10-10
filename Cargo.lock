@@ -2159,7 +2159,7 @@ dependencies = [
  "rand 0.8.5",
  "reqwest",
  "rs_merkle",
- "sbtc-core 0.1.0",
+ "sbtc-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "stacks-core 0.1.0",

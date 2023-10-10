@@ -14,7 +14,7 @@ futures.workspace = true
 hex.workspace = true
 rand.workspace = true
 reqwest = { workspace = true, features = ["json"] }
-sbtc-core = { version = "0.1.0", path = "../sbtc-core" }
+sbtc-core = "0.1.0"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 stacks-core = { version = "0.1.0", path = "../stacks-core" }
