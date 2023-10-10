@@ -73,6 +73,7 @@ jobs:
           publish-delay: 1000 # Wait 1 second between publishing dependencies.
           ignore-unpublished-changes: true
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          no-verify: true
 
     devenv:
       timeout-minutes: 120
