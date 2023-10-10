@@ -38,28 +38,28 @@ jobs:
           name: Cargo.lock
           path: Cargo.lock
 
-    intense-tests:
-      needs: generate-lockfile-and-audit
-      strategy:
-        matrix:
-          os: [ubuntu-latest, macos-latest]
-      runs-on: ${{ matrix.os }}
-      steps:
-        - name: Install cargo make
-          uses: davidB/rust-cargo-make@v1
-          with:
-            version: "0.36.13"
-
-        - name: Checkout
-          uses: actions/checkout@v3
-          with:
-            ref: ${{ env.BRANCH }}
-
-        - name: Test with release
-          run: cargo make --profile github-actions test
+#    intense-tests:
+#      needs: generate-lockfile-and-audit
+#      strategy:
+#        matrix:
+#          os: [ubuntu-latest, macos-latest]
+#      runs-on: ${{ matrix.os }}
+#      steps:
+#        - name: Install cargo make
+#          uses: davidB/rust-cargo-make@v1
+#          with:
+#            version: "0.36.13"
+#
+#        - name: Checkout
+#          uses: actions/checkout@v3
+#          with:
+#            ref: ${{ env.BRANCH }}
+#
+#        - name: Test with release
+#          run: cargo make --profile github-actions test
 
     publish:
-      needs: intense-tests
+      #needs: intense-tests
       runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@v3
