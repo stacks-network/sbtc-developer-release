@@ -8,9 +8,7 @@ use sbtc_cli::commands::{
 	deposit::{build_deposit_tx, DepositArgs},
 };
 
-mod bitcoin_client_integration;
-
-use bitcoin_client_integration::{electrs_url, generate_blocks};
+use super::bitcoin_client::{electrs_url, generate_blocks};
 
 const WALLET_0_P2TR_ADDRESS: &str =
 	"bcrt1pte5zmd7qzj4hdu45lh9mmdm0nwq3z35pwnxmzkwld6y0a8g83nnqhj6vc0";
