@@ -10,10 +10,10 @@ use url::Url;
 #[derive(Parser, Debug, Clone)]
 pub struct BroadcastArgs {
 	/// Where to broadcast the transaction
-	node_url: Url,
+	pub node_url: Url,
 
 	/// The transaction to broadcast
-	tx: String,
+	pub tx: String,
 }
 
 pub fn broadcast_tx(broadcast: &BroadcastArgs) -> anyhow::Result<()> {

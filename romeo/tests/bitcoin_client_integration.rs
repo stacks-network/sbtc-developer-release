@@ -18,7 +18,11 @@ pub fn electrs_url() -> Url {
 	Url::parse(&format!("tcp://{base}-electrs-1:60401")).unwrap()
 }
 
-pub fn generate_blocks(blocks: u64, ctx: &Client, address: &str) {
+pub fn generate_blocks(
+	blocks: u64,
+	ctx: &Client,
+	address: &str,
+) -> Vec<String> {
 	let endpoint = bitcoin_url();
 	let user = "devnet";
 	let password = "devnet";
@@ -41,6 +45,7 @@ pub fn generate_blocks(blocks: u64, ctx: &Client, address: &str) {
 		.unwrap();
 
 	assert_eq!(response_json["error"], serde_json::Value::Null);
+	serde_json::from_value(response_json["result"].clone()).expect("block_ids")
 }
 
 #[test]
