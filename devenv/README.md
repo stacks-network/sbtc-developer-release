@@ -51,19 +51,19 @@ cd devenv/bitcoin/
 There is a helper script at the top level directory to facilitate logging:
 
 ```
-./log bitcoin
-./log stacks
-./log stacks-api
-./log stacks-explorer
-./log postgres
-./log mongodb
-./log miner
-./log sbtc
-./log electrs
-./log sbtc-bridge-web
-./log sbtc-bridge-api
-./log mempool-web
-./log mempool-api
+./log.sh bitcoin
+./log.sh stacks
+./log.sh stacks-api
+./log.sh stacks-explorer
+./log.sh postgres
+./log.sh mongodb
+./log.sh miner
+./log.sh sbtc
+./log.sh electrs
+./log.sh sbtc-bridge-web
+./log.sh sbtc-bridge-api
+./log.sh mempool-web
+./log.sh mempool-api
 ```
 ## Services
 
