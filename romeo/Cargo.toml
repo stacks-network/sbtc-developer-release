@@ -26,3 +26,4 @@ rs_merkle.workspace = true
 
 [dev-dependencies]
 reqwest = { workspace = true, features = ["json", "blocking"] }
+sbtc-cli = { path = "../sbtc-cli" }
