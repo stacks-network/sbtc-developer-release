@@ -7,15 +7,12 @@
 //! and interact with the Bitcoin and Stacks networks.
 
 use clap::{Parser, Subcommand};
-
-use crate::commands::{
+use sbtc_cli::commands::{
 	broadcast::{broadcast_tx, BroadcastArgs},
 	deposit::{build_deposit_tx, DepositArgs},
 	generate::{generate, GenerateArgs},
 	withdraw::{build_withdrawal_tx, WithdrawalArgs},
 };
-
-mod commands;
 
 #[derive(Parser)]
 struct Cli {
