@@ -10,6 +10,7 @@ services:
       args:
         VERSION: '25.0'
     ports:
+      - 18445:18445
       - 18444:18444
       - 18443:18443
     environment:
@@ -59,7 +60,7 @@ services:
     depends_on:
       - bitcoin
     environment:
-      INIT_BTC_BLOCKS: 200
+      INIT_BTC_BLOCKS: 101
       BTC_BLOCK_GEN_TIME: 10
   stacks:
     image: stacks:latest
@@ -139,6 +140,7 @@ services:
       context: ./electrs/docker
     ports:
       - 60401:60401
+      - 3002:3002
     depends_on:
       - bitcoin
       - miner

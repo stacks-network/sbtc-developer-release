@@ -9,6 +9,7 @@ services:
       args:
         VERSION: '25.0'
     ports:
+      - 18445:18445
       - 18444:18444
       - 18443:18443
     environment:

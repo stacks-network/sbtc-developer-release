@@ -7,4 +7,15 @@ do
 	sleep 2
 done
 echo "bitcoin node is ready"
-electrs
+
+electrs --network regtest \
+	--jsonrpc-import \
+	--cookie "devnet:devnet" \
+	--http-addr="0.0.0.0:3002" \
+	--electrum-rpc-addr="0.0.0.0:60401" \
+	--daemon-rpc-addr="bitcoin:18443" \
+	--electrum-txs-limit=2048 \
+	--utxos-limit=2048 \
+	--db-dir="/opt" \
+	--cors="*" \
+	-vv
