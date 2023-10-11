@@ -55,8 +55,8 @@ services:
     depends_on:
       - bitcoin
     environment:
-      INIT_BTC_BLOCKS: 200
-      BTC_BLOCK_GEN_TIME: 10
+      INIT_BTC_BLOCKS: 101
+      BTC_BLOCK_GEN_TIME: 5
   stacks:
     image: stacks:latest
     stop_grace_period: 5s
