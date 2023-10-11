@@ -192,14 +192,14 @@ async fn get_contract_block_height(
 		.await
 		.get_contract_block_height(config.contract_name.clone())
 		.await
-		.expect("Could not get block height");
+		.expect("Could not get block height. Binary needs to be restarted after contract deployment.");
 
 	let bitcoin_block_height = client
 		.lock()
 		.await
 		.get_bitcoin_block_height(block_height)
 		.await
-		.expect("Could not get burnchain block height");
+		.expect("Could not get burnchain block height. Binary needs to be restarted after bitcoin node is online again.");
 
 	Event::ContractBlockHeight(block_height, bitcoin_block_height)
 }
@@ -217,9 +217,15 @@ async fn update_contract_public_key(
 		TransactionSpendingCondition::new_singlesig_p2pkh(public_key).unwrap(),
 	);
 
-	let function_args =
-		vec![Value::buff_from(public_key.to_bytes_compressed())
-			.expect("Cannot convert public key into a Clarity Value")];
+	let function_args = vec![Value::buff_from(
+		config
+			.bitcoin_credentials
+			.public_key_p2tr()
+			.serialize()
+			.try_into()
+			.unwrap(),
+	)
+	.expect("Cannot convert public key into a Clarity Value")];
 
 	let addr = StacksAddress::consensus_deserialize(&mut Cursor::new(
 		config.stacks_credentials.address().serialize_to_vec(),
