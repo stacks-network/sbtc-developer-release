@@ -123,7 +123,7 @@ services:
         GIT_URI: https://github.com/hirosystems/explorer.git
         GIT_BRANCH: v1.119.0
     ports:
-      - 3000:3000
+      - 3020:3020
     depends_on:
       - bitcoin
       - stacks
@@ -190,7 +190,7 @@ services:
       btcRpcPwd: devnet
       network: testnet
       bitcoinExplorerUrl: http://mempool-web:8083
-      stacksExplorerUrl: http://stacks-explorer:3000
+      stacksExplorerUrl: http://stacks-explorer:3020
       stacksApi: http://stacks-api:3999
       sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
       mongoDbUrl: mongodb
