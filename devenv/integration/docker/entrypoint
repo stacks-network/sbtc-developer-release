@@ -13,14 +13,6 @@ while ! curl -s $API_URL >/dev/null; do
     sleep 1
 done
 
-DEV_READY_HEIGHT=205
-
-# bitcoind get info
-echo "Waiting on burn block height $DEV_READY_HEIGHT"
-while [ "$(curl -s $API_URL | jq '.burn_block_height')" -lt $DEV_READY_HEIGHT ]; do
-    sleep 2
-done
-
 #stacks ready to take contracts
 STACKS_HEIGHT=1
 echo "Waiting on Stacks height $STACKS_HEIGHT"
