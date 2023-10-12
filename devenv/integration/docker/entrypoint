@@ -1,9 +1,7 @@
 #!/usr/bin/env sh
 set -ueo >/dev/null
 
-STACKS=$PROJECT_NAME-stacks-1
-API_URL=http://$STACKS:20443/v2/info
-BITCOIN=$PROJECT_NAME-bitcoin-1
+API_URL=http://stacks:20443/v2/info
 
 # --- make sure the node is ready before proceeding
 
@@ -24,8 +22,8 @@ done
 
 # push contracts
 cd romeo/asset-contract
-sed -i "s/localhost:20443/$STACKS:20443/" deployments/default.devnet-plan.yaml
-sed -i "s/localhost:18443/$BITCOIN:18443/" deployments/default.devnet-plan.yaml
+sed -i "s/localhost:20443/stacks:20443/" deployments/default.devnet-plan.yaml
+sed -i "s/localhost:18443/bitcoin:18443/" deployments/default.devnet-plan.yaml
 clarinet deployments apply --no-dashboard -d -p deployments/default.devnet-plan.yaml
 cd -
 

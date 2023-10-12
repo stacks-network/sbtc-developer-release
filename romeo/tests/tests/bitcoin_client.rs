@@ -1,21 +1,13 @@
-use std::env;
-
 use reqwest::blocking::Client;
 use serde_json::json;
 use url::Url;
 
-pub fn project_name() -> String {
-	env::var("PROJECT_NAME").unwrap()
-}
-
 pub fn bitcoin_url() -> Url {
-	let base = project_name();
-	Url::parse(&format!("http://{base}-bitcoin-1:18443")).unwrap()
+	Url::parse("http://bitcoin:18443").unwrap()
 }
 
 pub fn electrs_url() -> Url {
-	let base = project_name();
-	Url::parse(&format!("tcp://{base}-electrs-1:60401")).unwrap()
+	Url::parse("tcp://electrs:60401").unwrap()
 }
 
 pub fn generate_blocks(
