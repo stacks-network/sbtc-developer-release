@@ -123,7 +123,7 @@ services:
         GIT_URI: https://github.com/hirosystems/explorer.git
         GIT_BRANCH: v1.119.0
     ports:
-      - 3020:3020
+      - 3020:3000
     depends_on:
       - bitcoin
       - stacks
