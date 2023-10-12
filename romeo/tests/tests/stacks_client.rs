@@ -1,11 +1,8 @@
-use std::env;
-
 use reqwest::blocking::Client;
 use url::Url;
 
 pub fn stacks_url() -> Url {
-	let base = env::var("PROJECT_NAME").unwrap();
-	Url::parse(&format!("http://{base}-stacks-1:20443")).unwrap()
+	Url::parse("http://stacks:20443").unwrap()
 }
 
 pub fn fetch_stacks_height(ctx: &Client) -> u64 {
