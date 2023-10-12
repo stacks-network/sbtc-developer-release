@@ -44,6 +44,11 @@ export class BurnCommand implements AssetCommand {
 
     // In addition to the above, we also need to check that the amount to burn
     // is less or equal to the balance of the wallet.
+    const btcTxHex = uint8ArrayToHexString(this.params.depositTx);
+    if (model.transactions.find(([tx, _amount, _wallet]) => tx === btcTxHex)) {
+      return false;
+    }
+
     const balance = model.wallets.get(this.wallet.address) ?? 0;
     return this.amount <= balance;
   }

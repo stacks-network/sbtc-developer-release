@@ -29,7 +29,7 @@ export class MintCommand implements AssetCommand {
     this.params = params;
   }
 
-  check(_model: Readonly<Stub>): boolean {
+  check(model: Readonly<Stub>): boolean {
     // Can mint if sender is the deployer.
     //
     // Note that this is filtered at the generator level. So you don't need to
@@ -41,6 +41,11 @@ export class MintCommand implements AssetCommand {
     // What discard means is that if you are generating 1000 commands, and 100
     // of them are filtered out here, then you end up running 900 commands. If
     // you filter at the generator level, however, you will run 1000 commands.
+    const btcTxHex = uint8ArrayToHexString(this.params.depositTx);
+    if (model.transactions.find(([tx, _amount, _wallet]) => tx === btcTxHex)) {
+      return false;
+    }
+
     return true;
   }
 
