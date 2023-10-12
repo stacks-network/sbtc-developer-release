@@ -4,9 +4,11 @@ import { BitcoinTxData } from "./asset_CommandModel.ts";
 import fc from "https://cdn.skypack.dev/fast-check@3";
 
 import { BurnCommand } from "./asset_BurnCommand.ts";
+import { BurnCommand_500 } from "./asset_BurnCommand_500.ts";
 import { GetBalanceCommand } from "./asset_GetBalanceCommand.ts";
 import { GetTotalSupplyCommand } from "./asset_GetTotalSupplyCommand.ts";
 import { MintCommand } from "./asset_MintCommand.ts";
+import { MintCommand_500 } from "./asset_MintCommand_500.ts";
 import { TransferCommand } from "./asset_TransferCommand.ts";
 import { TransferCommand_NonOwner } from "./asset_TransferCommand_NonOwner.ts";
 
@@ -30,6 +32,30 @@ export function AssetCommands(accounts: Map<string, Account>) {
         },
       ) =>
         new BurnCommand(
+          r.sender,
+          r.amount,
+          r.wallet,
+          r.params,
+        )
+      ),
+
+    // BurnCommand (err-btc-tx-already-used (err u500))
+    fc
+      .record({
+        sender: fc.constant(accounts.get("deployer")!),
+        amount: fc.integer({ min: 1, max: 100 }),
+        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
+        params: fc.constantFrom(...data),
+      })
+      .map((
+        r: {
+          sender: Account;
+          amount: number;
+          wallet: Account;
+          params: BitcoinTxData;
+        },
+      ) =>
+        new BurnCommand_500(
           r.sender,
           r.amount,
           r.wallet,
@@ -87,6 +113,30 @@ export function AssetCommands(accounts: Map<string, Account>) {
         },
       ) =>
         new MintCommand(
+          r.sender,
+          r.amount,
+          r.wallet,
+          r.params,
+        )
+      ),
+
+    // MintCommand (err-btc-tx-already-used (err u500))
+    fc
+      .record({
+        sender: fc.constant(accounts.get("deployer")!),
+        amount: fc.integer({ min: 1, max: 100 }),
+        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
+        params: fc.constantFrom(...data),
+      })
+      .map((
+        r: {
+          sender: Account;
+          amount: number;
+          wallet: Account;
+          params: BitcoinTxData;
+        },
+      ) =>
+        new MintCommand_500(
           r.sender,
           r.amount,
           r.wallet,
