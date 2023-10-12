@@ -37,6 +37,37 @@ logs from the first failed container. You must stop the nodes with
 dangling container and re-execute tests once you have fixed and rebuilt the
 testbed image.
 
+## QuickStart
+
+1. Build the testbed image that has the source and binaries to execute the integration tests.
+2. Run the testing script.
+
+```bash
+> devenv$ cd integration
+> devenv/integration$ ./bin/build
+> cd -
+> devenv$ ./integration/bin/test
+```
+
+You will see lines like below if your tests completed succesfully.
+
+```
+Runner: 71c1beca7261e2c1b706fa0e9eeb3823ad56977c4846c89b25a315a48a1bbda5 exited with err_no: 0
+Runner: fb2da5362115b5ae37874d39831bbf249b2928c58296dfb23af94b7083d8455b exited with err_no: 0
+```
+
+Use the container id to inspect the runner for more details.
+
+```
+> devenv$ ./logs.sh 71c1beca7261e2c1b706fa0e9eeb3823ad56977c4846c89b25a315a48a1bbda5
+```
+
+the script will abort the moment a container fails. The script will print the
+logs from the first failed container. You will need to stop the nodes yourself
+with `docker stop $(docker ps -qa)`. You can also run `test` again to down and
+up again any dangling container and reexecute tests once you have fixed and
+rebuilt the testbed image.
+
 ### Running integration tests.
 
 Start at devenv, `pushd` integration. You will find scripts in the `bin` folder
