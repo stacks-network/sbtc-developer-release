@@ -37,7 +37,7 @@ fn broadcast_deposit() -> Result<()> {
 		generate_blocks(1, &client, WALLET_1_P2WPKH_ADDRESS);
 		generate_blocks(1, &client, WALLET_0_P2WPKH_ADDRESS);
 		// pads blocks to get rewards.
-		generate_blocks(200, &client, WALLET_1_P2WPKH_ADDRESS);
+		generate_blocks(100, &client, WALLET_1_P2WPKH_ADDRESS);
 	};
 
 	let electrum_url = electrs_url();
