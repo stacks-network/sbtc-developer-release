@@ -13,7 +13,7 @@ use bdk::{
 		ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig,
 	},
 	database::MemoryDatabase,
-	template::P2Wpkh,
+	template::P2TR,
 	SignOptions, SyncOptions, Wallet,
 };
 use sbtc_core::operations::op_return::utils::reorder_outputs;
@@ -29,6 +29,7 @@ const BLOCK_POLLING_INTERVAL: Duration = Duration::from_secs(5);
 pub struct Client {
 	config: Config,
 	blockchain: Arc<ElectrumBlockchain>,
+	// required for fulfillment txs
 	wallet: Arc<Mutex<Wallet<MemoryDatabase>>>,
 }
 
@@ -37,8 +38,8 @@ impl Client {
 	pub fn new(config: Config) -> anyhow::Result<Self> {
 		let url = config.electrum_node_url.as_str().to_string();
 		let network = config.bitcoin_network;
-		let private_key = PrivateKey::from_wif(
-			&config.bitcoin_credentials.wif_p2wpkh().to_string(),
+		let p2tr_private_key = PrivateKey::from_wif(
+			&config.bitcoin_credentials.wif_p2tr().to_string(),
 		)?;
 
 		let blockchain =
@@ -52,8 +53,8 @@ impl Client {
 			})?;
 
 		let wallet = Wallet::new(
-			P2Wpkh(private_key),
-			Some(P2Wpkh(private_key)),
+			P2TR(p2tr_private_key),
+			Some(P2TR(p2tr_private_key)),
 			network,
 			MemoryDatabase::default(),
 		)?;
@@ -232,5 +233,63 @@ impl Client {
 			.await??;
 
 		Ok(txid)
+	}
+}
+
+#[cfg(test)]
+// test that wallet returns correct address
+mod tests {
+
+	use std::path::Path;
+
+	use bdk::bitcoin::Network as BitcoinNetwork;
+	use blockstack_lib::vm::ContractName;
+	use stacks_core::{wallet::Wallet, Network};
+
+	use super::Client;
+	use crate::config::Config;
+
+	#[test]
+	fn test_wallet_address() {
+		let wallet = Wallet::new("twice kind fence tip hidden tilt action fragile skin nothing glory cousin green tomorrow spring wrist shed math olympic multiply hip blue scout claw").unwrap();
+
+		let stacks_network = Network::Testnet;
+		let stacks_credentials = wallet.credentials(stacks_network, 0).unwrap();
+		let bitcoin_credentials = wallet
+			.bitcoin_credentials(BitcoinNetwork::Testnet, 0)
+			.unwrap();
+
+		let conf = Config {
+			state_directory: Path::new("/tmp/romeo").to_path_buf(),
+			bitcoin_credentials,
+			bitcoin_node_url: "http://localhost:18443".parse().unwrap(),
+			electrum_node_url: "ssl://blockstream.info:993".parse().unwrap(),
+			bitcoin_network: "testnet".parse().unwrap(),
+			contract_name: ContractName::from("asset"),
+			stacks_node_url: "http://localhost:20443".parse().unwrap(),
+			stacks_credentials,
+			stacks_network,
+			hiro_api_key: None,
+		};
+
+		let client = Client::new(conf.clone()).unwrap();
+
+		let client_sbtc_wallet = client
+			.wallet
+			.clone()
+			.lock()
+			.unwrap()
+			.get_address(bdk::wallet::AddressIndex::Peek(0))
+			.unwrap();
+
+		// expect sbtc wallet to be p2tr of mnemonic
+		let expected_sbtc_wallet =
+			"tb1pte5zmd7qzj4hdu45lh9mmdm0nwq3z35pwnxmzkwld6y0a8g83nnq6ts2d4";
+		// expect sbtc_wallet equals and config sbtc wallet address to be the p2tr address
+		assert_eq!(client_sbtc_wallet.to_string(), expected_sbtc_wallet);
+		assert_eq!(
+			conf.sbtc_wallet_address().to_string(),
+			expected_sbtc_wallet
+		);
 	}
 }
