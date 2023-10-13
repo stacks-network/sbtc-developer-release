@@ -4,8 +4,8 @@
 
 dir="$(dirname "$0")"
 
-# the sbtc wallet
-btc_p2tr_address=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2tr.address')
+# the sbtc wallet (p2tr)
+sbtc_wallet_address=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2tr.address')
 # Alice's btc address
 btc_wif=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].bitcoin.p2wpkh.wif')
 # Alice's stx address
@@ -18,7 +18,7 @@ json=$($dir/../sbtc/bin/sbtc deposit \
     -n regtest \
     -r $stacks_address \
     -a $amount \
-    -d $btc_p2tr_address \
+    -s $sbtc_wallet_address \
     -u electrs:60401)
 
 echo $json

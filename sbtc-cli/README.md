@@ -10,12 +10,12 @@ cargo install --path sbtc-cli
 # Usage example
 Create a deposit transaction
 ```
-sbtc deposit --network testnet --wif <WIF of private key> --recipient ST3RBZ4TZ3EK22SZRKGFZYBCKD7WQ5B8FFRS57TT6 --amount 13370 --dkg-wallet tb1pewpc7x6nnea8clm2vn2d8xvpdwvkhucmfdwmm0p6vk2u5xgmwlzsdx3g6w
+sbtc deposit --network testnet --wif <WIF of private key> --recipient ST3RBZ4TZ3EK22SZRKGFZYBCKD7WQ5B8FFRS57TT6 --amount 13370 --sbtc-wallet tb1pewpc7x6nnea8clm2vn2d8xvpdwvkhucmfdwmm0p6vk2u5xgmwlzsdx3g6w
 ```
 
 Create a withdrawal transaction
 ```
-sbtc withdraw --network testnet --wif <WIF of bitcoin private key> --drawee-wif <WIF of stacks address holding sBTC> --payee-address tb1q0jtfel9tp54dzud28uspe994rv8gajnxc85n8q --amount 42 --peg-wallet tb1pewpc7x6nnea8clm2vn2d8xvpdwvkhucmfdwmm0p6vk2u5xgmwlzsdx3g6w --fulfillment-fee 1000 --node-url ssl://blockstream.info:993
+sbtc withdraw --network testnet --wif <WIF of bitcoin private key> --drawee-wif <WIF of stacks address holding sBTC> --payee-address tb1q0jtfel9tp54dzud28uspe994rv8gajnxc85n8q --amount 42 --sbtc-wallet tb1pewpc7x6nnea8clm2vn2d8xvpdwvkhucmfdwmm0p6vk2u5xgmwlzsdx3g6w --fulfillment-fee 1000 --node-url ssl://blockstream.info:993
 ```
 
 Broadcast a transaction to testnet
