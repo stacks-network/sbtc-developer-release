@@ -19,7 +19,7 @@ use blockstack_lib::{
 };
 use futures::Future;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use reqwest::{Request, RequestBuilder};
+use reqwest::{Request, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use stacks_core::{codec::Codec, uint::Uint256};
@@ -27,7 +27,7 @@ use tokio::{
 	sync::{Mutex, MutexGuard},
 	time::sleep,
 };
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use crate::{config::Config, event::TransactionStatus};
 
@@ -456,15 +456,23 @@ struct NonceInfo {
 	possible_next_nonce: u64,
 }
 
-async fn retry<T, O, Fut>(operation: O) -> anyhow::Result<T>
+async fn retry<O, Fut>(operation: O) -> anyhow::Result<Response>
 where
 	O: Clone + Fn() -> Fut,
-	Fut: Future<Output = Result<T, reqwest::Error>>,
+	Fut: Future<Output = Result<Response, reqwest::Error>>,
 {
 	let operation = || async {
-		operation.clone()().await.map_err(|err| {
+		operation.clone()().await
+		.and_then(Response::error_for_status)
+		.map_err(|err| {
 			if err.is_request() {
 				backoff::Error::transient(anyhow::anyhow!(err))
+			} else if err.is_status() {
+				// Impossible not to have a status code at this section. May as well be a teapot.
+				match err.status().unwrap_or(StatusCode::IM_A_TEAPOT) {
+					StatusCode::TOO_MANY_REQUESTS => backoff::Error::transient(anyhow::anyhow!(err)),
+					_ => backoff::Error::permanent(anyhow::anyhow!(err)),
+				}
 			} else {
 				backoff::Error::permanent(anyhow::anyhow!(err))
 			}
@@ -472,7 +480,7 @@ where
 	};
 
 	let notify = |err, duration| {
-		trace!("Retrying in {:?} after error: {:?}", duration, err);
+		warn!("Retrying in {:?} after error: {:?}", duration, err);
 	};
 
 	backoff::future::retry_notify(
