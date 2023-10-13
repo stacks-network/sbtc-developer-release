@@ -469,7 +469,8 @@ where
 				if err.is_request() {
 					backoff::Error::transient(anyhow::anyhow!(err))
 				} else if err.is_status() {
-					// Impossible not to have a status code at this section. May as well be a teapot.
+					// Impossible not to have a status code at this section. May
+					// as well be a teapot.
 					let status_code_number = err
 						.status()
 						.unwrap_or(StatusCode::IM_A_TEAPOT)
