@@ -33,7 +33,7 @@ jobs:
           file: ./devenv/sbtc/docker/Dockerfile
           # TODO: Set up docker publishing to use the tag name when publishing and to do
           # something else when triggered manually. $\{{ github.event.release.tag_name }}
-          tags: blockstack/sbtc:sbtc
+          tags: blockstack/sbtc:devenv-sbtc
           push: true
           platform: amd64
 
@@ -75,5 +75,5 @@ jobs:
           push: true
           # TODO: Set up docker publishing to use the tag name when publishing and to do
           # something else when triggered manually. $\{{ github.event.release.tag_name }}
-          tags: blockstack/sbtc:${{ matrix.service }}
+          tags: blockstack/sbtc:devenv-${{ matrix.service }}
           platform: amd64
