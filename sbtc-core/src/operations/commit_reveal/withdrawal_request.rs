@@ -75,7 +75,7 @@ pub fn withdrawal_request_reveal_unsigned_tx(
 	reveal_inputs: RevealInputs,
 	fulfillment_fee: Amount,
 	commit_amount: Amount,
-	peg_wallet_address: BitcoinAddress,
+	sbtc_wallet_address: BitcoinAddress,
 	recipient_wallet_address: BitcoinAddress,
 ) -> CommitRevealResult<Transaction> {
 	let mut tx = reveal(&withdrawal_data.serialize_to_vec(), reveal_inputs)?;
@@ -87,7 +87,7 @@ pub fn withdrawal_request_reveal_unsigned_tx(
 	});
 	tx.output.push(TxOut {
 		value: fulfillment_fee.to_sat(),
-		script_pubkey: peg_wallet_address.script_pubkey(),
+		script_pubkey: sbtc_wallet_address.script_pubkey(),
 	});
 
 	Ok(tx)
