@@ -462,21 +462,28 @@ where
 	Fut: Future<Output = Result<Response, reqwest::Error>>,
 {
 	let operation = || async {
-		operation.clone()().await
-		.and_then(Response::error_for_status)
-		.map_err(|err| {
-			if err.is_request() {
-				backoff::Error::transient(anyhow::anyhow!(err))
-			} else if err.is_status() {
-				// Impossible not to have a status code at this section. May as well be a teapot.
-				match err.status().unwrap_or(StatusCode::IM_A_TEAPOT) {
-					StatusCode::TOO_MANY_REQUESTS => backoff::Error::transient(anyhow::anyhow!(err)),
-					_ => backoff::Error::permanent(anyhow::anyhow!(err)),
+		operation.clone()()
+			.await
+			.and_then(Response::error_for_status)
+			.map_err(|err| {
+				if err.is_request() {
+					backoff::Error::transient(anyhow::anyhow!(err))
+				} else if err.is_status() {
+					// Impossible not to have a status code at this section. May as well be a teapot.
+					let status_code_number = err
+						.status()
+						.unwrap_or(StatusCode::IM_A_TEAPOT)
+						.as_u16();
+					match status_code_number {
+						429 | 522 => {
+							backoff::Error::transient(anyhow::anyhow!(err))
+						}
+						_ => backoff::Error::permanent(anyhow::anyhow!(err)),
+					}
+				} else {
+					backoff::Error::permanent(anyhow::anyhow!(err))
 				}
-			} else {
-				backoff::Error::permanent(anyhow::anyhow!(err))
-			}
-		})
+			})
 	};
 
 	let notify = |err, duration| {
