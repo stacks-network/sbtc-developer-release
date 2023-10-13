@@ -431,8 +431,16 @@ pub fn create_withdrawal_request_signing_message(
 		.chain(amount.serialize_to_vec())
 		.chain(payee_bitcoin_address.script_pubkey().as_bytes().to_vec())
 		.collect();
-
-	create_signing_message(signing_data)
+	// Wallets do not allow to sign bytes, instead a string is required.
+	// The following string is used until more wallets support signing
+	// withdrawal requests.
+	let wallet_compatible_data = format!(
+		"Withdraw request for {:} satoshis to the bitcoin address {:} ({:})",
+		amount,
+		payee_bitcoin_address,
+		hex::encode(signing_data)
+	);
+	create_signing_message(wallet_compatible_data)
 }
 
 /// Creates the SECP signing message. It prepends the data with the
@@ -448,4 +456,23 @@ pub fn create_signing_message(data: impl AsRef<[u8]>) -> Message {
 
 	Message::from_slice(Sha256Hasher::new(msg_content).as_ref())
 		.expect("Could not create secp message")
+}
+
+// test that create signing message returns correct hash
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_create_signing_message() {
+		let address: BitcoinAddress =
+			"tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms"
+				.parse()
+				.unwrap();
+		let msg = create_withdrawal_request_signing_message(1000, &address);
+		assert_eq!(
+			msg.to_string(),
+			"744eee0ee13d6649dd6b0fe203d2cb0af32e5d0b57a7c046c782019e8d562056"
+		);
+	}
 }
