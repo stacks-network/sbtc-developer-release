@@ -285,7 +285,8 @@ mod tests {
 		// expect sbtc wallet to be p2tr of mnemonic
 		let expected_sbtc_wallet =
 			"tb1pte5zmd7qzj4hdu45lh9mmdm0nwq3z35pwnxmzkwld6y0a8g83nnq6ts2d4";
-		// expect sbtc_wallet equals and config sbtc wallet address to be the p2tr address
+		// expect sbtc_wallet equals and config sbtc wallet address to be the
+		// p2tr address
 		assert_eq!(client_sbtc_wallet.to_string(), expected_sbtc_wallet);
 		assert_eq!(
 			conf.sbtc_wallet_address().to_string(),
