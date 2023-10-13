@@ -431,6 +431,8 @@ pub fn create_withdrawal_request_signing_message(
 		.chain(amount.serialize_to_vec())
 		.chain(payee_bitcoin_address.script_pubkey().as_bytes().to_vec())
 		.collect();
+	// Wallets do not allow to sign bytes, instead a string is required.
+	// The following string is used until more wallets support signing withdrawal requests.
 	let wallet_compatible_data = format!(
 		"Withdraw request for {:} satoshis to the bitcoin address {:} ({:})",
 		amount,
