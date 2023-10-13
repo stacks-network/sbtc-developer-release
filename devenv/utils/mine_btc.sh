@@ -13,3 +13,4 @@ fi
 btc_address=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].bitcoin.p2wpkh.address')
 
 $dir/../bitcoin/bin/bitcoin-cli generatetoaddress $num_blocks $btc_address
+echo "Mined $num_blocks BTC to $btc_address"

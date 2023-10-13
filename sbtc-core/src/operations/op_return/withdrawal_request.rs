@@ -15,7 +15,7 @@
 //!
 //! 1. data output
 //! 2. Bitcoin address to send the BTC to
-//! 3. Fulfillment fee payment to the peg wallet
+//! 3. Fulfillment fee payment to the sbtc wallet
 //!
 //! The data output should contain data in the following byte format:
 //!

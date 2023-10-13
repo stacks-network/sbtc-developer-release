@@ -453,7 +453,7 @@ async fn check_stacks_transaction_status(
 		.await
 		.get_transation_status(txid)
 		.await
-		.expect("Could not get transaction status");
+		.expect("Could not get Stacks transaction status");
 
 	Event::StacksTransactionUpdate(txid, status)
 }
@@ -464,7 +464,7 @@ async fn fetch_stacks_block(client: LockedClient, block_height: u32) -> Event {
 		.await
 		.get_block(block_height)
 		.await
-		.expect("Could not get Stacks block");
+		.expect("Failed to get Stacks block");
 
 	Event::StacksBlock(block_height, txs)
 }
@@ -476,7 +476,7 @@ async fn fetch_bitcoin_block(
 	let (height, block) = client
 		.get_block(block_height)
 		.await
-		.expect("Failed to fetch block");
+		.expect("Failed to fetch bitcoin block");
 
 	Event::BitcoinBlock(height, block)
 }

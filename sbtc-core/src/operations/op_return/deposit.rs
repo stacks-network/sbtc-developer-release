@@ -4,7 +4,7 @@
 //! Deposit is a Bitcoin transaction with the output structure as below:
 //!
 //! 1. data output
-//! 2. payment to peg wallet address
+//! 2. payment to sbtc wallet address
 //!
 //! The data output should contain data in the following byte format:
 //!

@@ -41,9 +41,9 @@ pub struct DepositArgs {
 	#[clap(short, long)]
 	amount: u64,
 
-	/// Dkg wallet address
+	/// Bitcoin address of the sbtc wallet
 	#[clap(short, long)]
-	dkg_wallet: String,
+	sbtc_wallet: String,
 }
 
 pub fn build_deposit_tx(deposit: &DepositArgs) -> anyhow::Result<()> {
@@ -70,12 +70,12 @@ pub fn build_deposit_tx(deposit: &DepositArgs) -> anyhow::Result<()> {
 
 	let recipient_address =
 		StacksAddress::try_from(deposit.recipient.as_str())?;
-	let dkg_address = BitcoinAddress::from_str(&deposit.dkg_wallet)?;
+	let sbtc_wallet_address = BitcoinAddress::from_str(&deposit.sbtc_wallet)?;
 
 	let tx = build_deposit_transaction(
 		wallet,
 		recipient_address.into(),
-		dkg_address,
+		sbtc_wallet_address,
 		deposit.amount,
 		deposit.network,
 	)?;
