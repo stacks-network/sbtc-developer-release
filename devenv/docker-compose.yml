@@ -93,13 +93,6 @@ services:
     ports:
       - 3999:3999
       - 3700:3700
-    healthcheck:
-      test: "wget -q -t=1 --spider http://localhost:3999/v2/info || exit 1"
-      start_period: 2m
-      start_interval: 3s
-      interval: 15s
-      timeout: 3s
-      retries: 5
     depends_on:
       - postgres
       - stacks
@@ -133,14 +126,10 @@ services:
     ports:
       - 3000:3000
     depends_on:
-      bitcoin:
-        condition: service_started
-      stacks:
-        condition: service_started
-      stacks-api:
-        condition: service_healthy
-      postgres:
-        condition: service_started
+      - bitcoin
+      - stacks
+      - stacks-api
+      - postgres
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
   electrs:
