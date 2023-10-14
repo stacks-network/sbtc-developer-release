@@ -702,7 +702,7 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 			)
 			.ok()
 			.filter(|parsed_withdrawal| {
-				parsed_withdrawal.peg_wallet == sbtc_wallet_address
+				parsed_withdrawal.sbtc_wallet == sbtc_wallet_address
 			})
 			.map(
 				|WithdrawalRequestData {
