@@ -60,7 +60,8 @@
 //!
 //! Example for a request of 1000 sats to
 //! tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms: `Withdraw request for 1000
-//! satoshis to the bitcoin address tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms
+//! satoshis to the bitcoin address
+//! tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms
 //! (00000000000003e80014764ad6983a6455cca54cd6a4f7b0da71ba6a0bab)`
 //!
 //! It is also by convention that we always produce a P2PKH Stacks address from
