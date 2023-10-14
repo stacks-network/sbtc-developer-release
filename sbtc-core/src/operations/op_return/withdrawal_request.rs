@@ -46,7 +46,8 @@
 //!
 //! This prefix is by convention always [`STACKS_SIGNATURE_PREFIX`]. Message
 //! data is a concatenation the string
-//! `Withdraw request for <amount> satoshis to the bitcoin address <btc address> (<encoded data>)`
+//! `Withdraw request for <amount> satoshis to the bitcoin address <btc address>
+//! (<encoded data>)`
 //! and the hex encoded string in round brackets
 //! of the amount (BE bytes) and the pubkey script of
 //! the recipient Bitcoin address.
@@ -57,8 +58,10 @@
 //! amount                             pubkey script
 //! ```
 //!
-//! Example for a request of 1000 sats to tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms:
-//! `Withdraw request for 1000 satoshis to the bitcoin address tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms (00000000000003e80014764ad6983a6455cca54cd6a4f7b0da71ba6a0bab)`
+//! Example for a request of 1000 sats to
+//! tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms: `Withdraw request for 1000
+//! satoshis to the bitcoin address tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms
+//! (00000000000003e80014764ad6983a6455cca54cd6a4f7b0da71ba6a0bab)`
 //!
 //! It is also by convention that we always produce a P2PKH Stacks address from
 //! the recovered public key.
