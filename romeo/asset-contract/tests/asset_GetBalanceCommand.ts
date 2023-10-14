@@ -37,7 +37,6 @@ export class GetBalanceCommand implements AssetCommand {
     const expected = model.wallets.get(this.wallet.address) ?? 0;
     block.receipts.map(({ result }) => result.expectOk().expectUint(expected));
 
-    // sBTC DR allows several mints or burns with the same Bitcoin transaction.
     const actual = model.transactions.reduce((sum, [_, amount, wallet]) =>
       (wallet.address === this.wallet.address ? sum + amount : sum), 0);
     assert(

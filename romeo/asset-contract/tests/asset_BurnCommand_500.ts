@@ -11,7 +11,7 @@ import {
   types,
 } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
 
-export class BurnCommand implements AssetCommand {
+export class BurnCommand_500 implements AssetCommand {
   readonly sender: Account;
   readonly amount: number;
   readonly wallet: Account;
@@ -30,30 +30,15 @@ export class BurnCommand implements AssetCommand {
   }
 
   check(model: Readonly<Stub>): boolean {
-    // Can burn if sender is the deployer.
-    //
-    // Note that this is filtered at the generator level. So you don't need to
-    // check here.
-    //
-    // If you don't filter at the generator level, you can check here but then
-    // if you return false from here the command is 'discarded'.
-    //
-    // What discard means is that if you are generating 1000 commands, and 100
-    // of them are filtered out here, then you end up running 900 commands. If
-    // you filter at the generator level, however, you will run 1000 commands.
-
-    // In addition to the above, we also need to check that the amount to burn
-    // is less or equal to the balance of the wallet.
     const btcTxHex = uint8ArrayToHexString(this.params.depositTx);
-    if (model.transactions.find(([tx, _amount, _wallet]) => tx === btcTxHex)) {
-      return false;
-    }
-
+    const wasTxHexAlreadyUsed = model.transactions.some(([tx]) =>
+      tx === btcTxHex
+    );
     const balance = model.wallets.get(this.wallet.address) ?? 0;
-    return this.amount <= balance;
+    return wasTxHexAlreadyUsed && this.amount <= balance;
   }
 
-  run(model: Stub, real: Real): void {
+  run(_model: Stub, real: Real): void {
     const block = real.chain.mineBlock([
       Tx.contractCall(
         "clarity-bitcoin-mini",
@@ -80,26 +65,15 @@ export class BurnCommand implements AssetCommand {
       ),
     ]);
 
-    block.receipts.map(({ result }) => result.expectOk());
-
-    const balance = model.wallets.get(this.wallet.address) ?? 0;
-    model.wallets.set(this.wallet.address, balance - this.amount);
-
-    model.transactions.push([
-      uint8ArrayToHexString(this.params.depositTx),
-      -this.amount,
-      this.wallet,
-    ]);
+    block.receipts[0].result.expectOk();
+    block.receipts[1].result.expectErr().expectUint(500);
 
     console.log(
-      `✓ ${this.sender.name.padStart(8, " ")} ${"burn".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")}`
+      `! ${this.sender.name.padStart(8, " ")} ${"burn".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")} (expected, same bitcoin tx)`
     );
   }
 
   toString() {
-    // fast-check will call toString() in case of errors, e.g. property failed.
-    // It will then make a minimal counterexample, a process called 'shrinking'
-    // https://github.com/dubzzz/fast-check/issues/2864#issuecomment-1098002642
     return `${this.sender.name} burn ${this.amount} to ${this.wallet.name} (bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")})`;
   }
 }

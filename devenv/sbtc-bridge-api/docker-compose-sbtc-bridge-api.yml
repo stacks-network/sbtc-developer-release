@@ -20,7 +20,7 @@ services:
       btcRpcPwd: devnet
       network: testnet
       bitcoinExplorerUrl: http://bitcoin-explorer:3002/api
-      stacksExplorerUrl: http://stacks-explorer:3000
+      stacksExplorerUrl: http://stacks-explorer:3020
       stacksApi: http://stacks-api:3999
       sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
       mongoDbUrl: mongodb

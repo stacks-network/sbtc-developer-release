@@ -5,8 +5,8 @@
 
 dir="$(dirname "$0")"
 
-# the sbtc wallet
-btc_p2tr_address=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2tr.address')
+# the sbtc wallet (p2tr)
+sbtc_wallet_address=$(source $dir/get_credentials.sh | jq -r '.credentials["0"].bitcoin.p2tr.address')
 
 # Alice's btc credential as wif
 btc_wif=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].bitcoin.p2wpkh.wif')
@@ -25,7 +25,7 @@ json=$($dir/../sbtc/bin/sbtc withdraw \
     -b $btc_address \
     -a $amount \
     -f $fulfillment_fee \
-    -p $btc_p2tr_address \
+    -s $sbtc_wallet_address \
     -u electrs:60401)
 
 
