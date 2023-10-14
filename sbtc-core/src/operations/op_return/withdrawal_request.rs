@@ -484,7 +484,9 @@ mod tests {
 			create_withdrawal_request_signing_message(amount, &address);
 
 		// expected is the sha256 hash of
-		// `Withdraw request for 1000 satoshis to the bitcoin address tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms (00000000000003e80014764ad6983a6455cca54cd6a4f7b0da71ba6a0bab)`
+		// `Withdraw request for 1000 satoshis to the bitcoin address
+		// tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms
+		// (00000000000003e80014764ad6983a6455cca54cd6a4f7b0da71ba6a0bab)`
 		let expected_msg_hash =
 			"744eee0ee13d6649dd6b0fe203d2cb0af32e5d0b57a7c046c782019e8d562056";
 		assert_eq!(msg_hash.to_string(), expected_msg_hash);
