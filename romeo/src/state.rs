@@ -20,6 +20,10 @@ use crate::{
 	task::Task,
 };
 
+/// The delay in blocks between receiving a deposit request and creating
+/// the deposit transaction.
+const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 1;
+
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum State {
@@ -469,13 +473,41 @@ impl State {
 			State::Initialized {
 				deposits,
 				withdrawals,
+				stacks_block_height,
 				..
 			} => {
 				let deposit_tasks = deposits.iter_mut().filter_map(|deposit| {
 					match deposit.mint.as_mut() {
 						None => {
-							deposit.mint = Some(TransactionRequest::Created);
-							Some(Task::CreateMint(deposit.info.clone()))
+							// We often receive the deposit before the transaction is actually mined.
+							// By scheduling the transaction for a block later than the current one we
+							// make ourselves resilient to mining delays without complex logic.
+							let scheduled_block_height = *stacks_block_height
+								+ MINT_TRANSACTION_DELAY_BLOCKS;
+							deposit.mint =
+								Some(TransactionRequest::Scheduled {
+									block_height: scheduled_block_height,
+								});
+							info!("Scheduled deposit {} for minting on stacks block height {}.",
+								deposit.info.txid, scheduled_block_height);
+							None
+						}
+						Some(TransactionRequest::Scheduled {
+							block_height,
+						}) => {
+							if stacks_block_height.ge(&block_height) {
+								// Only initiate the mint task if the current stacks block is
+								// or is after the stacks block for which the mint is scheduled.
+								deposit.mint =
+									Some(TransactionRequest::Created);
+								info!(
+									"Created mint for {}.",
+									deposit.info.txid
+								);
+								Some(Task::CreateMint(deposit.info.clone()))
+							} else {
+								None
+							}
 						}
 						_ => None,
 					}
@@ -738,6 +770,11 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 /// A transaction request
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TransactionRequest<T> {
+	/// Scheduled to be created at a given stacks block height.
+	Scheduled {
+		/// The stacks block height at which the transaction should be created.
+		block_height: u32,
+	},
 	/// Created and passed on to a task
 	Created,
 	/// Acknowledged by a task with the status update
