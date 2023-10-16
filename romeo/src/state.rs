@@ -479,9 +479,11 @@ impl State {
 				let deposit_tasks = deposits.iter_mut().filter_map(|deposit| {
 					match deposit.mint.as_mut() {
 						None => {
-							// We often receive the deposit before the transaction is actually mined.
-							// By scheduling the transaction for a block later than the current one we
-							// make ourselves resilient to mining delays without complex logic.
+							// We often receive the deposit before the
+							// transaction is actually mined. By scheduling the
+							// transaction for a block later than the current
+							// one we make ourselves resilient to mining delays
+							// without complex logic.
 							let scheduled_block_height = *stacks_block_height
 								+ MINT_TRANSACTION_DELAY_BLOCKS;
 							deposit.mint =
@@ -496,8 +498,9 @@ impl State {
 							block_height,
 						}) => {
 							if stacks_block_height.ge(&block_height) {
-								// Only initiate the mint task if the current stacks block is
-								// or is after the stacks block for which the mint is scheduled.
+								// Only initiate the mint task if the current
+								// stacks block is or is after the stacks block
+								// for which the mint is scheduled.
 								deposit.mint =
 									Some(TransactionRequest::Created);
 								info!(
