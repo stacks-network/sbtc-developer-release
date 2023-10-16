@@ -12,7 +12,7 @@ use sbtc_core::operations::{
 	op_return, op_return::withdrawal_request::WithdrawalRequestData,
 };
 use stacks_core::codec::Codec;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
 	config::Config,
@@ -22,7 +22,7 @@ use crate::{
 
 /// The delay in blocks between receiving a deposit request and creating
 /// the deposit transaction.
-const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 1;
+const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 3;
 
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -490,27 +490,19 @@ impl State {
 								Some(TransactionRequest::Scheduled {
 									block_height: scheduled_block_height,
 								});
-							info!("Scheduled deposit {} for minting on stacks block height {}.",
+							debug!("Scheduled deposit {} for minting on stacks block height {}.",
 								deposit.info.txid, scheduled_block_height);
 							None
 						}
 						Some(TransactionRequest::Scheduled {
 							block_height,
-						}) => {
-							if stacks_block_height.ge(&block_height) {
-								// Only initiate the mint task if the current
-								// stacks block is or is after the stacks block
-								// for which the mint is scheduled.
-								deposit.mint =
-									Some(TransactionRequest::Created);
-								info!(
-									"Created mint for {}.",
-									deposit.info.txid
-								);
-								Some(Task::CreateMint(deposit.info.clone()))
-							} else {
-								None
-							}
+						}) if (block_height <= stacks_block_height) => {
+							// Only initiate the mint task if the current
+							// stacks block is or is after the stacks block
+							// for which the mint is scheduled.
+							deposit.mint = Some(TransactionRequest::Created);
+							debug!("Created mint for {}.", deposit.info.txid);
+							Some(Task::CreateMint(deposit.info.clone()))
 						}
 						_ => None,
 					}
