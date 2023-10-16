@@ -266,18 +266,20 @@ impl StacksClient {
 		block_height: u32,
 	) -> anyhow::Result<Vec<StacksTransaction>> {
 		let res: Value = loop {
-			let inner_res: Value = self
+			let maybe_response: Result<Value, Error> = self
 				.send_request(|| {
 					self.http_client
 						.get(self.block_by_height_url(block_height))
 						.build()
 						.unwrap()
 				})
-				.await?;
+				.await;
 
-			if inner_res["txs"].is_array() {
-				trace!("Found Stacks block of height {}", block_height);
-				break inner_res;
+			if let Ok(inner_response) = maybe_response {
+				if inner_response["txs"].is_array() {
+					trace!("Found Stacks block of height {}", block_height);
+					break inner_response;
+				}
 			}
 
 			trace!("Stacks block not found, retrying...");
