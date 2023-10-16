@@ -20,10 +20,6 @@ use crate::{
 	task::Task,
 };
 
-/// The delay in blocks between receiving a deposit request and creating
-/// the deposit transaction.
-const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 1;
-
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum State {
@@ -476,6 +472,10 @@ impl State {
 				stacks_block_height,
 				..
 			} => {
+				/// The delay in blocks between receiving a deposit request and
+				/// creating the deposit transaction.
+				const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 1;
+
 				let deposit_tasks = deposits.iter_mut().filter_map(|deposit| {
 					match deposit.mint.as_mut() {
 						None => {
@@ -496,21 +496,13 @@ impl State {
 						}
 						Some(TransactionRequest::Scheduled {
 							block_height,
-						}) => {
-							if stacks_block_height.ge(&block_height) {
-								// Only initiate the mint task if the current
-								// stacks block is or is after the stacks block
-								// for which the mint is scheduled.
-								deposit.mint =
-									Some(TransactionRequest::Created);
-								info!(
-									"Created mint for {}.",
-									deposit.info.txid
-								);
-								Some(Task::CreateMint(deposit.info.clone()))
-							} else {
-								None
-							}
+						}) if stacks_block_height.ge(&block_height) => {
+							// Only initiate the mint task if the current
+							// stacks block is or is after the stacks block
+							// for which the mint is scheduled.
+							deposit.mint = Some(TransactionRequest::Created);
+							info!("Created mint for {}.", deposit.info.txid);
+							Some(Task::CreateMint(deposit.info.clone()))
 						}
 						_ => None,
 					}
