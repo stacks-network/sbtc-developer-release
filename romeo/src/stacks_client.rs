@@ -197,7 +197,8 @@ impl StacksClient {
 				.as_str()
 				.map(|s| s.to_string())
 				.expect("Could not get raw transaction from response"),
-			// Stacks node sometimes returns 404 for pending transactions :shrug:
+			// Stacks node sometimes returns 404 for pending transactions
+			// :shrug:
 			Err(err) if err.to_string().contains("404 Not Found") => {
 				"pending".to_string()
 			}
