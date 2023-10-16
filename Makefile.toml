@@ -51,7 +51,7 @@ dependencies = [
 [tasks.format-fmt]
 install_crate = "rustfmt" # uses the stable version.
 command = "cargo"
-args = ["fmt", "--check", "--verbose"]
+args = ["fmt", "--nightly", "--check", "--verbose"]
 
 [tasks.format-clippy]
 install_crate = "clippy" # uses the stable version.
