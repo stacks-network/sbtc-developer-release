@@ -81,6 +81,7 @@ impl StacksClient {
 				.execute(self.add_stacks_api_key(request_builder()))
 		})
 		.await?;
+
 		let status = res.status();
 		let body = res.text().await?;
 
@@ -181,7 +182,7 @@ impl StacksClient {
 		&mut self,
 		txid: StacksTxId,
 	) -> anyhow::Result<TransactionStatus> {
-		let res: Value = self
+		let res: anyhow::Result<Value> = self
 			.send_request(|| {
 				self.http_client
 					.get(self.cachebust(self.get_transation_details_url(txid)))
@@ -189,13 +190,21 @@ impl StacksClient {
 					.build()
 					.unwrap()
 			})
-			.await?;
+			.await;
 
-		let tx_status_str = res["tx_status"]
-			.as_str()
-			.expect("Could not get raw transaction from response");
+		let tx_status_str = match res {
+			Ok(json) => json["tx_status"]
+				.as_str()
+				.map(|s| s.to_string())
+				.expect("Could not get raw transaction from response"),
+			// Stacks node sometimes returns 404 for pending transactions :shrug:
+			Err(err) if err.to_string().contains("404 Not Found") => {
+				"pending".to_string()
+			}
+			err => panic!("Unknown transation status: {:?}", err),
+		};
 
-		Ok(match tx_status_str {
+		Ok(match tx_status_str.as_str() {
 			"pending" => TransactionStatus::Broadcasted,
 			"success" => TransactionStatus::Confirmed,
 			"abort_by_response" => TransactionStatus::Rejected,
