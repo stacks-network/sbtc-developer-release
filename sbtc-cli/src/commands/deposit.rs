@@ -14,7 +14,7 @@ use bdk::{
 };
 use clap::Parser;
 use sbtc_core::operations::op_return::deposit::build_deposit_transaction;
-use stacks_core::address::StacksAddress;
+use stacks_core::utils::PrincipalData;
 use url::Url;
 
 use crate::commands::utils;
@@ -68,13 +68,12 @@ pub fn build_deposit_tx(deposit: &DepositArgs) -> anyhow::Result<()> {
 
 	wallet.sync(&blockchain, SyncOptions::default())?;
 
-	let recipient_address =
-		StacksAddress::try_from(deposit.recipient.as_str())?;
+	let stx_recipient = PrincipalData::try_from(deposit.recipient.to_string())?;
 	let sbtc_wallet_address = BitcoinAddress::from_str(&deposit.sbtc_wallet)?;
 
 	let tx = build_deposit_transaction(
 		wallet,
-		recipient_address.into(),
+		stx_recipient,
 		sbtc_wallet_address,
 		deposit.amount,
 		deposit.network,

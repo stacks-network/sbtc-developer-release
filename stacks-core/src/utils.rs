@@ -111,6 +111,30 @@ impl From<StacksAddress> for PrincipalData {
 	}
 }
 
+impl From<String> for PrincipalData {
+	fn from(string: String) -> Self {
+		let parts: Vec<&str> = string.split('.').collect();
+
+		match parts.len() {
+			1 => {
+				let address = StacksAddress::try_from(parts[0]).unwrap();
+
+				Self::Standard(StandardPrincipalData::from(address))
+			}
+			2 => {
+				let address = StacksAddress::try_from(parts[0]).unwrap();
+				let contract_name = ContractName::new(parts[1]).unwrap();
+
+				Self::Contract(
+					StandardPrincipalData::from(address),
+					contract_name,
+				)
+			}
+			_ => panic!("Invalid principal data"),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -211,5 +235,25 @@ mod tests {
 			PrincipalData::deserialize(&mut &serialized[..]).unwrap();
 
 		assert_eq!(deserialized, expected_principal_data);
+	}
+
+	#[test]
+	fn should_principal_data_try_from_string() {
+		// addr = ST000000000000000000002AMW42H
+		let addr = StacksAddress::new(
+			AddressVersion::TestnetSingleSig,
+			Hash160Hasher::default(),
+		);
+		let principal_data: PrincipalData = PrincipalData::from(
+			"ST000000000000000000002AMW42H.helloworld".to_string(),
+		);
+
+		assert_eq!(
+			principal_data,
+			PrincipalData::Contract(
+				StandardPrincipalData(addr.version(), addr.clone()),
+				ContractName::new("helloworld").unwrap(),
+			)
+		);
 	}
 }
