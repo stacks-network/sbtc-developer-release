@@ -75,8 +75,6 @@ pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
 
 	wallet.sync(&blockchain, SyncOptions::default())?;
 
-	let broadcaster_bitcoin_private_key =
-		PrivateKey::from_wif(&withdrawal.wif)?;
 	let drawee_stacks_private_key =
 		PrivateKey::from_wif(&withdrawal.drawee_wif)?.inner;
 	let payee_bitcoin_address =
@@ -86,7 +84,7 @@ pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
 
 	let tx = sbtc_core::operations::op_return::withdrawal_request::build_withdrawal_tx(
         &wallet,
-        broadcaster_bitcoin_private_key,
+        withdrawal.network,
         drawee_stacks_private_key,
         payee_bitcoin_address,
         sbtc_wallet_bitcoin_address,

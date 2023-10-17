@@ -73,8 +73,8 @@ use bdk::{
 		blockdata::{opcodes::all::OP_RETURN, script::Instruction},
 		psbt::PartiallySignedTransaction,
 		secp256k1::{ecdsa::RecoverableSignature, Message, Secp256k1},
-		Address as BitcoinAddress, Network as BitcoinNetwork,
-		PrivateKey as BitcoinPrivateKey, Script, Transaction,
+		Address as BitcoinAddress, Network as BitcoinNetwork, Script,
+		Transaction,
 	},
 	database::BatchDatabase,
 	SignOptions, Wallet,
@@ -185,7 +185,7 @@ pub struct WithdrawalRequestData {
 /// Construct a withdrawal request transaction
 pub fn build_withdrawal_tx(
 	wallet: &Wallet<impl BatchDatabase>,
-	broadcaster_bitcoin_private_key: BitcoinPrivateKey,
+	bitcoin_network: BitcoinNetwork,
 	drawee_stacks_private_key: StacksPrivateKey,
 	payee_bitcoin_address: BitcoinAddress,
 	sbtc_wallet_bitcoin_address: BitcoinAddress,
@@ -199,7 +199,7 @@ pub fn build_withdrawal_tx(
 		&sbtc_wallet_bitcoin_address,
 		amount,
 		fulfillment_fee,
-		broadcaster_bitcoin_private_key.network,
+		bitcoin_network,
 	)?;
 
 	wallet
