@@ -22,7 +22,7 @@ use crate::{
 
 /// The delay in blocks between receiving a deposit request and creating
 /// the deposit transaction.
-const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 1;
+const STX_TRANSACTION_DELAY_BLOCKS: u32 = 1;
 
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -485,7 +485,7 @@ impl State {
 							// one we make ourselves resilient to mining delays
 							// without complex logic.
 							let scheduled_block_height = *stacks_block_height
-								+ MINT_TRANSACTION_DELAY_BLOCKS;
+								+ STX_TRANSACTION_DELAY_BLOCKS;
 
 							deposit.mint =
 								Some(TransactionRequest::Scheduled {
@@ -517,7 +517,7 @@ impl State {
 							None => {
 								let scheduled_block_height =
 									*stacks_block_height
-										+ MINT_TRANSACTION_DELAY_BLOCKS;
+										+ STX_TRANSACTION_DELAY_BLOCKS;
 
 								withdrawal.burn =
 									Some(TransactionRequest::Scheduled {
