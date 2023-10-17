@@ -25,9 +25,12 @@ FROM debian:stable-slim as runtime
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     coreutils \
+    nginx \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /bitcoin/bin/* /usr/local/bin
+
+COPY default.conf /etc/nginx/conf.d/default.conf
 
 ADD entrypoint.sh /usr/local/bin
 RUN chmod a+x /usr/local/bin/entrypoint.sh

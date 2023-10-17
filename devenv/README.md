@@ -94,6 +94,10 @@ explorer at:
 http://127.0.0.1:8083
 ```
 
+Additionally:
+- A Bitcoin Core RPC API is accessible at port 18443 (and proxied at port 18433 for CORS).
+- A Blockstream-like API (based on `mempool/electrs`) is accessible at port 3002.
+
 ### Stacks
 You can access the [Stacks Explorer](https://github.com/hirosystems/explorer)
 at:
@@ -124,6 +128,8 @@ The electrs service is running at:
 ```
 http://127.0.0.1:60401
 ```
+
+Additionally, the electrs service offers an HTTP API at port 3002 (based on `mempool/electrs`).
 
 ## sBTC Development
 If you would like to build sbtc standalone:
