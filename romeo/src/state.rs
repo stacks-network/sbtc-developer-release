@@ -12,13 +12,17 @@ use sbtc_core::operations::{
 	op_return, op_return::withdrawal_request::WithdrawalRequestData,
 };
 use stacks_core::codec::Codec;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
 	config::Config,
 	event::{Event, TransactionStatus},
 	task::Task,
 };
+
+/// The delay in blocks between receiving a deposit request and creating
+/// the deposit transaction.
+const STX_TRANSACTION_DELAY_BLOCKS: u32 = 1;
 
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -469,12 +473,38 @@ impl State {
 			State::Initialized {
 				deposits,
 				withdrawals,
+				stacks_block_height,
 				..
 			} => {
 				let deposit_tasks = deposits.iter_mut().filter_map(|deposit| {
 					match deposit.mint.as_mut() {
 						None => {
+							// We often receive the deposit before the
+							// transaction is actually mined. By scheduling the
+							// transaction for a block later than the current
+							// one we make ourselves resilient to mining delays
+							// without complex logic.
+							let scheduled_block_height = *stacks_block_height
+								+ STX_TRANSACTION_DELAY_BLOCKS;
+
+							deposit.mint =
+								Some(TransactionRequest::Scheduled {
+									block_height: scheduled_block_height,
+								});
+
+							debug!("Scheduled deposit {} for minting on stacks block height {}.",
+								deposit.info.txid, scheduled_block_height);
+
+							None
+						}
+						Some(TransactionRequest::Scheduled {
+							block_height,
+						}) if (*block_height <= *stacks_block_height) => {
+							// Only initiate the mint task if the current
+							// stacks block is or is after the stacks block
+							// for which the mint is scheduled.
 							deposit.mint = Some(TransactionRequest::Created);
+							debug!("Created mint for {}.", deposit.info.txid);
 							Some(Task::CreateMint(deposit.info.clone()))
 						}
 						_ => None,
@@ -485,8 +515,32 @@ impl State {
 					withdrawals.iter_mut().filter_map(|withdrawal| {
 						match withdrawal.burn.as_mut() {
 							None => {
+								let scheduled_block_height =
+									*stacks_block_height
+										+ STX_TRANSACTION_DELAY_BLOCKS;
+
+								withdrawal.burn =
+									Some(TransactionRequest::Scheduled {
+										block_height: scheduled_block_height,
+									});
+
+								debug!("Scheduled withdrawal {} for minting on stacks block height {}.",
+									withdrawal.info.txid, scheduled_block_height);
+
+								None
+							}
+							Some(TransactionRequest::Scheduled {
+								block_height,
+							}) if (*block_height <= *stacks_block_height) => {
+								// Only initiate the mint task if the current
+								// stacks block is or is after the stacks block
+								// for which the mint is scheduled.
 								withdrawal.burn =
 									Some(TransactionRequest::Created);
+								debug!(
+									"Created burn for {}.",
+									withdrawal.info.txid
+								);
 								Some(Task::CreateBurn(withdrawal.info.clone()))
 							}
 							_ => None,
@@ -738,6 +792,11 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 /// A transaction request
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TransactionRequest<T> {
+	/// Scheduled to be created at a given stacks block height.
+	Scheduled {
+		/// The stacks block height at which the transaction should be created.
+		block_height: u32,
+	},
 	/// Created and passed on to a task
 	Created,
 	/// Acknowledged by a task with the status update
