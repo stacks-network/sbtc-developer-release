@@ -22,7 +22,7 @@ use crate::{
 
 /// The delay in blocks between receiving a deposit request and creating
 /// the deposit transaction.
-const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 3;
+const MINT_TRANSACTION_DELAY_BLOCKS: u32 = 1;
 
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -486,17 +486,20 @@ impl State {
 							// without complex logic.
 							let scheduled_block_height = *stacks_block_height
 								+ MINT_TRANSACTION_DELAY_BLOCKS;
+
 							deposit.mint =
 								Some(TransactionRequest::Scheduled {
 									block_height: scheduled_block_height,
 								});
+
 							debug!("Scheduled deposit {} for minting on stacks block height {}.",
 								deposit.info.txid, scheduled_block_height);
+
 							None
 						}
 						Some(TransactionRequest::Scheduled {
 							block_height,
-						}) if (block_height <= stacks_block_height) => {
+						}) if (*block_height <= *stacks_block_height) => {
 							// Only initiate the mint task if the current
 							// stacks block is or is after the stacks block
 							// for which the mint is scheduled.
@@ -512,8 +515,32 @@ impl State {
 					withdrawals.iter_mut().filter_map(|withdrawal| {
 						match withdrawal.burn.as_mut() {
 							None => {
+								let scheduled_block_height =
+									*stacks_block_height
+										+ MINT_TRANSACTION_DELAY_BLOCKS;
+
+								withdrawal.burn =
+									Some(TransactionRequest::Scheduled {
+										block_height: scheduled_block_height,
+									});
+
+								debug!("Scheduled withdrawal {} for minting on stacks block height {}.",
+									withdrawal.info.txid, scheduled_block_height);
+
+								None
+							}
+							Some(TransactionRequest::Scheduled {
+								block_height,
+							}) if (*block_height <= *stacks_block_height) => {
+								// Only initiate the mint task if the current
+								// stacks block is or is after the stacks block
+								// for which the mint is scheduled.
 								withdrawal.burn =
 									Some(TransactionRequest::Created);
+								debug!(
+									"Created burn for {}.",
+									withdrawal.info.txid
+								);
 								Some(Task::CreateBurn(withdrawal.info.clone()))
 							}
 							_ => None,
