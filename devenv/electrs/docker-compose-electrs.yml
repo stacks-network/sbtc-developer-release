@@ -8,4 +8,5 @@ services:
       context: ./docker
     ports:
       - 60401:60401
+      - 3002:3002
     command: electrs
