@@ -6,6 +6,7 @@ use crate::{
 	address::{AddressVersion, StacksAddress},
 	codec::Codec,
 	contract_name::ContractName,
+	StacksError,
 };
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -111,26 +112,36 @@ impl From<StacksAddress> for PrincipalData {
 	}
 }
 
-impl From<String> for PrincipalData {
-	fn from(string: String) -> Self {
-		let parts: Vec<&str> = string.split('.').collect();
+impl TryFrom<String> for PrincipalData {
+	type Error = StacksError;
+
+	fn try_from(value: String) -> Result<Self, Self::Error> {
+		let parts: Vec<&str> = value.split('.').collect();
 
 		match parts.len() {
 			1 => {
-				let address = StacksAddress::try_from(parts[0]).unwrap();
-
-				Self::Standard(StandardPrincipalData::from(address))
+				let address = StacksAddress::try_from(parts[0])?;
+				Ok(Self::Standard(StandardPrincipalData::from(address)))
 			}
 			2 => {
-				let address = StacksAddress::try_from(parts[0]).unwrap();
-				let contract_name = ContractName::new(parts[1]).unwrap();
+				let address = StacksAddress::try_from(parts[0])?;
+				let contract_name = parts
+					.get(1)
+					.ok_or(StacksError::InvalidData("No contract name"))
+					.and_then(|name| {
+						ContractName::new(name).map_err(|_err| {
+							StacksError::InvalidData("Invalid contract name")
+						})
+					})?;
 
-				Self::Contract(
+				Ok(Self::Contract(
 					StandardPrincipalData::from(address),
 					contract_name,
-				)
+				))
 			}
-			_ => panic!("Invalid principal data"),
+			_ => Err(StacksError::InvalidData(
+				"Principal data may contain at most 1 dot character",
+			)),
 		}
 	}
 }
@@ -244,9 +255,10 @@ mod tests {
 			AddressVersion::TestnetSingleSig,
 			Hash160Hasher::default(),
 		);
-		let principal_data: PrincipalData = PrincipalData::from(
+		let principal_data: PrincipalData = PrincipalData::try_from(
 			"ST000000000000000000002AMW42H.helloworld".to_string(),
-		);
+		)
+		.unwrap();
 
 		assert_eq!(
 			principal_data,
@@ -254,6 +266,16 @@ mod tests {
 				StandardPrincipalData(addr.version(), addr.clone()),
 				ContractName::new("helloworld").unwrap(),
 			)
+		);
+	}
+
+	#[test]
+	fn should_fail_to_convert_invalid_string_to_principal_data() {
+		let result = PrincipalData::try_from("ST123.helloworld".to_string());
+
+		assert_eq!(
+			result.unwrap_err().to_string(),
+			"Invalid address version: 83"
 		);
 	}
 }
