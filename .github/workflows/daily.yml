@@ -73,7 +73,7 @@ jobs:
           override: true
 
       - name: Publish
-        uses: katyo/publish-crates@v2
+        uses: jo-tm/publish-crates@v2
         with:
           path: './sbtc-core'
           args: "--no-verify"
