@@ -1,6 +1,11 @@
 [workspace]
-members = ["sbtc-cli", "sbtc-core", "stacks-core", "romeo"]
-resolver = "2"
+
+[package]
+name = "sbtc-core" # the name of the package
+version = "0.1.0"    # the current version, obeying semve
+
+#members = ["sbtc-cli", "sbtc-core", "stacks-core", "romeo"]
+#resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
