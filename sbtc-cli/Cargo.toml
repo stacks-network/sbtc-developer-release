@@ -11,13 +11,11 @@ bdk = { workspace = true, features = ["keys-bip39", "rpc"] }
 clap = { workspace = true, features = ["derive"] }
 hex.workspace = true
 regex.workspace = true
+sbtc-core = "0.1.0"
 serde.workspace = true
 serde_json.workspace = true
+stacks-core = "0.1.0"
 url = { workspace = true, features = ["serde"] }
-
-[dev-dependencies]
-sbtc-core.workspace = true 
-stacks-core.workspace = true
 
 [[bin]]
 name = "sbtc"
