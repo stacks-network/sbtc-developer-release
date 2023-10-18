@@ -16,8 +16,8 @@ serde_json.workspace = true
 url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
-sbtc-core = { version = "0.1.0", path = "../sbtc-core" }
-stacks-core = { version = "0.1.0", path = "../stacks-core" }
+sbtc-core.workspace = true 
+stacks-core.workspace = true
 
 [[bin]]
 name = "sbtc"
