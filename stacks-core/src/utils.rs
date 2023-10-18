@@ -271,11 +271,23 @@ mod tests {
 
 	#[test]
 	fn should_fail_to_convert_invalid_string_to_principal_data() {
-		let result = PrincipalData::try_from("ST123.helloworld".to_string());
+		// try invalid address
+		let mut result =
+			PrincipalData::try_from("ST123.helloworld".to_string());
 
 		assert_eq!(
 			result.unwrap_err().to_string(),
 			"Could not crackford32 encode or decode: Invalid C32 address: ST123"
+		);
+
+		// try contract name with a space
+		result = PrincipalData::try_from(
+			"ST000000000000000000002AMW42H.hello contract".to_string(),
+		);
+
+		assert_eq!(
+			result.unwrap_err().to_string(),
+			"Invalid data: Invalid contract name"
 		);
 	}
 }
