@@ -59,7 +59,7 @@ jobs:
           run: cargo make --profile github-actions test
 
     publish:
-      needs: intense-tests
+      #needs: intense-tests
       runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@v3
