@@ -275,7 +275,7 @@ mod tests {
 
 		assert_eq!(
 			result.unwrap_err().to_string(),
-			"Invalid address version: 83"
+			"Could not crackford32 encode or decode: Invalid C32 address: ST123"
 		);
 	}
 }
