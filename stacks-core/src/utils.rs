@@ -125,13 +125,9 @@ impl TryFrom<String> for PrincipalData {
 			}
 			2 => {
 				let address = StacksAddress::try_from(parts[0])?;
-				let contract_name = parts
-					.get(1)
-					.ok_or(StacksError::InvalidData("No contract name"))
-					.and_then(|name| {
-						ContractName::new(name).map_err(|_err| {
-							StacksError::InvalidData("Invalid contract name")
-						})
+				let contract_name =
+					ContractName::new(parts[1]).map_err(|_err| {
+						StacksError::InvalidData("Invalid contract name")
 					})?;
 
 				Ok(Self::Contract(
