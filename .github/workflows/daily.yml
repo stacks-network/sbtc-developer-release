@@ -73,7 +73,7 @@ jobs:
           override: true
 
       - name: publish crates workspace
-        uses: jo-tm/publish-crates-workspace@v4
+        uses: jo-tm/publish-crates@v4
         with:
           #path: './sbtc-core'
           args: "--no-verify"
