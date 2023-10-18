@@ -24,7 +24,7 @@ once_cell.workspace = true
 p256k1.workspace = true
 regex.workspace = true
 sbtc-core = { version = "0.1.0" }
-stacks-core = { version = "0.1.0", path = "./stacks-core" }
+stacks-core = { version = "0.1.0" }
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 url.workspace = true
