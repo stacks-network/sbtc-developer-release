@@ -73,9 +73,9 @@ jobs:
           override: true
 
       - name: Publish
-        uses: jo-tm/publish-crates@v2
+        uses: jo-tm/publish-crates-workspace@v3
         with:
-          path: './sbtc-core'
+          #path: './sbtc-core'
           args: "--no-verify"
           #publish-delay: 1000 # Wait 1 second between publishing dependencies.
           #ignore-unpublished-changes: true
