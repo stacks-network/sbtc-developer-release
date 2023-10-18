@@ -103,7 +103,7 @@ You can access the [Stacks Explorer](https://github.com/hirosystems/explorer)
 at:
 
 ```
-http://127.0.0.1:3020/?chain=testnet
+http://127.0.0.1:3020/?chain=testnet&api=http://127.0.0.1:3999
 ```
 It's important to use the above URL, as it can parse blocks properly.
 
