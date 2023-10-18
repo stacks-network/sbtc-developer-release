@@ -3,10 +3,10 @@ name: Pull Request
 on:
   pull_request:
     branches: "main"
-    paths-ignore: ['**.md']
+    paths-ignore: ["**.md"]
   push:
     branches: "main"
-    paths-ignore: ['**.md']
+    paths-ignore: ["**.md"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,62 +15,62 @@ jobs:
   generate-lockfile:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo generate-lockfile -v
-    - uses: actions/upload-artifact@v3
-      with:
-        name: Cargo.lock
-        path: Cargo.lock
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo generate-lockfile -v
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Cargo.lock
+          path: Cargo.lock
 
   linter:
     needs: generate-lockfile
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/download-artifact@v3
-      with:
-        name: Cargo.lock
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: Cargo.lock
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
-        components: rustfmt, clippy
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
 
-    - uses: davidB/rust-cargo-make@v1
-      with:
-        version: "0.36.13"
+      - uses: davidB/rust-cargo-make@v1
+        with:
+          version: "0.36.13"
 
-    - name: Lint
-      run: cargo make --profile github-actions format
+      - name: Lint
+        run: cargo make --profile github-actions format
 
   coverage:
     needs: clarinet
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/download-artifact@v3
-      with:
-        name: Cargo.lock
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: Cargo.lock
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
 
-    - uses: davidB/rust-cargo-make@v1
-      with:
-        version: "0.36.13"
+      - uses: davidB/rust-cargo-make@v1
+        with:
+          version: "0.36.13"
 
-    - name: Coverage
-      run: cargo make --profile github-actions coverage-lcov
+      - name: Coverage
+        run: cargo make --profile github-actions coverage-lcov
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./coverage/lcov.info
-        fail_ci_if_error: true
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: true
 
   clarinet:
     needs: linter
@@ -139,11 +139,10 @@ jobs:
       - name: Use Node
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: ./romeo/asset-contract/package-lock.json
       - run: npm ci
         working-directory: ./romeo/asset-contract
       - run: npm run test
         working-directory: ./romeo/asset-contract
-
