@@ -69,10 +69,10 @@ jobs:
       - name: Publish
         uses: katyo/publish-crates@v2
         with:
-          path: './sbtc-core'
-          args: "--verbose"
+          #path: './sbtc-core'
+          args: "--no-verify"
           publish-delay: 1000 # Wait 1 second between publishing dependencies.
-          ignore-unpublished-changes: true
+          #ignore-unpublished-changes: true
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
     devenv:
