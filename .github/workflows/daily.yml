@@ -69,6 +69,7 @@ jobs:
       - name: Publish
         uses: katyo/publish-crates@v2
         with:
+          path: './sbtc-core'
           args: "--verbose"
           publish-delay: 1000 # Wait 1 second between publishing dependencies.
           ignore-unpublished-changes: true
