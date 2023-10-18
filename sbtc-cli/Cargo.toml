@@ -12,6 +12,7 @@ clap = { workspace = true, features = ["derive"] }
 hex.workspace = true
 regex.workspace = true
 sbtc-core.workspace = true
+sbtc-core.version = "0.1.0"
 serde.workspace = true
 serde_json.workspace = true
 stacks-core.workspace = true
