@@ -187,3 +187,17 @@ dependencies = ["clean", "format", "coverage", "release"]
 
 [tasks.default]
 run_task = "pr-validation"
+
+# Integration
+# ----------
+#[tasks.build-devenv]
+#command = "./build.sh"
+
+[tasks.build-testbed]
+command = "pushd integration && ./bin/build && popd"
+
+
+[tasks.integration]
+#dependencies = ["build-devenv", "build-testbed"]
+dependencies = ["build-testbed"]
+command = "./integration/bin/test"

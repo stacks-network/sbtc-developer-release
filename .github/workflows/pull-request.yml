@@ -120,14 +120,20 @@ jobs:
           filters: |
             devenv:
               - 'devenv/**'
-
+      - uses: actions/upload-artifact@v3
+        with:
+          name: docker-images
+          path: /tmp/images
       - name: Checkout
         if: steps.changes.outputs.devenv == 'true'
         uses: actions/checkout@v3
 
       - name: Build devenv containers
         if: steps.changes.outputs.devenv == 'true'
-        run: ./devenv/build.sh
+        run: |
+          ./devenv/build.sh
+          mkdir /tmp/images
+          docker save -o /tmp/images/bulk.tar $(docker images -q)
 
   vitest:
     runs-on: ubuntu-latest
@@ -146,3 +152,19 @@ jobs:
         working-directory: ./romeo/asset-contract
       - run: npm run test
         working-directory: ./romeo/asset-contract
+
+  integretion:
+    runs-on: ubuntu-latest
+    needs: ["linter", "devenv"]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: docker-images
+          path: /tmp/images
+      - uses: davidB/rust-cargo-make@v1
+        with:
+          version: "0.36.13"
+
+      - run: "docker load --input /tmp/images/bulk.tar"
+      #- run: "cargo make integration"
