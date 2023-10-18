@@ -31,5 +31,4 @@ wsts = "1.2"
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std_rng"] }
-stacks-core.workspace = true
 
