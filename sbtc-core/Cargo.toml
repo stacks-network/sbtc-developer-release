@@ -17,17 +17,27 @@ version = "0.1.0"
 homepage = "https://www.stacks.co"
 
 [dependencies]
+bdk = "0.28.1"
 bdk.workspace = true
+hex = "0.4.3"
 hex.workspace = true
+log = "0.4.19"
 log.workspace = true
+once_cell = "1.18.0"
 once_cell.workspace = true
+p256k1 = "5.1"
 p256k1.workspace = true
+regex = "~1.8.4"
 regex.workspace = true
 sbtc-core = { version = "0.1.0" }
 stacks-core = { version = "0.1.0" }
+strum = "0.25.0"
 strum = { workspace = true, features = ["derive"] }
+thiserror = "1.0.43"
 thiserror.workspace = true
+url = "2.4.1"
 url.workspace = true
+wsts = "1.2"
 wsts.workspace = true
 
 [dev-dependencies]
