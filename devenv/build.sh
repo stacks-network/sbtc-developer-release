@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
-CWD=$(dirname "$0")
-docker compose -f $CWD/docker-compose.yml build
+
+DIR=$(dirname "$0")
+
+docker compose -f $DIR/docker-compose.yml build

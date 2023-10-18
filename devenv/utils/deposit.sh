@@ -13,15 +13,13 @@ stacks_address=$(source $dir/get_credentials.sh | jq -r '.credentials["1"].stack
 
 amount=$((RANDOM%9000+1000))
 
-json=$($dir/../sbtc/bin/sbtc deposit \
+json=$(sbtc deposit \
     -w $btc_wif \
     -n regtest \
     -r $stacks_address \
     -a $amount \
     -s $sbtc_wallet_address \
-    -u electrs:60401)
-
-echo $json
+    -u localhost:60401)
 
 if [ $? -ne 0 ]; then
     echo 'The deposit failed, did you forget to run "mine_btc.sh"?'
@@ -30,6 +28,4 @@ fi
 
 tx=$(echo -n $json | jq -r .hex)
 
-echo $tx
-
-$dir/../sbtc/bin/sbtc broadcast electrs:60401 $tx | jq -r .
+sbtc broadcast localhost:60401 $tx | jq -r .

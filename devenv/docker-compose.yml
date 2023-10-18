@@ -146,76 +146,76 @@ services:
       - miner
     environment:
       RUST_BACKTRACE: 1
-  sbtc:
-    image: sbtc:latest
-    container_name: sbtc
-    stop_grace_period: 5s
-    build:
-      context: ./../
-      dockerfile: ./devenv/sbtc/docker/Dockerfile
-    depends_on:
-      - bitcoin
-      - stacks
-      - stacks-explorer
-      - stacks-api
-      - mempool-web
-      - miner
-    environment:
-      RUST_BACKTRACE: 1
-    volumes:
-      - $PWD/sbtc/docker/config.json:/romeo/config.json
-  sbtc-bridge-api:
-    image: sbtc-bridge-api:latest
-    container_name: sbtc-bridge-api
-    stop_grace_period: 5s
-    build:
-      context: ./sbtc-bridge-api/docker
-      args:
-        BRIDGE_GIT_URI: https://github.com/stacks-network/sbtc-bridge-api.git
-        BRIDGE_GIT_BRANCH: main
-    depends_on:
-      - bitcoin
-      - miner
-      - stacks
-      - stacks-api
-      - mempool-web
-      - postgres
-      - stacks-explorer
-      - mongodb
-      - sbtc
-    ports:
-      - 3010:3010
-    environment:
-      NODE_ENV: dev
-      btcNode: bitcoin:18443
-      btcRpcUser: devnet
-      btcRpcPwd: devnet
-      network: testnet
-      bitcoinExplorerUrl: http://mempool-web:8083
-      stacksExplorerUrl: http://stacks-explorer:3020
-      stacksApi: http://stacks-api:3999
-      sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
-      mongoDbUrl: mongodb
-      mongoDbName: devnet
-      mongoUser: devnet
-      mongoPwd: devnet
-  sbtc-bridge-web:
-    image: sbtc-bridge-web:latest
-    container_name: sbtc-bridge-web
-    stop_grace_period: 5s
-    build:
-      context: ./sbtc-bridge-web/docker
-    depends_on:
-      - bitcoin
-      - stacks
-      - stacks-explorer
-      - stacks-api
-      - mempool-web
-      - miner
-      - sbtc
-      - sbtc-bridge-api
-    ports:
-      - 8080:8080
+  # sbtc:
+  #   image: sbtc:latest
+  #   container_name: sbtc
+  #   stop_grace_period: 5s
+  #   build:
+  #     context: ./../
+  #     dockerfile: ./devenv/sbtc/docker/Dockerfile
+  #   depends_on:
+  #     - bitcoin
+  #     - stacks
+  #     - stacks-explorer
+  #     - stacks-api
+  #     - mempool-web
+  #     - miner
+  #   environment:
+  #     RUST_BACKTRACE: 1
+  #   volumes:
+  #     - $PWD/sbtc/docker/config.json:/romeo/config.json
+  # sbtc-bridge-api:
+  #   image: sbtc-bridge-api:latest
+  #   container_name: sbtc-bridge-api
+  #   stop_grace_period: 5s
+  #   build:
+  #     context: ./sbtc-bridge-api/docker
+  #     args:
+  #       BRIDGE_GIT_URI: https://github.com/stacks-network/sbtc-bridge-api.git
+  #       BRIDGE_GIT_BRANCH: main
+  #   depends_on:
+  #     - bitcoin
+  #     - miner
+  #     - stacks
+  #     - stacks-api
+  #     - mempool-web
+  #     - postgres
+  #     - stacks-explorer
+  #     - mongodb
+  #     - sbtc
+  #   ports:
+  #     - 3010:3010
+  #   environment:
+  #     NODE_ENV: dev
+  #     btcNode: bitcoin:18443
+  #     btcRpcUser: devnet
+  #     btcRpcPwd: devnet
+  #     network: testnet
+  #     bitcoinExplorerUrl: http://mempool-web:8083
+  #     stacksExplorerUrl: http://stacks-explorer:3020
+  #     stacksApi: http://stacks-api:3999
+  #     sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
+  #     mongoDbUrl: mongodb
+  #     mongoDbName: devnet
+  #     mongoUser: devnet
+  #     mongoPwd: devnet
+  # sbtc-bridge-web:
+  #   image: sbtc-bridge-web:latest
+  #   container_name: sbtc-bridge-web
+  #   stop_grace_period: 5s
+  #   build:
+  #     context: ./sbtc-bridge-web/docker
+  #   depends_on:
+  #     - bitcoin
+  #     - stacks
+  #     - stacks-explorer
+  #     - stacks-api
+  #     - mempool-web
+  #     - miner
+  #     - sbtc
+  #     - sbtc-bridge-api
+  #   ports:
+  #     - 8080:8080
   mempool-web:
     image: mempool/frontend:latest
     container_name: mempool-web
