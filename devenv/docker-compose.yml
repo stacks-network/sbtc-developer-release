@@ -2,34 +2,13 @@ version: '3.2'
 
 services:
   bitcoin:
-    image: bitcoin:latest
-    container_name: bitcoin
-    stop_grace_period: 5s
-    build:
-      context: ./bitcoin/docker
-      args:
-        VERSION: '25.0'
-    ports:
-      - 18444:18444
-      - 18443:18443
-      - 18433:18433
-    environment:
-      - 'BTC_NETWORK=regtest'
-      - 'BTC_DISABLEWALLET=0'
-      - 'BTC_TXINDEX=1'
-      - 'BTC_RPCBIND=0.0.0.0'
-      - 'BTC_RPCALLOWIP=0.0.0.0/0'
-      - 'BTC_RPCPASSWORD=devnet'
-      - 'BTC_RPCUSER=devnet'
+    extends:
+      file: min-docker-compose.yml
+      service: bitcoin
   postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    stop_grace_period: 5s
-    ports:
-      - 5432:5432
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+    extends:
+      file: min-docker-compose.yml
+      service: postgres
   mongodb:
     image: mongo:6.0
     container_name: mongodb
@@ -63,56 +42,13 @@ services:
       INIT_BTC_BLOCKS: 200
       BTC_BLOCK_GEN_TIME: 10
   stacks:
-    image: stacks:latest
-    container_name: stacks
-    stop_grace_period: 5s
-    build:
-      context: ./stacks/docker
-      args:
-        STACKS_NODE_VERSION: '2.4.0.0.0'
-        GIT_URI: https://github.com/stacks-network/stacks-blockchain.git
-        GIT_BRANCH: develop
-    ports:
-      - 20444:20444
-      - 20443:20443
-    depends_on:
-      - bitcoin
-      - miner
-    environment:
-      - STACKS_LOG_DEBUG=0
-      - STACKS_LOG_JSON=0
+    extends:
+      file: min-docker-compose.yml
+      service: stacks
   stacks-api:
-    image: stacks-api:latest
-    container_name: stacks-api
-    stop_grace_period: 5s
-    build:
-      context: ./stacks-api/docker
-      args:
-       GIT_URI: 'https://github.com/hirosystems/stacks-blockchain-api.git'
-       GIT_BRANCH: 'v7.3.0'
-    ports:
-      - 3999:3999
-      - 3700:3700
-    depends_on:
-      - postgres
-      - stacks
-      - bitcoin
-    environment:
-      - NODE_ENV=production
-      - GIT_TAG=master
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - PG_USER=postgres
-      - PG_PASSWORD=postgres
-      - PG_DATABASE=postgres
-      - STACKS_CHAIN_ID=0x80000000
-      - STACKS_CORE_EVENT_PORT=3700
-      - STACKS_CORE_EVENT_HOST=0.0.0.0
-      - STACKS_BLOCKCHAIN_API_PORT=3999
-      - STACKS_BLOCKCHAIN_API_HOST=0.0.0.0
-      - STACKS_CORE_RPC_HOST=stacks
-      - STACKS_CORE_RPC_PORT=20443
-      - API_DOCS_URL=http://localhost:3999/doc
+    extends:
+      file: min-docker-compose.yml
+      service: stacks-api
   stacks-explorer:
     image: stacks-explorer
     container_name: stacks-explorer
@@ -133,19 +69,9 @@ services:
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
   electrs:
-    image: electrs:latest
-    container_name: electrs
-    stop_grace_period: 5s
-    build:
-      context: ./electrs/docker
-    ports:
-      - 60401:60401
-      - 3002:3002
-    depends_on:
-      - bitcoin
-      - miner
-    environment:
-      RUST_BACKTRACE: 1
+    extends:
+      file: min-docker-compose.yml
+      service: electrs
   sbtc:
     image: sbtc:latest
     container_name: sbtc

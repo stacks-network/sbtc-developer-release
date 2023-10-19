@@ -1,2 +1,8 @@
 #!/usr/bin/env bash
-docker compose down
+
+set -ueo >/dev/null
+
+FLAGS=""
+source ./common.sh
+
+run $@
