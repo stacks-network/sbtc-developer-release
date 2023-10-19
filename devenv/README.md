@@ -1,7 +1,7 @@
 # Docker Based Development Environment
 
-This is a collection of Dockerized services to provide a simple 
-standalone development environment to sBTC developers. It also 
+This is a collection of Dockerized services to provide a simple
+standalone development environment to sBTC developers. It also
 includes some helper scripts to make it easier to operate.
 
 ## Docker and Docker Compose
@@ -16,7 +16,7 @@ To use this environment, you must install:
 In order to deploy the environment, you must first build the images.
 
 ```
-cd devenv 
+cd devenv
 ./build.sh
 ```
 
@@ -36,7 +36,7 @@ cd devenv
 ./up.sh
 ```
 
-By default, this will start a BTC node on regtest, 
+By default, this will start a BTC node on regtest,
 STX node on mocknet, stacks-api and database.
 
 If you prefer to run a specific container:
@@ -68,14 +68,14 @@ There is a helper script at the top level directory to facilitate logging:
 ## Services
 
 ### Miner
-There is a BTC mining service which will create a legacy wallet, 
-importaddress for UXTO monitoring that is defined in the stacks 
+There is a BTC mining service which will create a legacy wallet,
+importaddress for UXTO monitoring that is defined in the stacks
 Config.toml.
 
-By default it automatically mines 200 blocks initially, and 
+By default it automatically mines 200 blocks initially, and
 generates 1 block every ten seconds from there on.
 
-If you want to customize these values you can, update the 
+If you want to customize these values you can, update the
 variables in the docker-compose.yml:
 
 ```
@@ -142,10 +142,10 @@ cd /devenv/sbtc
 After the deployment is up, generate a new private key:
 
 ```
-./devenv/sbtc/bin/sbtc generate-from new
+./devenv/sbtc/bin/sbtc generate-from -b regtest -s testnet new
 ```
 
-Take the WIF + mnemonic phrase and update the sbtc config:
+Take the mnemonic phrase and update the sbtc config:
 
 ```
 cd /devenv/sbtc/docker/
@@ -168,7 +168,7 @@ mnemonic:"twice kind fence tip hidden tilt action fragile skin nothing glory cou
 secret_key: 753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601
 stx_address: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
 btc_address: mqVnk6NPRdhntvfm4hh9vvjiRkFDUuSYsHddress
-balance: 100000000000000 
+balance: 100000000000000
 ```
 #### Wallet 1
 ```
@@ -268,15 +268,15 @@ cd devenv/bitcoin
 ./down.sh
 ```
 
-## Persistence 
+## Persistence
 
-At the moment, the container data will not persist. However it is 
+At the moment, the container data will not persist. However it is
 easy to add persistent storage volumes if needed.
 
 ## TODO
 
 - Why does it take stacks so long to start mining blocks?
-- Write a wrapper to wait for the stacks API to 
+- Write a wrapper to wait for the stacks API to
   populate before running romeo
 - Investigate Docker Compose Fragment and Extensions.
 - Add Bridge webapp and API
