@@ -51,7 +51,7 @@ pub enum StacksError {
 	CodecError(#[from] CodecError),
 	#[error("Invalid data: {0}")]
 	/// Invalid data
-	InvalidData(&'static str),
+	InvalidData(String),
 	/// BIP32 Error
 	#[error("BIP32 error: {0}")]
 	BIP32(#[from] bdk::bitcoin::util::bip32::Error),
