@@ -126,8 +126,10 @@ impl TryFrom<String> for PrincipalData {
 			2 => {
 				let address = StacksAddress::try_from(parts[0])?;
 				let contract_name =
-					ContractName::new(parts[1]).map_err(|_err| {
-						StacksError::InvalidData("Invalid contract name")
+					ContractName::new(parts[1]).map_err(|err| {
+						StacksError::InvalidData(format!(
+							"Invalid contract name from {value}: {err}"
+						))
 					})?;
 
 				Ok(Self::Contract(
@@ -135,9 +137,9 @@ impl TryFrom<String> for PrincipalData {
 					contract_name,
 				))
 			}
-			_ => Err(StacksError::InvalidData(
-				"Principal data may contain at most 1 dot character",
-			)),
+			_ => Err(StacksError::InvalidData(format!(
+				"Principal data from {value} may contain at most 1 dot character"
+			))),
 		}
 	}
 }
