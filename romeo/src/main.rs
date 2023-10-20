@@ -15,7 +15,7 @@ async fn main() -> anyhow::Result<()> {
 		.init();
 
 	let args = romeo::config::Cli::parse();
-	let config = romeo::config::Config::from_path(args.config_file)?;
+	let config = romeo::config::Config::try_from_path(args.config_file)?;
 
 	romeo::system::run(config).await;
 

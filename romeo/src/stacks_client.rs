@@ -521,7 +521,7 @@ mod tests {
 	#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 	#[ignore]
 	async fn get_nonce_info() {
-		let config = Config::from_path("./testing/config.json")
+		let config = Config::try_from_path("./testing/config.json")
 			.expect("Failed to find config file");
 		let http_client = reqwest::Client::new();
 
@@ -534,7 +534,7 @@ mod tests {
 	#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 	#[ignore]
 	async fn get_fee_rate() {
-		let config = Config::from_path("./testing/config.json")
+		let config = Config::try_from_path("./testing/config.json")
 			.expect("Failed to find config file");
 		let http_client = reqwest::Client::new();
 
