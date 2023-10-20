@@ -275,7 +275,7 @@ mod tests {
 
 		assert_eq!(
 			result.unwrap_err().to_string(),
-			"Could not crackford32 encode or decode: Invalid C32 address: ST123"
+			StacksError::C32Error(crate::c32::C32Error::InvalidAddress("ST123".into())).to_string()
 		);
 
 		// try contract name with a space
