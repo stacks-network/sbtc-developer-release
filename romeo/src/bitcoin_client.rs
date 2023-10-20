@@ -270,6 +270,7 @@ mod tests {
 			stacks_credentials,
 			stacks_network,
 			hiro_api_key: None,
+			strict: true,
 		};
 
 		let client = Client::new(conf.clone()).unwrap();

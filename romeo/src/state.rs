@@ -142,7 +142,7 @@ impl State {
 				self.process_set_contract_public_key(txid)
 			}
 			Event::StacksTransactionUpdate(txid, status) => self
-				.process_stacks_transaction_update(txid, status)
+				.process_stacks_transaction_update(txid, status, config)
 				.into_iter()
 				.collect(),
 			Event::BitcoinTransactionUpdate(txid, status) => self
@@ -221,6 +221,7 @@ impl State {
 		&mut self,
 		txid: StacksTxId,
 		status: TransactionStatus,
+		config: &Config,
 	) -> Vec<Task> {
 		let mut tasks = self.get_bitcoin_transactions();
 
@@ -238,17 +239,32 @@ impl State {
 					has_pending_task,
 				} = public_key_setup
 				else {
-					panic!("Got an {:?} status update for a public key set Stacks transaction that is not acknowledged: {}", status, txid);
+					if config.strict {
+						panic!("Got an {:?} status update for a public key set Stacks transaction that is not acknowledged: {}", status, txid);
+					} else {
+						debug!("Ignoring a Stacks transaction update for a non acknowledged transaction");
+						return vec![];
+					}
 				};
 
 				if txid != *current_txid {
-					panic!("Got an {:?} status update for a Stacks transaction that is not public key set: {}", status, txid);
+					if config.strict {
+						panic!("Got an {:?} status update for a Stacks transaction that is not public key set: {}", status, txid);
+					} else {
+						debug!("Ignoring a Stacks transaction update for a non public key set transaction");
+						return vec![];
+					}
 				}
 
 				if !*has_pending_task {
-					panic!(
-			            "Got an {:?} status update for a public key set Stacks transaction that doesn't have a pending task: {}", status, txid
-			        );
+					if config.strict {
+						panic!(
+				            "Got an {:?} status update for a public key set Stacks transaction that doesn't have a pending task: {}", status, txid
+				        );
+					} else {
+						debug!("Ignoring a Stacks transaction update for a transaction that doesn't have a pending task");
+						return vec![];
+					}
 				}
 
 				*current_status = status.clone();
