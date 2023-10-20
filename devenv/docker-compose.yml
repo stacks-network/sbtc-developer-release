@@ -150,6 +150,7 @@ services:
     image: sbtc:latest
     container_name: sbtc
     stop_grace_period: 5s
+    restart: on-failure
     build:
       context: ./../
       dockerfile: ./devenv/sbtc/docker/Dockerfile
