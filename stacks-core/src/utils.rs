@@ -285,7 +285,7 @@ mod tests {
 
 		assert_eq!(
 			result.unwrap_err().to_string(),
-			"Invalid data: Invalid contract name from ST000000000000000000002AMW42H.hello contract: Format should follow the contract name specification"
+			StacksError::InvalidData("Invalid contract name from ST000000000000000000002AMW42H.hello contract: Format should follow the contract name specification".into()).to_string()
 		);
 	}
 }
