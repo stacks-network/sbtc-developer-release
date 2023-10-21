@@ -66,13 +66,13 @@ pub fn deposit_reveal_unsigned_tx(
 	deposit_data: DepositData,
 	reveal_inputs: RevealInputs,
 	commit_amount: Amount,
-	peg_wallet_address: BitcoinAddress,
+	sbtc_wallet_address: BitcoinAddress,
 ) -> CommitRevealResult<Transaction> {
 	let mut tx = reveal(&deposit_data.serialize_to_vec(), reveal_inputs)?;
 
 	tx.output.push(TxOut {
 		value: (commit_amount - deposit_data.reveal_fee).to_sat(),
-		script_pubkey: peg_wallet_address.script_pubkey(),
+		script_pubkey: sbtc_wallet_address.script_pubkey(),
 	});
 
 	Ok(tx)

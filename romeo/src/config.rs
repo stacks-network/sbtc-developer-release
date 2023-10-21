@@ -56,6 +56,9 @@ pub struct Config {
 
 	/// optional api key used for the stacks node
 	pub hiro_api_key: Option<String>,
+
+	/// Strict mode
+	pub strict: bool,
 }
 
 impl Config {
@@ -95,6 +98,7 @@ impl Config {
 				config_file.contract_name.as_str(),
 			),
 			hiro_api_key,
+			strict: config_file.strict.unwrap_or_default(),
 		})
 	}
 
@@ -141,6 +145,9 @@ struct ConfigFile {
 
 	/// optional api key used for the stacks node
 	pub hiro_api_key: Option<String>,
+
+	/// Strict mode
+	pub strict: Option<bool>,
 }
 
 impl ConfigFile {

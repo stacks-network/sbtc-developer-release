@@ -48,9 +48,9 @@ pub struct WithdrawalArgs {
 	#[clap(short, long)]
 	fulfillment_fee: u64,
 
-	/// Bitcoin address of the peg wallet
+	/// Bitcoin address of the sbtc wallet
 	#[clap(short, long)]
-	peg_wallet: String,
+	sbtc_wallet: String,
 }
 
 pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
@@ -75,21 +75,19 @@ pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
 
 	wallet.sync(&blockchain, SyncOptions::default())?;
 
-	let broadcaster_bitcoin_private_key =
-		PrivateKey::from_wif(&withdrawal.wif)?;
 	let drawee_stacks_private_key =
 		PrivateKey::from_wif(&withdrawal.drawee_wif)?.inner;
 	let payee_bitcoin_address =
 		BitcoinAddress::from_str(&withdrawal.payee_address)?;
-	let peg_wallet_bitcoin_address =
-		BitcoinAddress::from_str(&withdrawal.peg_wallet)?;
+	let sbtc_wallet_bitcoin_address =
+		BitcoinAddress::from_str(&withdrawal.sbtc_wallet)?;
 
 	let tx = sbtc_core::operations::op_return::withdrawal_request::build_withdrawal_tx(
         &wallet,
-        broadcaster_bitcoin_private_key,
+        withdrawal.network,
         drawee_stacks_private_key,
         payee_bitcoin_address,
-        peg_wallet_bitcoin_address,
+        sbtc_wallet_bitcoin_address,
         withdrawal.amount,
         withdrawal.fulfillment_fee,
     )?;

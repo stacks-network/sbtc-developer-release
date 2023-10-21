@@ -26,8 +26,7 @@
 (define-read-only (reverse-buff32 (input (buff 32)))
 	(unwrap-panic (as-max-len? (concat
 		(reverse-buff16 (unwrap-panic (as-max-len? (unwrap-panic (slice? input u16 u32)) u16)))
-		(reverse-buff16 (unwrap-panic (as-max-len? (unwrap-panic (slice? input u0 u16)) u16)))
-	) u32)))
+		(reverse-buff16 (unwrap-panic (as-max-len? (unwrap-panic (slice? input u0 u16)) u16)))) u32)))
 
 (define-read-only (get-burn-block-header-hash (burn-height uint))
 	(if DEBUG-MODE (map-get? debug-burn-header-hashes burn-height) (get-burn-block-info? header-hash burn-height)))
@@ -48,10 +47,10 @@
 ;; * if the ith bit is 0, then cur-hash is hashed before the next proof-hash (cur-hash is "left").
 ;; * if the ith bit is 1, then the next proof-hash is hashed before cur-hash (cur-hash is "right").
 ;; The proof verifies if cur-hash is equal to root-hash, and we're out of proof-hashes to check.
-(define-read-only (inner-merkle-proof-verify (ctr uint) (state { path: uint, root-hash: (buff 32), proof-hashes: (list 14 (buff 32)), tree-depth: uint, cur-hash: (buff 32), verified: bool}))
+(define-read-only (inner-merkle-proof-verify (ctr uint) (state { path: uint, root-hash: (buff 32), proof-hashes: (list 14 (buff 32)), cur-hash: (buff 32), verified: bool}))
 		(if (get verified state)
 				state
-				(if (>= ctr (get tree-depth state))
+				(if (>= ctr (len (get proof-hashes state)))
 						(merge state { verified: false})
 						(let ((path (get path state))
 									(is-left (is-bit-set path ctr))
@@ -75,21 +74,20 @@
 ;; Returns (ok true) if the proof is valid.
 ;; Returns (ok false) if the proof is invalid.
 ;; Returns (err ERR-PROOF-TOO-SHORT) if the proof's hashes aren't long enough to link the txid to the merkle root.
-(define-read-only (verify-merkle-proof (reversed-txid (buff 32)) (merkle-root (buff 32)) (proof { tx-index: uint, hashes: (list 14 (buff 32)), tree-depth: uint}))
-		(if (> (get tree-depth proof) (len (get hashes proof)))
-				ERR-PROOF-TOO-SHORT
-				(ok
-					(get verified
-							(fold inner-merkle-proof-verify
-									(unwrap-panic (slice? (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9 u10 u11 u12 u13) u0 (get tree-depth proof)))
-									{ path: (+ (pow u2 (get tree-depth proof)) (get tx-index proof)), root-hash: merkle-root, proof-hashes: (get hashes proof), cur-hash: reversed-txid, tree-depth: (get tree-depth proof), verified: false})))))
+(define-read-only (verify-merkle-proof (reversed-txid (buff 32)) (merkle-root (buff 32)) (proof { tx-index: uint, hashes: (list 14 (buff 32))}))
+	(let ((proof-hashes (get hashes proof))
+		  (proof-length (len proof-hashes)))
+		(get verified
+			(fold inner-merkle-proof-verify
+					(unwrap-panic (slice? (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9 u10 u11 u12 u13) u0 proof-length))
+					{ path: (+ (pow u2 proof-length) (get tx-index proof)), root-hash: merkle-root, proof-hashes: proof-hashes, cur-hash: reversed-txid, verified: false}))))
 
 
 (define-read-only (was-txid-mined
 	(height uint)
 	(txid (buff 32))
 	(header (buff 80))
-	(proof { tx-index: uint, hashes: (list 14 (buff 32)), tree-depth: uint}))
+	(proof { tx-index: uint, hashes: (list 14 (buff 32))}))
 	(let ((merkle-root-reversed (unwrap-panic (as-max-len? (unwrap! (slice? header block-header-merkle-root-start block-header-merkle-root-end) ERR-INVALID-BLOCK-HEADER-LENGTH) u32))))
 		(asserts! (verify-block-header header height) ERR-HEADER-HEIGHT-MISMATCH)
-		(ok (asserts! (try! (verify-merkle-proof (reverse-buff32 txid) merkle-root-reversed proof)) ERR-INVALID-MERKLE-PROOF))))
+		(ok (asserts! (verify-merkle-proof (reverse-buff32 txid) merkle-root-reversed proof) ERR-INVALID-MERKLE-PROOF))))

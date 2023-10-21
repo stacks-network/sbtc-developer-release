@@ -12,13 +12,17 @@ use sbtc_core::operations::{
 	op_return, op_return::withdrawal_request::WithdrawalRequestData,
 };
 use stacks_core::codec::Codec;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
 	config::Config,
 	event::{Event, TransactionStatus},
 	task::Task,
 };
+
+/// The delay in blocks between receiving a deposit request and creating
+/// the deposit transaction.
+const STX_TRANSACTION_DELAY_BLOCKS: u32 = 1;
 
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -138,7 +142,7 @@ impl State {
 				self.process_set_contract_public_key(txid)
 			}
 			Event::StacksTransactionUpdate(txid, status) => self
-				.process_stacks_transaction_update(txid, status)
+				.process_stacks_transaction_update(txid, status, config)
 				.into_iter()
 				.collect(),
 			Event::BitcoinTransactionUpdate(txid, status) => self
@@ -217,6 +221,7 @@ impl State {
 		&mut self,
 		txid: StacksTxId,
 		status: TransactionStatus,
+		config: &Config,
 	) -> Vec<Task> {
 		let mut tasks = self.get_bitcoin_transactions();
 
@@ -234,17 +239,32 @@ impl State {
 					has_pending_task,
 				} = public_key_setup
 				else {
-					panic!("Got an {:?} status update for a public key set Stacks transaction that is not acknowledged: {}", status, txid);
+					if config.strict {
+						panic!("Got an {:?} status update for a public key set Stacks transaction that is not acknowledged: {}", status, txid);
+					} else {
+						debug!("Ignoring a Stacks transaction update for a non acknowledged transaction");
+						return vec![];
+					}
 				};
 
 				if txid != *current_txid {
-					panic!("Got an {:?} status update for a Stacks transaction that is not public key set: {}", status, txid);
+					if config.strict {
+						panic!("Got an {:?} status update for a Stacks transaction that is not public key set: {}", status, txid);
+					} else {
+						debug!("Ignoring a Stacks transaction update for a non public key set transaction");
+						return vec![];
+					}
 				}
 
 				if !*has_pending_task {
-					panic!(
-			            "Got an {:?} status update for a public key set Stacks transaction that doesn't have a pending task: {}", status, txid
-			        );
+					if config.strict {
+						panic!(
+				            "Got an {:?} status update for a public key set Stacks transaction that doesn't have a pending task: {}", status, txid
+				        );
+					} else {
+						debug!("Ignoring a Stacks transaction update for a transaction that doesn't have a pending task");
+						return vec![];
+					}
 				}
 
 				*current_status = status.clone();
@@ -469,12 +489,38 @@ impl State {
 			State::Initialized {
 				deposits,
 				withdrawals,
+				stacks_block_height,
 				..
 			} => {
 				let deposit_tasks = deposits.iter_mut().filter_map(|deposit| {
 					match deposit.mint.as_mut() {
 						None => {
+							// We often receive the deposit before the
+							// transaction is actually mined. By scheduling the
+							// transaction for a block later than the current
+							// one we make ourselves resilient to mining delays
+							// without complex logic.
+							let scheduled_block_height = *stacks_block_height
+								+ STX_TRANSACTION_DELAY_BLOCKS;
+
+							deposit.mint =
+								Some(TransactionRequest::Scheduled {
+									block_height: scheduled_block_height,
+								});
+
+							debug!("Scheduled deposit {} for minting on stacks block height {}.",
+								deposit.info.txid, scheduled_block_height);
+
+							None
+						}
+						Some(TransactionRequest::Scheduled {
+							block_height,
+						}) if (*block_height <= *stacks_block_height) => {
+							// Only initiate the mint task if the current
+							// stacks block is or is after the stacks block
+							// for which the mint is scheduled.
 							deposit.mint = Some(TransactionRequest::Created);
+							debug!("Created mint for {}.", deposit.info.txid);
 							Some(Task::CreateMint(deposit.info.clone()))
 						}
 						_ => None,
@@ -485,8 +531,32 @@ impl State {
 					withdrawals.iter_mut().filter_map(|withdrawal| {
 						match withdrawal.burn.as_mut() {
 							None => {
+								let scheduled_block_height =
+									*stacks_block_height
+										+ STX_TRANSACTION_DELAY_BLOCKS;
+
+								withdrawal.burn =
+									Some(TransactionRequest::Scheduled {
+										block_height: scheduled_block_height,
+									});
+
+								debug!("Scheduled withdrawal {} for minting on stacks block height {}.",
+									withdrawal.info.txid, scheduled_block_height);
+
+								None
+							}
+							Some(TransactionRequest::Scheduled {
+								block_height,
+							}) if (*block_height <= *stacks_block_height) => {
+								// Only initiate the mint task if the current
+								// stacks block is or is after the stacks block
+								// for which the mint is scheduled.
 								withdrawal.burn =
 									Some(TransactionRequest::Created);
+								debug!(
+									"Created burn for {}.",
+									withdrawal.info.txid
+								);
 								Some(Task::CreateBurn(withdrawal.info.clone()))
 							}
 							_ => None,
@@ -702,7 +772,7 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 			)
 			.ok()
 			.filter(|parsed_withdrawal| {
-				parsed_withdrawal.peg_wallet == sbtc_wallet_address
+				parsed_withdrawal.sbtc_wallet == sbtc_wallet_address
 			})
 			.map(
 				|WithdrawalRequestData {
@@ -738,6 +808,11 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 /// A transaction request
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TransactionRequest<T> {
+	/// Scheduled to be created at a given stacks block height.
+	Scheduled {
+		/// The stacks block height at which the transaction should be created.
+		block_height: u32,
+	},
 	/// Created and passed on to a task
 	Created,
 	/// Acknowledged by a task with the status update

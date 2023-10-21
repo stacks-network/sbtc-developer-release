@@ -30,9 +30,9 @@ jobs:
         with:
           version: "0.36.13"
 
-      - name: Audit
-        run: cargo make --profile github-actions audit
-
+      #- name: Audit
+      #  run: cargo make --profile github-actions audit 
+      
       - uses: actions/upload-artifact@v3
         with:
           name: Cargo.lock

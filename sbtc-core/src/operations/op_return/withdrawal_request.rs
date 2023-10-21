@@ -15,7 +15,7 @@
 //!
 //! 1. data output
 //! 2. Bitcoin address to send the BTC to
-//! 3. Fulfillment fee payment to the peg wallet
+//! 3. Fulfillment fee payment to the sbtc wallet
 //!
 //! The data output should contain data in the following byte format:
 //!
@@ -45,7 +45,11 @@
 //! ```
 //!
 //! This prefix is by convention always [`STACKS_SIGNATURE_PREFIX`]. Message
-//! data is a concatenation of the amount (BE bytes) and the pubkey script of
+//! data is a concatenation the string
+//! `Withdraw request for <amount> satoshis to the bitcoin address <btc address>
+//! (<encoded data>)`
+//! and the hex encoded string in round brackets
+//! of the amount (BE bytes) and the pubkey script of
 //! the recipient Bitcoin address.
 //!
 //! ```text
@@ -53,6 +57,12 @@
 //! |----------------|-------------------------------------------------------------|
 //! amount                             pubkey script
 //! ```
+//!
+//! Example for a request of 1000 sats to
+//! tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms: `Withdraw request for 1000
+//! satoshis to the bitcoin address
+//! tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms
+//! (00000000000003e80014764ad6983a6455cca54cd6a4f7b0da71ba6a0bab)`
 //!
 //! It is also by convention that we always produce a P2PKH Stacks address from
 //! the recovered public key.
@@ -63,8 +73,8 @@ use bdk::{
 		blockdata::{opcodes::all::OP_RETURN, script::Instruction},
 		psbt::PartiallySignedTransaction,
 		secp256k1::{ecdsa::RecoverableSignature, Message, Secp256k1},
-		Address as BitcoinAddress, Network as BitcoinNetwork,
-		PrivateKey as BitcoinPrivateKey, Script, Transaction,
+		Address as BitcoinAddress, Network as BitcoinNetwork, Script,
+		Transaction,
 	},
 	database::BatchDatabase,
 	SignOptions, Wallet,
@@ -140,7 +150,7 @@ pub fn try_parse_withdrawal_request(
 	let fulfillment_fee_output =
 		output_iter.next().ok_or(SBTCError::NotSBTCOperation)?;
 
-	let peg_wallet = BitcoinAddress::from_script(
+	let sbtc_wallet = BitcoinAddress::from_script(
 		&fulfillment_fee_output.script_pubkey,
 		network,
 	)
@@ -152,7 +162,7 @@ pub fn try_parse_withdrawal_request(
 		amount: withdrawal_data.amount(),
 		signature: withdrawal_data.signature(),
 		fulfillment_amount: fulfillment_fee_output.value,
-		peg_wallet,
+		sbtc_wallet,
 	})
 }
 
@@ -164,10 +174,10 @@ pub struct WithdrawalRequestData {
 	pub drawee_stacks_address: StacksAddress,
 	/// How much to withdraw
 	pub amount: u64,
-	/// How much to pay the peg wallet for the fulfillment
+	/// How much to pay the sbtc wallet for the fulfillment
 	pub fulfillment_amount: u64,
-	/// The address of the peg wallet
-	pub peg_wallet: BitcoinAddress,
+	/// The address of the sbtc wallet
+	pub sbtc_wallet: BitcoinAddress,
 	/// Signature that authenticates the withdrawal request
 	pub signature: RecoverableSignature,
 }
@@ -175,10 +185,10 @@ pub struct WithdrawalRequestData {
 /// Construct a withdrawal request transaction
 pub fn build_withdrawal_tx(
 	wallet: &Wallet<impl BatchDatabase>,
-	broadcaster_bitcoin_private_key: BitcoinPrivateKey,
+	bitcoin_network: BitcoinNetwork,
 	drawee_stacks_private_key: StacksPrivateKey,
 	payee_bitcoin_address: BitcoinAddress,
-	peg_wallet_bitcoin_address: BitcoinAddress,
+	sbtc_wallet_bitcoin_address: BitcoinAddress,
 	amount: u64,
 	fulfillment_fee: u64,
 ) -> SBTCResult<Transaction> {
@@ -186,10 +196,10 @@ pub fn build_withdrawal_tx(
 		wallet,
 		&drawee_stacks_private_key,
 		&payee_bitcoin_address,
-		&peg_wallet_bitcoin_address,
+		&sbtc_wallet_bitcoin_address,
 		amount,
 		fulfillment_fee,
-		broadcaster_bitcoin_private_key.network,
+		bitcoin_network,
 	)?;
 
 	wallet
@@ -206,7 +216,7 @@ pub fn create_psbt<D: BatchDatabase>(
 	wallet: &Wallet<D>,
 	drawee_stacks_private_key: &StacksPrivateKey,
 	payee_bitcoin_address: &BitcoinAddress,
-	peg_wallet_bitcoin_address: &BitcoinAddress,
+	sbtc_wallet_bitcoin_address: &BitcoinAddress,
 	amount: u64,
 	fulfillment_amount: u64,
 	network: BitcoinNetwork,
@@ -214,7 +224,7 @@ pub fn create_psbt<D: BatchDatabase>(
 	let outputs = create_outputs(
 		drawee_stacks_private_key,
 		payee_bitcoin_address,
-		peg_wallet_bitcoin_address,
+		sbtc_wallet_bitcoin_address,
 		amount,
 		fulfillment_amount,
 		network,
@@ -243,22 +253,22 @@ pub fn create_psbt<D: BatchDatabase>(
 pub fn create_outputs(
 	drawee_stacks_private_key: &StacksPrivateKey,
 	payee_bitcoin_address: &BitcoinAddress,
-	peg_wallet_bitcoin_address: &BitcoinAddress,
+	sbtc_wallet_bitcoin_address: &BitcoinAddress,
 	amount: u64,
 	fulfillment_amount: u64,
 	network: BitcoinNetwork,
 ) -> SBTCResult<[(Script, u64); 3]> {
 	let recipient_script = payee_bitcoin_address.script_pubkey();
-	let dkg_wallet_script = peg_wallet_bitcoin_address.script_pubkey();
+	let sbtc_wallet_script = sbtc_wallet_bitcoin_address.script_pubkey();
 
 	// Check that we have enough to cover dust
 	let recipient_dust_amount = recipient_script.dust_value().to_sat();
-	let dkg_wallet_dust_amount = dkg_wallet_script.dust_value().to_sat();
+	let sbtc_wallet_dust_amount = sbtc_wallet_script.dust_value().to_sat();
 
-	if fulfillment_amount < dkg_wallet_dust_amount {
+	if fulfillment_amount < sbtc_wallet_dust_amount {
 		return Err(SBTCError::AmountInsufficient(
 			fulfillment_amount,
-			dkg_wallet_dust_amount,
+			sbtc_wallet_dust_amount,
 		));
 	}
 
@@ -275,7 +285,7 @@ pub fn create_outputs(
 	let outputs = [
 		(op_return_script, 0),
 		(recipient_script, recipient_dust_amount),
-		(dkg_wallet_script, fulfillment_amount),
+		(sbtc_wallet_script, fulfillment_amount),
 	];
 
 	Ok(outputs)
@@ -431,8 +441,16 @@ pub fn create_withdrawal_request_signing_message(
 		.chain(amount.serialize_to_vec())
 		.chain(payee_bitcoin_address.script_pubkey().as_bytes().to_vec())
 		.collect();
-
-	create_signing_message(signing_data)
+	// Wallets do not allow to sign bytes, instead a string is required.
+	// The following string is used until more wallets support signing
+	// withdrawal requests.
+	let wallet_compatible_data = format!(
+		"Withdraw request for {:} satoshis to the bitcoin address {:} ({:})",
+		amount,
+		payee_bitcoin_address,
+		hex::encode(signing_data)
+	);
+	create_signing_message(wallet_compatible_data)
 }
 
 /// Creates the SECP signing message. It prepends the data with the
@@ -448,4 +466,29 @@ pub fn create_signing_message(data: impl AsRef<[u8]>) -> Message {
 
 	Message::from_slice(Sha256Hasher::new(msg_content).as_ref())
 		.expect("Could not create secp message")
+}
+
+// test that create signing message returns correct hash
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_create_signing_message() {
+		let address: BitcoinAddress =
+			"tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms"
+				.parse()
+				.unwrap();
+		let amount = 1000;
+		let msg_hash =
+			create_withdrawal_request_signing_message(amount, &address);
+
+		// expected is the sha256 hash of
+		// `Withdraw request for 1000 satoshis to the bitcoin address
+		// tb1qwe9ddxp6v32uef2v66j00vx6wxax5zat223tms
+		// (00000000000003e80014764ad6983a6455cca54cd6a4f7b0da71ba6a0bab)`
+		let expected_msg_hash =
+			"744eee0ee13d6649dd6b0fe203d2cb0af32e5d0b57a7c046c782019e8d562056";
+		assert_eq!(msg_hash.to_string(), expected_msg_hash);
+	}
 }

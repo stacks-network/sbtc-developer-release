@@ -11,6 +11,7 @@ services:
     ports:
       - 18444:18444
       - 18443:18443
+      - 18433:18433
     environment:
       - 'BTC_NETWORK=regtest'
       - 'BTC_DISABLEWALLET=0'

@@ -19,7 +19,7 @@ use blockstack_lib::{
 };
 use futures::Future;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use reqwest::{Request, RequestBuilder};
+use reqwest::{Request, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use stacks_core::{codec::Codec, uint::Uint256};
@@ -27,7 +27,7 @@ use tokio::{
 	sync::{Mutex, MutexGuard},
 	time::sleep,
 };
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use crate::{config::Config, event::TransactionStatus};
 
@@ -81,6 +81,7 @@ impl StacksClient {
 				.execute(self.add_stacks_api_key(request_builder()))
 		})
 		.await?;
+
 		let status = res.status();
 		let body = res.text().await?;
 
@@ -181,7 +182,7 @@ impl StacksClient {
 		&mut self,
 		txid: StacksTxId,
 	) -> anyhow::Result<TransactionStatus> {
-		let res: Value = self
+		let res: anyhow::Result<Value> = self
 			.send_request(|| {
 				self.http_client
 					.get(self.cachebust(self.get_transation_details_url(txid)))
@@ -189,13 +190,22 @@ impl StacksClient {
 					.build()
 					.unwrap()
 			})
-			.await?;
+			.await;
 
-		let tx_status_str = res["tx_status"]
-			.as_str()
-			.expect("Could not get raw transaction from response");
+		let tx_status_str = match res {
+			Ok(json) => json["tx_status"]
+				.as_str()
+				.map(|s| s.to_string())
+				.expect("Could not get raw transaction from response"),
+			// Stacks node sometimes returns 404 for pending transactions
+			// :shrug:
+			Err(err) if err.to_string().contains("404 Not Found") => {
+				"pending".to_string()
+			}
+			err => panic!("Unknown transation status: {:?}", err),
+		};
 
-		Ok(match tx_status_str {
+		Ok(match tx_status_str.as_str() {
 			"pending" => TransactionStatus::Broadcasted,
 			"success" => TransactionStatus::Confirmed,
 			"abort_by_response" => TransactionStatus::Rejected,
@@ -266,18 +276,20 @@ impl StacksClient {
 		block_height: u32,
 	) -> anyhow::Result<Vec<StacksTransaction>> {
 		let res: Value = loop {
-			let inner_res: Value = self
+			let maybe_response: Result<Value, Error> = self
 				.send_request(|| {
 					self.http_client
 						.get(self.block_by_height_url(block_height))
 						.build()
 						.unwrap()
 				})
-				.await?;
+				.await;
 
-			if inner_res["txs"].is_array() {
-				trace!("Found Stacks block of height {}", block_height);
-				break inner_res;
+			if let Ok(inner_response) = maybe_response {
+				if inner_response["txs"].is_array() {
+					trace!("Found Stacks block of height {}", block_height);
+					break inner_response;
+				}
 			}
 
 			trace!("Stacks block not found, retrying...");
@@ -456,23 +468,39 @@ struct NonceInfo {
 	possible_next_nonce: u64,
 }
 
-async fn retry<T, O, Fut>(operation: O) -> anyhow::Result<T>
+async fn retry<O, Fut>(operation: O) -> anyhow::Result<Response>
 where
 	O: Clone + Fn() -> Fut,
-	Fut: Future<Output = Result<T, reqwest::Error>>,
+	Fut: Future<Output = Result<Response, reqwest::Error>>,
 {
 	let operation = || async {
-		operation.clone()().await.map_err(|err| {
-			if err.is_request() {
-				backoff::Error::transient(anyhow::anyhow!(err))
-			} else {
-				backoff::Error::permanent(anyhow::anyhow!(err))
-			}
-		})
+		operation.clone()()
+			.await
+			.and_then(Response::error_for_status)
+			.map_err(|err| {
+				if err.is_request() {
+					backoff::Error::transient(anyhow::anyhow!(err))
+				} else if err.is_status() {
+					// Impossible not to have a status code at this section. May
+					// as well be a teapot.
+					let status_code_number = err
+						.status()
+						.unwrap_or(StatusCode::IM_A_TEAPOT)
+						.as_u16();
+					match status_code_number {
+						429 | 522 => {
+							backoff::Error::transient(anyhow::anyhow!(err))
+						}
+						_ => backoff::Error::permanent(anyhow::anyhow!(err)),
+					}
+				} else {
+					backoff::Error::permanent(anyhow::anyhow!(err))
+				}
+			})
 	};
 
 	let notify = |err, duration| {
-		trace!("Retrying in {:?} after error: {:?}", duration, err);
+		warn!("Retrying in {:?} after error: {:?}", duration, err);
 	};
 
 	backoff::future::retry_notify(

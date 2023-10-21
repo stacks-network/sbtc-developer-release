@@ -11,7 +11,7 @@ import {
   types,
 } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
 
-export class MintCommand implements AssetCommand {
+export class MintCommand_500 implements AssetCommand {
   readonly sender: Account;
   readonly amount: number;
   readonly wallet: Account;
@@ -30,26 +30,14 @@ export class MintCommand implements AssetCommand {
   }
 
   check(model: Readonly<Stub>): boolean {
-    // Can mint if sender is the deployer.
-    //
-    // Note that this is filtered at the generator level. So you don't need to
-    // check here.
-    //
-    // If you don't filter at the generator level, you can check here but then
-    // if you return false from here the command is 'discarded'.
-    //
-    // What discard means is that if you are generating 1000 commands, and 100
-    // of them are filtered out here, then you end up running 900 commands. If
-    // you filter at the generator level, however, you will run 1000 commands.
     const btcTxHex = uint8ArrayToHexString(this.params.depositTx);
-    if (model.transactions.find(([tx, _amount, _wallet]) => tx === btcTxHex)) {
-      return false;
-    }
-
-    return true;
+    const wasTxHexAlreadyUsed = model.transactions.some(([tx]) =>
+      tx === btcTxHex
+    );
+    return wasTxHexAlreadyUsed;
   }
 
-  run(model: Stub, real: Real): void {
+  run(_model: Stub, real: Real): void {
     const block = real.chain.mineBlock([
       Tx.contractCall(
         "clarity-bitcoin-mini",
@@ -76,19 +64,11 @@ export class MintCommand implements AssetCommand {
       ),
     ]);
 
-    block.receipts.map(({ result }) => result.expectOk());
-
-    const balance = model.wallets.get(this.wallet.address) ?? 0;
-    model.wallets.set(this.wallet.address, balance + this.amount);
-
-    model.transactions.push([
-      uint8ArrayToHexString(this.params.depositTx),
-      this.amount,
-      this.wallet,
-    ]);
+    block.receipts[0].result.expectOk();
+    block.receipts[1].result.expectErr().expectUint(500);
 
     console.log(
-      `✓ ${this.sender.name.padStart(8, " ")} ${"mint".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")}`
+      `! ${this.sender.name.padStart(8, " ")} ${"mint".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")} (expected, same bitcoin tx)`
     );
   }
 

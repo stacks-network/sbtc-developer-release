@@ -4,7 +4,7 @@
 //! Deposit is a Bitcoin transaction with the output structure as below:
 //!
 //! 1. data output
-//! 2. payment to peg wallet address
+//! 2. payment to sbtc wallet address
 //!
 //! The data output should contain data in the following byte format:
 //!
@@ -67,7 +67,7 @@ use crate::{
 pub fn build_deposit_transaction<T: BatchDatabase>(
 	wallet: Wallet<T>,
 	recipient: PrincipalData,
-	dkg_address: BitcoinAddress,
+	sbtc_address: BitcoinAddress,
 	amount: u64,
 	network: Network,
 ) -> SBTCResult<Transaction> {
@@ -77,14 +77,14 @@ pub fn build_deposit_transaction<T: BatchDatabase>(
 		DepositOutputData { network, recipient }.serialize_to_vec();
 	let op_return_script = build_op_return_script(&deposit_data);
 
-	let dkg_script = dkg_address.script_pubkey();
-	let dust_amount = dkg_script.dust_value().to_sat();
+	let sbtc_wallet_script = sbtc_address.script_pubkey();
+	let dust_amount = sbtc_wallet_script.dust_value().to_sat();
 
 	if amount < dust_amount {
 		return Err(SBTCError::AmountInsufficient(amount, dust_amount));
 	}
 
-	let outputs = [(op_return_script, 0), (dkg_script, amount)];
+	let outputs = [(op_return_script, 0), (sbtc_wallet_script, amount)];
 
 	for (script, amount) in outputs.clone() {
 		tx_builder.add_recipient(script, amount);
@@ -240,7 +240,7 @@ impl Codec for DepositOutputData {
 fn create_partially_signed_deposit_transaction(
 	wallet: &Wallet<MemoryDatabase>,
 	recipient: PrincipalData,
-	dkg_address: &BitcoinAddress,
+	sbtc_address: &BitcoinAddress,
 	amount: u64,
 	network: Network,
 ) -> SBTCResult<PartiallySignedTransaction> {
@@ -249,14 +249,14 @@ fn create_partially_signed_deposit_transaction(
 	let deposit_data =
 		DepositOutputData { network, recipient }.serialize_to_vec();
 	let op_return_script = build_op_return_script(&deposit_data);
-	let dkg_script = dkg_address.script_pubkey();
-	let dust_amount = dkg_script.dust_value().to_sat();
+	let sbtc_wallet_script = sbtc_address.script_pubkey();
+	let dust_amount = sbtc_wallet_script.dust_value().to_sat();
 
 	if amount < dust_amount {
 		return Err(SBTCError::AmountInsufficient(amount, dust_amount));
 	}
 
-	let outputs = [(op_return_script, 0), (dkg_script, amount)];
+	let outputs = [(op_return_script, 0), (sbtc_wallet_script, amount)];
 
 	for (script, amount) in outputs.clone() {
 		tx_builder.add_recipient(script, amount);
@@ -280,14 +280,14 @@ pub fn deposit(
 	depositor_private_key: PrivateKey,
 	recipient: PrincipalData,
 	amount: u64,
-	dkg_address: &BitcoinAddress,
+	sbtc_address: &BitcoinAddress,
 ) -> SBTCResult<Transaction> {
 	let wallet = setup_wallet(depositor_private_key)?;
 
 	let mut psbt = create_partially_signed_deposit_transaction(
 		&wallet,
 		recipient,
-		dkg_address,
+		sbtc_address,
 		amount,
 		depositor_private_key.network,
 	)?;
