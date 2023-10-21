@@ -2,7 +2,8 @@ version: '3.2'
 
 services:
   bitcoin:
-    image: bitcoin:latest
+    image: blockstack/sbtc:devenv-bitcoin
+    platform: "linux/amd64"
     container_name: bitcoin
     stop_grace_period: 5s
     build:
@@ -52,7 +53,8 @@ services:
       MYSQL_PASSWORD: "mempool"
       MYSQL_ROOT_PASSWORD: "admin"
   miner:
-    image: miner:latest
+    image: blockstack/sbtc:devenv-miner
+    platform: "linux/amd64"
     container_name: miner
     stop_grace_period: 5s
     build:
@@ -63,7 +65,8 @@ services:
       INIT_BTC_BLOCKS: 200
       BTC_BLOCK_GEN_TIME: 10
   stacks:
-    image: stacks:latest
+    image: blockstack/sbtc:devenv-stacks
+    platform: "linux/amd64"
     container_name: stacks
     stop_grace_period: 5s
     build:
@@ -82,7 +85,8 @@ services:
       - STACKS_LOG_DEBUG=0
       - STACKS_LOG_JSON=0
   stacks-api:
-    image: stacks-api:latest
+    image: blockstack/sbtc:devenv-stacks-api
+    platform: "linux/amd64"
     container_name: stacks-api
     stop_grace_period: 5s
     build:
@@ -114,7 +118,8 @@ services:
       - STACKS_CORE_RPC_PORT=20443
       - API_DOCS_URL=http://localhost:3999/doc
   stacks-explorer:
-    image: stacks-explorer
+    image: blockstack/sbtc:devenv-stacks-explorer
+    platform: "linux/amd64"
     container_name: stacks-explorer
     stop_grace_period: 5s
     build:
@@ -133,7 +138,8 @@ services:
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
   electrs:
-    image: electrs:latest
+    image: blockstack/sbtc:devenv-electrs
+    platform: "linux/amd64"
     container_name: electrs
     stop_grace_period: 5s
     build:
@@ -147,7 +153,8 @@ services:
     environment:
       RUST_BACKTRACE: 1
   sbtc:
-    image: sbtc:latest
+    image: blockstack/sbtc:devenv-sbtc
+    platform: "linux/amd64"
     container_name: sbtc
     stop_grace_period: 5s
     restart: on-failure
@@ -166,7 +173,8 @@ services:
     volumes:
       - $PWD/sbtc/docker/config.json:/romeo/config.json
   sbtc-bridge-api:
-    image: sbtc-bridge-api:latest
+    image: blockstack/sbtc:devenv-sbtc-bridge-api
+    platform: "linux/amd64"
     container_name: sbtc-bridge-api
     stop_grace_period: 5s
     build:
@@ -201,7 +209,8 @@ services:
       mongoUser: devnet
       mongoPwd: devnet
   sbtc-bridge-web:
-    image: sbtc-bridge-web:latest
+    image: blockstack/sbtc:devenv-sbtc-bridge-web
+    platform: "linux/amd64"
     container_name: sbtc-bridge-web
     stop_grace_period: 5s
     build:
