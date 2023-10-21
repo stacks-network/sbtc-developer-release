@@ -24,6 +24,7 @@ services:
       - 'BTC_RPCUSER=devnet'
   postgres:
     image: postgres:15-alpine
+    shm_size: 256MB
     container_name: postgres
     stop_grace_period: 5s
     ports:
