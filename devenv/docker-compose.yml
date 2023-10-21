@@ -2,8 +2,7 @@ version: '3.2'
 
 services:
   bitcoin:
-    image: blockstack/sbtc:devenv-bitcoin
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-bitcoin
     container_name: bitcoin
     stop_grace_period: 5s
     build:
@@ -54,8 +53,7 @@ services:
       MYSQL_PASSWORD: "mempool"
       MYSQL_ROOT_PASSWORD: "admin"
   miner:
-    image: blockstack/sbtc:devenv-miner
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-miner
     container_name: miner
     stop_grace_period: 5s
     build:
@@ -66,8 +64,7 @@ services:
       INIT_BTC_BLOCKS: 200
       BTC_BLOCK_GEN_TIME: 10
   stacks:
-    image: blockstack/sbtc:devenv-stacks
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-stacks
     container_name: stacks
     stop_grace_period: 5s
     build:
@@ -87,7 +84,6 @@ services:
       - STACKS_LOG_JSON=0
   stacks-api:
     image: wileyj/sbtc:devenv-stacks-api 
-    # platform: "linux/amd64"
     container_name: stacks-api
     stop_grace_period: 5s
     build:
@@ -119,8 +115,7 @@ services:
       - STACKS_CORE_RPC_PORT=20443
       - API_DOCS_URL=http://localhost:3999/doc
   stacks-explorer:
-    image: blockstack/sbtc:devenv-stacks-explorer
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-stacks-explorer
     container_name: stacks-explorer
     stop_grace_period: 5s
     build:
@@ -139,8 +134,7 @@ services:
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
   electrs:
-    image: blockstack/sbtc:devenv-electrs
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-electrs
     container_name: electrs
     stop_grace_period: 5s
     build:
@@ -154,8 +148,7 @@ services:
     environment:
       RUST_BACKTRACE: 1
   sbtc:
-    image: blockstack/sbtc:devenv-sbtc
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-sbtc
     container_name: sbtc
     stop_grace_period: 5s
     restart: on-failure
@@ -174,8 +167,7 @@ services:
     volumes:
       - $PWD/sbtc/docker/config.json:/romeo/config.json
   sbtc-bridge-api:
-    image: blockstack/sbtc:devenv-sbtc-bridge-api
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-sbtc-bridge-api
     container_name: sbtc-bridge-api
     stop_grace_period: 5s
     build:
@@ -210,8 +202,7 @@ services:
       mongoUser: devnet
       mongoPwd: devnet
   sbtc-bridge-web:
-    image: blockstack/sbtc:devenv-sbtc-bridge-web
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-sbtc-bridge-web
     container_name: sbtc-bridge-web
     stop_grace_period: 5s
     build:
