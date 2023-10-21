@@ -6,6 +6,7 @@ use crate::{
 	address::{AddressVersion, StacksAddress},
 	codec::Codec,
 	contract_name::ContractName,
+	StacksError,
 };
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -111,6 +112,38 @@ impl From<StacksAddress> for PrincipalData {
 	}
 }
 
+impl TryFrom<String> for PrincipalData {
+	type Error = StacksError;
+
+	fn try_from(value: String) -> Result<Self, Self::Error> {
+		let parts: Vec<&str> = value.split('.').collect();
+
+		match parts.len() {
+			1 => {
+				let address = StacksAddress::try_from(parts[0])?;
+				Ok(Self::Standard(StandardPrincipalData::from(address)))
+			}
+			2 => {
+				let address = StacksAddress::try_from(parts[0])?;
+				let contract_name =
+					ContractName::new(parts[1]).map_err(|err| {
+						StacksError::InvalidData(format!(
+							"Invalid contract name from {value}: {err}"
+						))
+					})?;
+
+				Ok(Self::Contract(
+					StandardPrincipalData::from(address),
+					contract_name,
+				))
+			}
+			_ => Err(StacksError::InvalidData(format!(
+				"Principal data from {value} may contain at most 1 dot character"
+			))),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -211,5 +244,51 @@ mod tests {
 			PrincipalData::deserialize(&mut &serialized[..]).unwrap();
 
 		assert_eq!(deserialized, expected_principal_data);
+	}
+
+	#[test]
+	fn should_principal_data_try_from_string() {
+		// addr = ST000000000000000000002AMW42H
+		let addr = StacksAddress::new(
+			AddressVersion::TestnetSingleSig,
+			Hash160Hasher::default(),
+		);
+		let principal_data: PrincipalData = PrincipalData::try_from(
+			"ST000000000000000000002AMW42H.helloworld".to_string(),
+		)
+		.unwrap();
+
+		assert_eq!(
+			principal_data,
+			PrincipalData::Contract(
+				StandardPrincipalData(addr.version(), addr.clone()),
+				ContractName::new("helloworld").unwrap(),
+			)
+		);
+	}
+
+	#[test]
+	fn should_fail_to_convert_invalid_string_to_principal_data() {
+		// try invalid address
+		let mut result =
+			PrincipalData::try_from("ST123.helloworld".to_string());
+
+		assert_eq!(
+			result.unwrap_err().to_string(),
+			StacksError::C32Error(crate::c32::C32Error::InvalidAddress(
+				"ST123".into()
+			))
+			.to_string()
+		);
+
+		// try contract name with a space
+		result = PrincipalData::try_from(
+			"ST000000000000000000002AMW42H.hello contract".to_string(),
+		);
+
+		assert_eq!(
+			result.unwrap_err().to_string(),
+			StacksError::InvalidData("Invalid contract name from ST000000000000000000002AMW42H.hello contract: Format should follow the contract name specification".into()).to_string()
+		);
 	}
 }
