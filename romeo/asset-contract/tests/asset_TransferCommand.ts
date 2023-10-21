@@ -1,20 +1,19 @@
 import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
 
-import {
-  Account,
-  Tx,
-  types,
-} from "https://deno.land/x/clarinet@v1.7.1/index.ts";
+import { tx } from "@hirosystems/clarinet-sdk";
+import { Cl } from "@stacks/transactions";
+
+import { expect } from "vitest";
 
 export class TransferCommand implements AssetCommand {
-  readonly sender: Account;
+  readonly sender: string;
   readonly amount: number;
-  readonly wallet: Account;
+  readonly wallet: string;
 
   constructor(
-    sender: Account,
+    sender: string,
     amount: number,
-    wallet: Account,
+    wallet: string,
   ) {
     this.sender = sender;
     this.amount = amount;
@@ -25,46 +24,46 @@ export class TransferCommand implements AssetCommand {
     // Can transfer if sender is not the recepient wallet and sender has enough
     // funds.
     if (
-      this.sender.address !== this.wallet.address &&
-      (model.wallets.get(this.sender.address) ?? 0) >= this.amount
+      this.sender !== this.wallet &&
+      (model.wallets.get(this.sender) ?? 0) >= this.amount
     ) {
       return true;
     } else {
       console.log(
-        `! ${this.sender.name.padStart(8, " ")} ${"transfer".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (discarded)`
+        `! ${this.sender.padStart(8, " ")} ${"transfer".padStart(16, " ") } ${this.wallet.padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (discarded)`
       );
       return false;
     }
   }
 
   run(model: Stub, real: Real): void {
-    const block = real.chain.mineBlock([
-      Tx.contractCall(
+    const block = real.simnet.mineBlock([
+      tx.callPublicFn(
         "asset",
         "transfer",
         [
-          types.uint(this.amount),
-          types.principal(this.sender.address),
-          types.principal(this.wallet.address),
-          types.none(), // FIXME
+          Cl.uint(this.amount),
+          Cl.standardPrincipal(this.sender),
+          Cl.standardPrincipal(this.wallet),
+          Cl.none(), // FIXME
         ],
-        this.sender.address,
+        this.sender,
       ),
     ]);
 
-    block.receipts.map(({ result }) => result.expectOk());
+    expect(block[0].result).toBeOk(Cl.bool(true));
 
     model.wallets.set(
-      this.sender.address,
-      (model.wallets.get(this.sender.address) ?? 0) - this.amount,
+      this.sender,
+      (model.wallets.get(this.sender) ?? 0) - this.amount,
     );
     model.wallets.set(
-      this.wallet.address,
-      (model.wallets.get(this.wallet.address) ?? 0) + this.amount,
+      this.wallet,
+      (model.wallets.get(this.wallet) ?? 0) + this.amount,
     );
 
     console.log(
-      `✓ ${this.sender.name.padStart(8, " ")} ${"transfer".padStart(16, " ") } ${this.wallet.name.padStart(8, " ")} ${this.amount.toString().padStart(12, " ") }`
+      `✓ ${this.sender.padStart(8, " ")} ${"transfer".padStart(16, " ") } ${this.wallet.padStart(8, " ")} ${this.amount.toString().padStart(12, " ") }`
     );
   }
 
@@ -72,6 +71,6 @@ export class TransferCommand implements AssetCommand {
     // fast-check will call toString() in case of errors, e.g. property failed.
     // It will then make a minimal counterexample, a process called 'shrinking'
     // https://github.com/dubzzz/fast-check/issues/2864#issuecomment-1098002642
-    return `${this.sender.name} transfer ${this.wallet.name} amount ${this.amount}`;
+    return `${this.sender} transfer ${this.wallet} amount ${this.amount}`;
   }
 }
