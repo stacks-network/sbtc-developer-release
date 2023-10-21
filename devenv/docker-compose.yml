@@ -86,8 +86,8 @@ services:
       - STACKS_LOG_DEBUG=0
       - STACKS_LOG_JSON=0
   stacks-api:
-    image: blockstack/sbtc:devenv-stacks-api
-    platform: "linux/amd64"
+    image: wileyj/sbtc:devenv-stacks-api 
+    # platform: "linux/amd64"
     container_name: stacks-api
     stop_grace_period: 5s
     build:
