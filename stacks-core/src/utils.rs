@@ -275,7 +275,10 @@ mod tests {
 
 		assert_eq!(
 			result.unwrap_err().to_string(),
-			StacksError::C32Error(crate::c32::C32Error::InvalidAddress("ST123".into())).to_string()
+			StacksError::C32Error(crate::c32::C32Error::InvalidAddress(
+				"ST123".into()
+			))
+			.to_string()
 		);
 
 		// try contract name with a space
