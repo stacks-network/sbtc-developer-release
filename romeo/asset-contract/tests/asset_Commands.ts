@@ -1,7 +1,6 @@
-import { Account } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
 import { BitcoinTxData } from "./asset_CommandModel.ts";
 
-import fc from "https://cdn.skypack.dev/fast-check@3";
+import fc from "fast-check";
 
 import { BurnCommand } from "./asset_BurnCommand.ts";
 import { BurnCommand_500 } from "./asset_BurnCommand_500.ts";
@@ -12,7 +11,7 @@ import { MintCommand_500 } from "./asset_MintCommand_500.ts";
 import { TransferCommand } from "./asset_TransferCommand.ts";
 import { TransferCommand_NonOwner } from "./asset_TransferCommand_NonOwner.ts";
 
-export function AssetCommands(accounts: Map<string, Account>) {
+export function AssetCommands(accounts: Map<string, string>) {
   const data = getBitcoinTxData();
   const cmds = [
     // BurnCommand
@@ -20,14 +19,14 @@ export function AssetCommands(accounts: Map<string, Account>) {
       .record({
         sender: fc.constant(accounts.get("deployer")!),
         amount: fc.integer({ min: 1, max: 100 }),
-        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
+        wallet: fc.constantFrom(...accounts.values()).filter((a: string) => a !== accounts.get("deployer")!),
         params: fc.constantFrom(...data),
       })
       .map((
         r: {
-          sender: Account;
+          sender: string;
           amount: number;
-          wallet: Account;
+          wallet: string;
           params: BitcoinTxData;
         },
       ) =>
@@ -44,14 +43,14 @@ export function AssetCommands(accounts: Map<string, Account>) {
       .record({
         sender: fc.constant(accounts.get("deployer")!),
         amount: fc.integer({ min: 1, max: 100 }),
-        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
+        wallet: fc.constantFrom(...accounts.values()).filter((a: string) => a !== accounts.get("deployer")!),
         params: fc.constantFrom(...data),
       })
       .map((
         r: {
-          sender: Account;
+          sender: string;
           amount: number;
-          wallet: Account;
+          wallet: string;
           params: BitcoinTxData;
         },
       ) =>
@@ -71,8 +70,8 @@ export function AssetCommands(accounts: Map<string, Account>) {
       })
       .map((
         r: {
-          sender: Account;
-          wallet: Account;
+          sender: string;
+          wallet: string;
         },
       ) =>
         new GetBalanceCommand(
@@ -88,7 +87,7 @@ export function AssetCommands(accounts: Map<string, Account>) {
       })
       .map((
         r: {
-          sender: Account;
+          sender: string;
         },
       ) =>
         new GetTotalSupplyCommand(
@@ -101,14 +100,14 @@ export function AssetCommands(accounts: Map<string, Account>) {
       .record({
         sender: fc.constant(accounts.get("deployer")!),
         amount: fc.integer({ min: 1, max: 100 }),
-        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
+        wallet: fc.constantFrom(...accounts.values()).filter((a: string) => a !== accounts.get("deployer")!),
         params: fc.constantFrom(...data),
       })
       .map((
         r: {
-          sender: Account;
+          sender: string;
           amount: number;
-          wallet: Account;
+          wallet: string;
           params: BitcoinTxData;
         },
       ) =>
@@ -125,14 +124,14 @@ export function AssetCommands(accounts: Map<string, Account>) {
       .record({
         sender: fc.constant(accounts.get("deployer")!),
         amount: fc.integer({ min: 1, max: 100 }),
-        wallet: fc.constantFrom(...accounts.values()).filter((a: Account) => a.address !== accounts.get("deployer")!.address),
+        wallet: fc.constantFrom(...accounts.values()).filter((a: string) => a !== accounts.get("deployer")!),
         params: fc.constantFrom(...data),
       })
       .map((
         r: {
-          sender: Account;
+          sender: string;
           amount: number;
-          wallet: Account;
+          wallet: string;
           params: BitcoinTxData;
         },
       ) =>
@@ -153,9 +152,9 @@ export function AssetCommands(accounts: Map<string, Account>) {
       })
       .map((
         r: {
-          sender: Account;
+          sender: string;
           amount: number;
-          wallet: Account;
+          wallet: string;
         },
       ) =>
         new TransferCommand(
@@ -174,10 +173,10 @@ export function AssetCommands(accounts: Map<string, Account>) {
       })
       .map((
         r: {
-          sender: Account;
+          sender: string;
           amount: number;
-          holder: Account;
-          wallet: Account;
+          holder: string;
+          wallet: string;
         },
       ) =>
         new TransferCommand_NonOwner(

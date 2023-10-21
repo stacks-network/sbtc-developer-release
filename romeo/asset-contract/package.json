@@ -15,6 +15,7 @@
     "@hirosystems/clarinet-sdk": "^0.9.0",
     "@stacks/transactions": "^6.8.1",
     "@types/typescript": "^2.0.0",
+    "fast-check": "^3.13.1",
     "typescript": "^5.2.2",
     "vite": "^4.4.9",
     "vitest": "^0.34.4",

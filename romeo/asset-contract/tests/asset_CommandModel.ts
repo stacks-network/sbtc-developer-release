@@ -1,16 +1,14 @@
-// @ts-nocheck FIXME
-// https://github.com/dubzzz/fast-check/issues/2781
-import fc from "https://cdn.skypack.dev/fast-check@3";
+import fc from "fast-check";
 
-import { Chain } from "https://deno.land/x/clarinet@v1.7.1/index.ts";
+import { Simnet } from "@hirosystems/clarinet-sdk";
 
 export type Stub = {
   wallets: Map<string, number>; // string: Address, number: Balance
-  transactions: Tuple<string, number, Account>[]; // string: Id, number: Mint/Burn Amount, Account: Stacks Account
+  transactions: [string, number, string][]; // string: Id, number: Mint/Burn Amount, string: Stacks Account
 };
 
 export type Real = {
-  chain: Chain;
+  simnet: Simnet;
 };
 
 export type AssetCommand = fc.Command<Stub, Real>;
