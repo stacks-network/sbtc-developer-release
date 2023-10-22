@@ -32,16 +32,19 @@
 		(asserts! (> total u0) err-invalid-amount)
 		(var-set last-request-id request-id)
 	 	(map-set requests {owner: tx-sender, request-id: request-id} recipients)
+		(print {notification: "request", request-id: request-id, totoal: total})
 		(ok {request-id: request-id, total: total})))
 
 ;; fullfill the request
 (define-public (fulfill-send-request (request-id uint))
 	(let ((request-key {owner: tx-sender, request-id: request-id})
-		  (recipients (unwrap! (map-get? requests request-key) err-not-found)))
-		(map-delete requests request-key)
-		(fold check-err
+		  (recipients (unwrap! (map-get? requests request-key) err-not-found))
+		  (result (fold check-err
 			(map send-sbtc recipients)
 			(ok true))))
+		(map-delete requests request-key)
+		(print {notification: "fulfillment", request-id: request-id})
+		result))
 
 (define-private (check-err (result (response bool uint)) (prior (response bool uint)))
 	(match prior
