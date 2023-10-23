@@ -1,4 +1,9 @@
-import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
+import {
+  AssetCommand,
+  Real,
+  Stub,
+  shortenString
+} from "./asset_CommandModel.ts";
 
 import { tx } from "@hirosystems/clarinet-sdk";
 import { Cl } from "@stacks/transactions";
@@ -47,7 +52,7 @@ export class TransferCommand_NonOwner implements AssetCommand {
     expect(block[0].result).toBeErr(Cl.uint(2));
 
     console.log(
-      `! ${this.sender.padStart(8, " ")} ${"transfer".padStart(16, " ") } ${this.wallet.padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (expected, non-owner)`
+      `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (expected, non-owner)`
     );
   }
 

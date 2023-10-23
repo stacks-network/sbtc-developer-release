@@ -3,6 +3,7 @@ import {
   BitcoinTxData,
   Real,
   Stub,
+  shortenString
 } from "./asset_CommandModel.ts";
 
 import { tx } from "@hirosystems/clarinet-sdk";
@@ -67,7 +68,7 @@ export class MintCommand_500 implements AssetCommand {
     expect(block[1].result).toBeErr(Cl.uint(500));
 
     console.log(
-      `! ${this.sender.padStart(8, " ")} ${"mint".padStart(16, " ") } ${this.wallet.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")} (expected, same bitcoin tx)`
+      `! ${shortenString(this.sender).padStart(8, " ")} ${"mint".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")} (expected, same bitcoin tx)`
     );
   }
 

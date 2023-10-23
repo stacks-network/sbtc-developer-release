@@ -1,4 +1,9 @@
-import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
+import {
+  AssetCommand,
+  Real,
+  Stub,
+  shortenString
+} from "./asset_CommandModel.ts";
 
 import { Cl } from "@stacks/transactions";
 
@@ -40,7 +45,7 @@ export class GetBalanceCommand implements AssetCommand {
     );
 
     console.log(
-      `✓ ${this.sender.padStart(8, " ")} ${`get-balance`.padStart(16, " ")} ${this.wallet.padStart(8, " ")} ${expected.toString().padStart(12, " ")}`,
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${`get-balance`.padStart(16, " ")} ${shortenString(this.wallet).padStart(8, " ")} ${expected.toString().padStart(12, " ")}`,
     );
   }
 

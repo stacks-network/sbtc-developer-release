@@ -3,6 +3,7 @@ import {
   BitcoinTxData,
   Real,
   Stub,
+  shortenString
 } from "./asset_CommandModel.ts";
 
 import { tx } from "@hirosystems/clarinet-sdk";
@@ -88,7 +89,7 @@ export class MintCommand implements AssetCommand {
     ]);
 
     console.log(
-      `✓ ${this.sender.padStart(8, " ")} ${"mint".padStart(16, " ") } ${this.wallet.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")}`
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${"mint".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")}`
     );
   }
 
@@ -96,7 +97,7 @@ export class MintCommand implements AssetCommand {
     // fast-check will call toString() in case of errors, e.g. property failed.
     // It will then make a minimal counterexample, a process called 'shrinking'
     // https://github.com/dubzzz/fast-check/issues/2864#issuecomment-1098002642
-    return `${this.sender} mint ${this.amount} to ${this.wallet} (bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")})`;
+    return `${shortenString(this.sender)} mint ${this.amount} to ${shortenString(this.wallet)} (bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")})`;
   }
 }
 
