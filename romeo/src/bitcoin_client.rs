@@ -242,7 +242,6 @@ impl Client {
 }
 
 #[cfg(test)]
-// test that wallet returns correct address
 mod tests {
 
 	use std::path::Path;
@@ -252,11 +251,12 @@ mod tests {
 	use stacks_core::{wallet::Wallet, Network};
 
 	use super::Client;
-	use crate::config::Config;
+	use crate::{config::Config, test::MNEMONIC};
 
 	#[test]
+	// test that wallet returns correct address
 	fn test_wallet_address() {
-		let wallet = Wallet::new("twice kind fence tip hidden tilt action fragile skin nothing glory cousin green tomorrow spring wrist shed math olympic multiply hip blue scout claw").unwrap();
+		let wallet = Wallet::new(MNEMONIC[0]).unwrap();
 
 		let stacks_network = Network::Testnet;
 		let stacks_credentials = wallet.credentials(stacks_network, 0).unwrap();
