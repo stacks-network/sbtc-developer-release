@@ -3,6 +3,7 @@ import {
   BitcoinTxData,
   Real,
   Stub,
+  shortenString
 } from "./asset_CommandModel.ts";
 
 import { tx } from "@hirosystems/clarinet-sdk";
@@ -92,7 +93,7 @@ export class BurnCommand implements AssetCommand {
     ]);
 
     console.log(
-      `✓ ${this.sender.padStart(8, " ")} ${"burn".padStart(16, " ") } ${this.wallet.padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")}`
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${"burn".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")}`
     );
   }
 

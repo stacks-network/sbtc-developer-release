@@ -1,4 +1,9 @@
-import { AssetCommand, Real, Stub } from "./asset_CommandModel.ts";
+import {
+  AssetCommand,
+  Real,
+  Stub,
+  shortenString
+} from "./asset_CommandModel.ts";
 
 import { Cl } from "@stacks/transactions";
 
@@ -31,7 +36,7 @@ export class GetTotalSupplyCommand implements AssetCommand {
     expect(result).toBeOk(Cl.uint(supply));
 
     console.log(
-      `✓ ${this.sender.padStart(8, " ")} ${`get-total-supply`.padStart(16, " ")} ${supply.toString().padStart(21, " ")}`,
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${`get-total-supply`.padStart(16, " ")} ${supply.toString().padStart(24, " ")}`,
     );
   }
 

@@ -22,3 +22,16 @@ export interface BitcoinTxData {
   blockHeader: Uint8Array;
   blockHeaderHash: Uint8Array;
 }
+
+export function shortenString(
+  address: string,
+  charsToShow: number = 4,
+  delimiter: string = "...",
+): string {
+  if (address.length <= charsToShow * 2 + delimiter.length) {
+    return address;
+  }
+  const start = address.substring(0, charsToShow);
+  const end = address.substring(address.length - charsToShow);
+  return start + delimiter + end;
+}
