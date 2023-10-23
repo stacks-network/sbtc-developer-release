@@ -2,7 +2,12 @@
 
 use std::{fs::create_dir_all, io::Cursor};
 
-use bdk::bitcoin::Txid as BitcoinTxId;
+use bdk::{
+	bitcoin::Txid as BitcoinTxId,
+	blockchain::{
+		ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig,
+	},
+};
 use blockstack_lib::{
 	burnchains::Txid as StacksTxId,
 	chainstate::stacks::{
@@ -24,7 +29,7 @@ use tokio::{
 use tracing::{debug, info, trace};
 
 use crate::{
-	bitcoin_client::Client as BitcoinClient,
+	bitcoin_client::BitcoinClient,
 	config::Config,
 	event::Event,
 	proof_data::{ProofData, ProofDataClarityValues},
@@ -46,8 +51,23 @@ const DUMMY_STACKS_ID: StacksTxId = StacksTxId([
 /// The system is bootstrapped by emitting the CreateAssetContract task.
 pub async fn run(config: Config) {
 	let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
-	let bitcoin_client = BitcoinClient::new(config.clone())
-		.expect("Failed to instantiate bitcoin client");
+	let electrum_blockchain =
+		ElectrumBlockchain::from_config(&ElectrumBlockchainConfig {
+			url: config.electrum_node_url.to_string(),
+			socks5: None,
+			retry: 3,
+			timeout: Some(10),
+			stop_gap: 10,
+			validate_domain: false,
+		})
+		.unwrap();
+
+	let bitcoin_client = BitcoinClient::new(
+		config.electrum_node_url.clone(),
+		electrum_blockchain,
+		config.bitcoin_credentials.clone(),
+	)
+	.expect("Failed to instantiate bitcoin client");
 	let stacks_client: LockedClient =
 		StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
@@ -62,9 +82,10 @@ pub async fn run(config: Config) {
 
 	// Bootstrap
 	for task in bootstrap_tasks {
+		let bitcoin_client = bitcoin_client.clone();
 		spawn(
 			config.clone(),
-			bitcoin_client.clone(),
+			bitcoin_client,
 			stacks_client.clone(),
 			task,
 			tx.clone(),
