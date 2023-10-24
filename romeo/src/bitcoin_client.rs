@@ -35,6 +35,7 @@ pub type BitcoinClient = Client<ElectrumBlockchain>;
 #[derivative(Clone)]
 pub struct Client<ElectrumClient = ElectrumBlockchain> {
 	bitcoin_url: Url,
+	bitcoin_auth: Auth,
 	#[derivative(Clone(bound = ""))]
 	blockchain: Arc<ElectrumClient>,
 	// required for fulfillment txs
@@ -71,8 +72,16 @@ impl<B> Client<B> {
 			return Err(anyhow::anyhow!("Password in {bitcoin_url} is empty"));
 		}
 
+		let username = bitcoin_url.username().to_string();
+		let password = bitcoin_url.password().unwrap_or_default().to_string();
+
+		let mut bitcoin_url = bitcoin_url;
+		bitcoin_url.set_username("").unwrap();
+		bitcoin_url.set_password(None).unwrap();
+
 		Ok(Self {
 			bitcoin_url,
+			bitcoin_auth: Auth::UserPass(username, password),
 			blockchain: Arc::new(blockchain),
 			wallet: Arc::new(Mutex::new(wallet)),
 		})
@@ -89,16 +98,10 @@ impl<B> Client<B> {
 		F: FnOnce(RPCClient) -> bitcoincore_rpc::Result<T> + Send + 'static,
 		T: Send + 'static,
 	{
-		let mut url = self.bitcoin_url.clone();
-
-		let username = url.username().to_string();
-		let password = url.password().unwrap_or_default().to_string();
-
-		url.set_username("").unwrap();
-		url.set_password(None).unwrap();
-
-		let client =
-			RPCClient::new(url.as_ref(), Auth::UserPass(username, password))?;
+		let client = RPCClient::new(
+			self.bitcoin_url.as_ref(),
+			self.bitcoin_auth.clone(),
+		)?;
 
 		Ok(spawn_blocking(move || f(client)).await?)
 	}
@@ -354,5 +357,15 @@ mod tests {
 		let err_string = "Username in http://host/ is empty";
 		assert_eq!(broken_client("http://@host").to_string(), err_string);
 		assert_eq!(broken_client("http://host").to_string(), err_string,);
+	}
+
+	#[test]
+	fn stripped_url_auth_is_field() {
+		let client = client::<0>("http://user:pass@host").unwrap();
+		assert_eq!(client.bitcoin_url, "http://host".parse().unwrap());
+		assert_eq!(
+			client.bitcoin_auth,
+			Auth::UserPass("user".into(), "pass".into())
+		);
 	}
 }
