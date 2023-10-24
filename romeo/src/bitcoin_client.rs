@@ -152,13 +152,12 @@ impl<B> Client<B> {
 		block_height: u32,
 	) -> anyhow::Result<(u32, Block)> {
 		let block_hash = loop {
-			let res = self
+			match self
 				.execute(move |client| {
 					client.get_block_hash(block_height as u64)
 				})
-				.await?;
-
-			match res {
+				.await?
+			{
 				Ok(hash) => {
 					trace!(
 						"Got Bitcoin block hash at height {}: {}",
@@ -169,15 +168,8 @@ impl<B> Client<B> {
 				}
 				Err(bitcoincore_rpc::Error::JsonRpc(
 					bitcoincore_rpc::jsonrpc::Error::Rpc(err),
-				)) => {
-					if err.code == -8 {
-						trace!("Bitcoin block not found, retrying...");
-					} else {
-						Err(anyhow!(
-							"Error fetching Bitcoin block: {:?}",
-							err
-						))?;
-					}
+				)) if err.code == -8 => {
+					trace!("Bitcoin block not found, retrying...");
 				}
 				Err(bitcoincore_rpc::Error::JsonRpc(
 					bitcoincore_rpc::jsonrpc::Error::Transport(_),
@@ -185,7 +177,7 @@ impl<B> Client<B> {
 					trace!("Bitcoin client connection error, retrying...");
 				}
 				Err(err) => {
-					Err(anyhow!("Error fetching Bitcoin block: {:?}", err))?
+					Err(anyhow!("Error fetching Bitcoin block: {:?}", err))?;
 				}
 			};
 
@@ -260,6 +252,7 @@ where
 mod tests {
 	use std::path::Path;
 
+	use assert_matches::assert_matches;
 	use bdk::{
 		bitcoin::Network as BitcoinNetwork,
 		blockchain::{ConfigurableBlockchain, ElectrumBlockchainConfig},
@@ -367,5 +360,48 @@ mod tests {
 			client.bitcoin_auth,
 			Auth::UserPass("user".into(), "pass".into())
 		);
+	}
+
+	#[tokio::test]
+	async fn get_block() {
+		let mut server = mockito::Server::new();
+		let host = format!("http://devnet:devnet@{}", server.host_with_port());
+		let mock_hash = server
+			.mock("POST", "/")
+			.with_status(200)
+			.with_header("content-type", "application/json")
+            .match_body(mockito::Matcher::PartialJsonString(
+                    r#"{"method": "getblockhash"}"#.to_string(),
+                ))
+			.with_body(
+                // Regardless of input.
+				r#"{ "result": "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206", "error": null, "id": 0 }"#,
+			)
+			.create();
+
+		let mock_block = server
+			.mock("POST", "/")
+			.with_status(200)
+			.with_header("content-type", "application/json")
+			.match_body(mockito::Matcher::PartialJsonString(
+				r#"{"method": "getblock"}"#.to_string(),
+			))
+			.with_body(
+                // Regardless of input.
+				r#"{ "result":"0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4adae5494dffff7f20020000000101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000", "id": 0}"#,
+			)
+			.create();
+
+		let client = client::<0>(host.as_str()).unwrap();
+
+		assert_matches!(client.get_block(0).await.unwrap(), (0, block) =>{
+		// given the current devenv config; block hash 0
+		 assert_eq!("0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
+		 block.header.block_hash().to_string());
+		});
+
+		// endpoints where served.
+		mock_hash.assert();
+		mock_block.assert()
 	}
 }
