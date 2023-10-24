@@ -1,6 +1,6 @@
 //! Stacks client
 
-use std::{io::Cursor, sync::Arc, time::Duration};
+use std::{io::Cursor, time::Duration};
 
 use anyhow::{anyhow, Error};
 use blockstack_lib::{
@@ -23,10 +23,7 @@ use reqwest::{Request, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use stacks_core::{codec::Codec, uint::Uint256};
-use tokio::{
-	sync::{Mutex, MutexGuard},
-	time::sleep,
-};
+use tokio::time::sleep;
 use tracing::{debug, trace, warn};
 
 use crate::{config::Config, event::TransactionStatus};
@@ -34,27 +31,14 @@ use crate::{config::Config, event::TransactionStatus};
 const BLOCK_POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Wrapped Stacks Client which can be shared safely between threads.
-#[derive(Clone, Debug)]
-pub struct LockedClient(Arc<Mutex<StacksClient>>);
 
-impl LockedClient {
-	/// Lock and obtain a handle to the inner stacks client
-	pub async fn lock(&self) -> MutexGuard<StacksClient> {
-		self.0.lock().await
-	}
-}
-
-impl From<StacksClient> for LockedClient {
-	fn from(client: StacksClient) -> Self {
-		Self(Arc::new(Mutex::new(client)))
-	}
-}
+pub type LockedClient = StacksClient;
 
 /// Stateful client for creating and broadcasting Stacks transactions
 ///
 /// This client keeps track of the last executed nonce for the given
 /// key.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StacksClient {
 	config: Config,
 	http_client: reqwest::Client,
@@ -126,7 +110,7 @@ impl StacksClient {
 
 	/// Sign and broadcast an unsigned stacks transaction
 	pub async fn sign_and_broadcast(
-		&mut self,
+		&self,
 		mut tx: StacksTransaction,
 	) -> anyhow::Result<StacksTxId> {
 		#[cfg(debug_assertions)]
@@ -179,7 +163,7 @@ impl StacksClient {
 
 	/// Get transaction status for a given txid
 	pub async fn get_transation_status(
-		&mut self,
+		&self,
 		txid: StacksTxId,
 	) -> anyhow::Result<TransactionStatus> {
 		let res: anyhow::Result<Value> = self
@@ -213,7 +197,7 @@ impl StacksClient {
 		})
 	}
 
-	async fn get_nonce_info(&mut self) -> anyhow::Result<NonceInfo> {
+	async fn get_nonce_info(&self) -> anyhow::Result<NonceInfo> {
 		self.send_request(|| {
 			self.http_client
 				.get(self.cachebust(self.nonce_url()))
@@ -225,7 +209,7 @@ impl StacksClient {
 
 	/// Get the block height of the contract
 	pub async fn get_contract_block_height(
-		&mut self,
+		&self,
 		name: ContractName,
 	) -> anyhow::Result<u32> {
 		let addr = self.config.stacks_credentials.address();
@@ -255,7 +239,7 @@ impl StacksClient {
 
 	/// Get the Bitcoin block height for a Stacks block height
 	pub async fn get_bitcoin_block_height(
-		&mut self,
+		&self,
 		block_height: u32,
 	) -> anyhow::Result<u32> {
 		let res: Value = self
@@ -272,7 +256,7 @@ impl StacksClient {
 
 	/// Get the block at height
 	pub async fn get_block(
-		&mut self,
+		&self,
 		block_height: u32,
 	) -> anyhow::Result<Vec<StacksTransaction>> {
 		let res: Value = loop {
@@ -322,7 +306,7 @@ impl StacksClient {
 
 	/// Get the block at height
 	pub async fn get_transaction(
-		&mut self,
+		&self,
 		id: StacksTxId,
 	) -> anyhow::Result<StacksTransaction> {
 		let res: Value = self
@@ -347,7 +331,7 @@ impl StacksClient {
 
 	/// Get the block hash for a given Bitcoin height
 	pub async fn get_block_hash_from_bitcoin_height(
-		&mut self,
+		&self,
 		height: u32,
 	) -> anyhow::Result<Uint256> {
 		let res: Value = self
@@ -525,7 +509,7 @@ mod tests {
 			.expect("Failed to find config file");
 		let http_client = reqwest::Client::new();
 
-		let mut stacks_client = StacksClient::new(config, http_client);
+		let stacks_client = StacksClient::new(config, http_client);
 
 		let nonce_info = stacks_client.get_nonce_info().await.unwrap();
 		assert_eq!(nonce_info.possible_next_nonce, 122);

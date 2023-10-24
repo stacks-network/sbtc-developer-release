@@ -28,7 +28,7 @@ use crate::{
 	config::Config,
 	event::Event,
 	proof_data::{ProofData, ProofDataClarityValues},
-	stacks_client::{LockedClient, StacksClient},
+	stacks_client::StacksClient,
 	state,
 	state::{DepositInfo, WithdrawalInfo},
 	task::Task,
@@ -48,7 +48,7 @@ pub async fn run(config: Config) {
 	let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
 	let bitcoin_client = BitcoinClient::new(config.clone())
 		.expect("Failed to instantiate bitcoin client");
-	let stacks_client: LockedClient =
+	let stacks_client: StacksClient =
 		StacksClient::new(config.clone(), reqwest::Client::new()).into();
 
 	info!("Starting replay of persisted events");
@@ -130,7 +130,7 @@ impl Storage {
 fn spawn(
 	config: Config,
 	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
+	stacks_client: StacksClient,
 	task: Task,
 	result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
@@ -146,15 +146,15 @@ fn spawn(
 async fn run_task(
 	config: &Config,
 	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
+	stacks_client: StacksClient,
 	task: Task,
 ) -> Event {
 	match task {
 		Task::GetContractBlockHeight => {
-			get_contract_block_height(config, stacks_client).await
+			get_contract_block_height(config, &stacks_client).await
 		}
 		Task::UpdateContractPublicKey => {
-			update_contract_public_key(config, stacks_client).await
+			update_contract_public_key(config, &stacks_client).await
 		}
 		Task::CreateMint(deposit_info) => {
 			mint_asset(config, bitcoin_client, stacks_client, deposit_info)
@@ -190,18 +190,14 @@ async fn run_task(
 
 async fn get_contract_block_height(
 	config: &Config,
-	client: LockedClient,
+	client: &StacksClient,
 ) -> Event {
 	let block_height = client
-		.lock()
-		.await
 		.get_contract_block_height(config.contract_name.clone())
 		.await
 		.expect("Could not get block height. Binary needs to be restarted after contract deployment.");
 
 	let bitcoin_block_height = client
-		.lock()
-		.await
 		.get_bitcoin_block_height(block_height)
 		.await
 		.expect("Could not get burnchain block height. Binary needs to be restarted after bitcoin node is online again.");
@@ -211,7 +207,7 @@ async fn get_contract_block_height(
 
 async fn update_contract_public_key(
 	config: &Config,
-	stacks_client: LockedClient,
+	stacks_client: &StacksClient,
 ) -> Event {
 	let public_key = StacksPublicKey::from_slice(
 		&config.stacks_credentials.public_key().serialize(),
@@ -253,8 +249,6 @@ async fn update_contract_public_key(
 	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
 	let txid = stacks_client
-		.lock()
-		.await
 		.sign_and_broadcast(tx)
 		.await
 		.expect("Unable to sign and broadcast the set public key transaction");
@@ -265,7 +259,7 @@ async fn update_contract_public_key(
 async fn mint_asset(
 	config: &Config,
 	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
+	stacks_client: StacksClient,
 	deposit_info: DepositInfo,
 ) -> Event {
 	let proof_data = get_tx_proof(
@@ -314,7 +308,7 @@ async fn mint_asset(
 
 	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
-	match stacks_client.lock().await.sign_and_broadcast(tx).await {
+	match stacks_client.sign_and_broadcast(tx).await {
 		Ok(txid) => Event::MintBroadcasted(deposit_info, txid),
 		Err(err) => {
 			if config.strict {
@@ -333,7 +327,7 @@ async fn mint_asset(
 async fn burn_asset(
 	config: &Config,
 	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
+	stacks_client: StacksClient,
 	withdrawal_info: WithdrawalInfo,
 ) -> Event {
 	let proof_data = get_tx_proof(
@@ -382,7 +376,7 @@ async fn burn_asset(
 
 	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
-	match stacks_client.lock().await.sign_and_broadcast(tx).await {
+	match stacks_client.sign_and_broadcast(tx).await {
 		Ok(txid) => Event::BurnBroadcasted(withdrawal_info, txid),
 		Err(err) => {
 			if config.strict {
@@ -401,12 +395,10 @@ async fn burn_asset(
 async fn fulfill_asset(
 	config: &Config,
 	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
+	stacks_client: StacksClient,
 	withdrawal_info: WithdrawalInfo,
 ) -> Event {
 	let stacks_chain_tip = stacks_client
-		.lock()
-		.await
 		.get_block_hash_from_bitcoin_height(withdrawal_info.block_height)
 		.await
 		.expect("Unable to get stacks block hash");
@@ -462,12 +454,10 @@ async fn check_bitcoin_transaction_status(
 }
 
 async fn check_stacks_transaction_status(
-	client: LockedClient,
+	client: StacksClient,
 	txid: StacksTxId,
 ) -> Event {
 	let status = client
-		.lock()
-		.await
 		.get_transation_status(txid)
 		.await
 		.expect("Could not get Stacks transaction status");
@@ -475,10 +465,8 @@ async fn check_stacks_transaction_status(
 	Event::StacksTransactionUpdate(txid, status)
 }
 
-async fn fetch_stacks_block(client: LockedClient, block_height: u32) -> Event {
+async fn fetch_stacks_block(client: StacksClient, block_height: u32) -> Event {
 	let txs = client
-		.lock()
-		.await
 		.get_block(block_height)
 		.await
 		.expect("Failed to get Stacks block");
