@@ -22,17 +22,14 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use reqwest::{Request, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use stacks_core::{codec::Codec, uint::Uint256};
+use stacks_core::{codec::Codec, uint::Uint256, wallet::Credentials};
 use tokio::time::sleep;
 use tracing::{debug, trace, warn};
+use url::Url;
 
 use crate::{config::Config, event::TransactionStatus};
 
 const BLOCK_POLLING_INTERVAL: Duration = Duration::from_secs(5);
-
-/// Wrapped Stacks Client which can be shared safely between threads.
-
-pub type LockedClient = StacksClient;
 
 /// Stateful client for creating and broadcasting Stacks transactions
 ///
@@ -40,15 +37,25 @@ pub type LockedClient = StacksClient;
 /// key.
 #[derive(Debug, Clone)]
 pub struct StacksClient {
-	config: Config,
+	hiro_api_key: Option<String>,
+	stacks_node_url: Url,
+	stacks_credentials: Credentials,
 	http_client: reqwest::Client,
 }
 
 impl StacksClient {
 	/// Create a new StacksClient
-	pub fn new(config: Config, http_client: reqwest::Client) -> Self {
+	pub fn new(config: &Config, http_client: reqwest::Client) -> Self {
+		let Config {
+			hiro_api_key,
+			stacks_node_url,
+			stacks_credentials,
+			..
+		} = config.clone();
 		Self {
-			config,
+			hiro_api_key,
+			stacks_node_url,
+			stacks_credentials,
 			http_client,
 		}
 	}
@@ -97,7 +104,7 @@ impl StacksClient {
 
 	/// if hiro_api_key is set, add it to the request
 	fn add_stacks_api_key(&self, request: Request) -> Request {
-		match &self.config.hiro_api_key {
+		match &self.hiro_api_key {
 			Some(api_key) => {
 				RequestBuilder::from_parts(self.http_client.clone(), request)
 					.header("x-hiro-api-key", api_key)
@@ -130,11 +137,7 @@ impl StacksClient {
 		signer
 			.sign_origin(
 				&StacksPrivateKey::from_slice(
-					&self
-						.config
-						.stacks_credentials
-						.private_key()
-						.secret_bytes(),
+					&self.stacks_credentials.private_key().secret_bytes(),
 				)
 				.unwrap(),
 			)
@@ -212,7 +215,7 @@ impl StacksClient {
 		&self,
 		name: ContractName,
 	) -> anyhow::Result<u32> {
-		let addr = self.config.stacks_credentials.address();
+		let addr = self.stacks_credentials.address();
 		let id = QualifiedContractIdentifier::new(
 			StandardPrincipalData(
 				addr.version() as u8,
@@ -366,29 +369,23 @@ impl StacksClient {
 	}
 
 	fn transaction_url(&self) -> reqwest::Url {
-		self.config
-			.stacks_node_url
-			.join("/v2/transactions")
-			.unwrap()
+		self.stacks_node_url.join("/v2/transactions").unwrap()
 	}
 
 	fn get_raw_transaction_url(&self, txid: StacksTxId) -> reqwest::Url {
-		self.config
-			.stacks_node_url
+		self.stacks_node_url
 			.join(&format!("/extended/v1/tx/{}/raw", txid))
 			.unwrap()
 	}
 
 	fn block_by_height_url(&self, height: u32) -> reqwest::Url {
-		self.config
-			.stacks_node_url
+		self.stacks_node_url
 			.join(&format!("/extended/v1/block/by_height/{}", height))
 			.unwrap()
 	}
 
 	fn block_by_bitcoin_height_url(&self, height: u32) -> reqwest::Url {
-		self.config
-			.stacks_node_url
+		self.stacks_node_url
 			.join(&format!(
 				"/extended/v1/block/by_burn_block_height/{}",
 				height
@@ -397,15 +394,13 @@ impl StacksClient {
 	}
 
 	fn contract_info_url(&self, id: impl AsRef<str>) -> reqwest::Url {
-		self.config
-			.stacks_node_url
+		self.stacks_node_url
 			.join(&format!("/extended/v1/contract/{}", id.as_ref()))
 			.unwrap()
 	}
 
 	fn get_transation_details_url(&self, txid: StacksTxId) -> reqwest::Url {
-		self.config
-			.stacks_node_url
+		self.stacks_node_url
 			.join(&format!("/extended/v1/tx/{}", txid))
 			.unwrap()
 	}
@@ -433,17 +428,14 @@ impl StacksClient {
 	fn nonce_url(&self) -> reqwest::Url {
 		let path = format!(
 			"/extended/v1/address/{}/nonces",
-			self.config.stacks_credentials.address(),
+			self.stacks_credentials.address(),
 		);
 
-		self.config.stacks_node_url.join(&path).unwrap()
+		self.stacks_node_url.join(&path).unwrap()
 	}
 
 	fn fee_url(&self) -> reqwest::Url {
-		self.config
-			.stacks_node_url
-			.join("/v2/fees/transfer")
-			.unwrap()
+		self.stacks_node_url.join("/v2/fees/transfer").unwrap()
 	}
 }
 
@@ -509,7 +501,7 @@ mod tests {
 			.expect("Failed to find config file");
 		let http_client = reqwest::Client::new();
 
-		let stacks_client = StacksClient::new(config, http_client);
+		let stacks_client = StacksClient::new(&config, http_client);
 
 		let nonce_info = stacks_client.get_nonce_info().await.unwrap();
 		assert_eq!(nonce_info.possible_next_nonce, 122);
@@ -522,7 +514,7 @@ mod tests {
 			.expect("Failed to find config file");
 		let http_client = reqwest::Client::new();
 
-		let stacks_client = StacksClient::new(config, http_client);
+		let stacks_client = StacksClient::new(&config, http_client);
 
 		stacks_client.calculate_fee(123).await.unwrap();
 	}

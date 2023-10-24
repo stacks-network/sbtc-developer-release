@@ -49,7 +49,7 @@ pub async fn run(config: Config) {
 	let bitcoin_client = BitcoinClient::new(config.clone())
 		.expect("Failed to instantiate bitcoin client");
 	let stacks_client: StacksClient =
-		StacksClient::new(config.clone(), reqwest::Client::new()).into();
+		StacksClient::new(&config, reqwest::Client::new()).into();
 
 	info!("Starting replay of persisted events");
 
