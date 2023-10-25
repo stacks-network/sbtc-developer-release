@@ -17,9 +17,9 @@ use blockstack_lib::{
 		ContractName,
 	},
 };
-use futures::{stream::FuturesUnordered, Future, StreamExt};
+use futures::{stream::FuturesUnordered, StreamExt};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use reqwest::{Request, RequestBuilder, Response, StatusCode};
+use reqwest::{RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use stacks_core::{codec::Codec, uint::Uint256, wallet::Credentials};
@@ -59,34 +59,25 @@ impl StacksClient {
 		}
 	}
 
-	async fn send_request<T>(&self, request: Request) -> anyhow::Result<T>
+	async fn send_request<T>(
+		&self,
+		builder: RequestBuilder,
+	) -> anyhow::Result<T>
 	where
 		T: DeserializeOwned,
 	{
-		let request = self.add_stacks_api_key(request);
-		// TODO; reintroduce retry
-		let res = self.http_client.execute(request).await?;
+		let res = self.retry(self.add_stacks_api_key(builder)).await?;
+		res.error_for_status_ref().expect("retry propagates errors");
 
-		match res.error_for_status() {
-			Ok(res) => {
-				let body = res.text().await?;
+		let body = res.text().await?;
 
-				Ok(serde_json::from_str(&body)
-					.map_err(|e| anyhow!("{e}: body {body}"))?)
-			}
-			Err(e) => Err(anyhow!(e)),
-		}
+		serde_json::from_str(&body).map_err(|e| anyhow!("{e}: body {body}"))
 	}
 
 	/// if hiro_api_key is set, add it to the request
-	fn add_stacks_api_key(&self, request: Request) -> Request {
+	fn add_stacks_api_key(&self, request: RequestBuilder) -> RequestBuilder {
 		match &self.hiro_api_key {
-			Some(api_key) => {
-				RequestBuilder::from_parts(self.http_client.clone(), request)
-					.header("x-hiro-api-key", api_key)
-					.build()
-					.unwrap()
-			}
+			Some(api_key) => request.header("x-hiro-api-key", api_key),
 			None => request,
 		}
 	}
@@ -132,8 +123,6 @@ impl StacksClient {
 					.post(self.transaction_url())
 					.header("Content-type", "application/octet-stream")
 					.body(tx_bytes)
-					.build()
-					.unwrap()
 			})
 			.await?;
 
@@ -149,17 +138,15 @@ impl StacksClient {
 			.send_request(
 				self.http_client
 					.get(self.cachebust(self.get_transation_details_url(txid)))
-					.header("Accept", "application/json")
-					.build()
-					.unwrap(),
+					.header("Accept", "application/json"),
 			)
 			.await;
 
 		let tx_status_str = match res {
 			Ok(json) => json["tx_status"]
 				.as_str()
-				.map(|s| s.to_string())
-				.expect("Could not get raw transaction from response"),
+				.expect("Could not get raw transaction from response")
+				.to_string(),
 			// Stacks node sometimes returns 404 for pending transactions
 			// :shrug:
 			Err(err) if err.to_string().contains("404 Not Found") => {
@@ -178,10 +165,7 @@ impl StacksClient {
 
 	async fn get_nonce_info(&self) -> anyhow::Result<NonceInfo> {
 		self.send_request(
-			self.http_client
-				.get(self.cachebust(self.nonce_url()))
-				.build()
-				.unwrap(),
+			self.http_client.get(self.cachebust(self.nonce_url())),
 		)
 		.await
 	}
@@ -200,13 +184,11 @@ impl StacksClient {
 			name,
 		);
 
-		let req = self
-			.http_client
-			.get(self.contract_info_url(id.to_string()))
-			.build()
-			.unwrap();
+		let req_builder =
+			self.http_client.get(self.contract_info_url(id.to_string()));
 
-		self.send_error_guarded_request(req, "block_height").await
+		self.send_error_guarded_request(req_builder, "block_height")
+			.await
 	}
 
 	/// Get the Bitcoin block height for a Stacks block height
@@ -215,10 +197,7 @@ impl StacksClient {
 		block_height: u32,
 	) -> anyhow::Result<u32> {
 		self.send_error_guarded_request::<u32>(
-			self.http_client
-				.get(self.block_by_height_url(block_height))
-				.build()
-				.unwrap(),
+			self.http_client.get(self.block_by_height_url(block_height)),
 			"burn_block_height",
 		)
 		.await
@@ -233,9 +212,7 @@ impl StacksClient {
 			let maybe_response: Result<Value, Error> = self
 				.send_error_guarded_request(
 					self.http_client
-						.get(self.block_by_height_url(block_height))
-						.build()
-						.unwrap(),
+						.get(self.block_by_height_url(block_height)),
 					"txs",
 				)
 				.await;
@@ -278,9 +255,7 @@ impl StacksClient {
 			.send_error_guarded_request(
 				self.http_client
 					.get(self.get_raw_transaction_url(id))
-					.header("Accept", "application/octet-stream")
-					.build()
-					.unwrap(),
+					.header("Accept", "application/octet-stream"),
 				"raw_tx",
 			)
 			.await?;
@@ -302,9 +277,7 @@ impl StacksClient {
 			.send_error_guarded_request(
 				self.http_client
 					.get(self.block_by_bitcoin_height_url(height))
-					.header("Accept", "application/json")
-					.build()
-					.unwrap(),
+					.header("Accept", "application/json"),
 				"hash",
 			)
 			.await?;
@@ -403,7 +376,7 @@ impl StacksClient {
 
 	async fn send_error_guarded_request<T>(
 		&self,
-		req: Request,
+		req: RequestBuilder,
 		index: &str,
 	) -> anyhow::Result<T>
 	where
@@ -418,54 +391,55 @@ impl StacksClient {
 			Ok(serde_json::from_value(res[index].clone())?)
 		}
 	}
+
+	async fn retry(&self, builder: RequestBuilder) -> anyhow::Result<Response> {
+		use backoff::Error as BackOffError;
+
+		let operation = || async {
+			let request = builder
+				.try_clone()
+				.expect("not a stream")
+				.build()
+				.map_err(|e| BackOffError::permanent(anyhow!(e)))?;
+
+			self.http_client
+				.execute(request)
+				.await
+				.and_then(Response::error_for_status)
+				.map_err(|e| {
+					if e.is_request() {
+						BackOffError::transient(anyhow!(e))
+					} else if e.is_status() {
+						match e
+							.status()
+							.expect("Is status <-> has status: qed")
+							.as_u16()
+						{
+							429 | 522 => BackOffError::transient(anyhow!(e)),
+							_ => BackOffError::permanent(anyhow!(e)),
+						}
+					} else {
+						BackOffError::permanent(anyhow!(e))
+					}
+				})
+		};
+
+		let notify = |err, duration| {
+			warn!("Retrying in {:?} after error: {:?}", duration, err);
+		};
+
+		backoff::future::retry_notify(
+			backoff::ExponentialBackoff::default(),
+			operation,
+			notify,
+		)
+		.await
+	}
 }
 
 #[derive(serde::Deserialize)]
 struct NonceInfo {
 	possible_next_nonce: u64,
-}
-
-async fn retry<O, Fut>(operation: O) -> anyhow::Result<Response>
-where
-	O: Clone + Fn() -> Fut,
-	Fut: Future<Output = Result<Response, reqwest::Error>>,
-{
-	let operation = || async {
-		operation.clone()()
-			.await
-			.and_then(Response::error_for_status)
-			.map_err(|err| {
-				if err.is_request() {
-					backoff::Error::transient(anyhow::anyhow!(err))
-				} else if err.is_status() {
-					// Impossible not to have a status code at this section. May
-					// as well be a teapot.
-					let status_code_number = err
-						.status()
-						.unwrap_or(StatusCode::IM_A_TEAPOT)
-						.as_u16();
-					match status_code_number {
-						429 | 522 => {
-							backoff::Error::transient(anyhow::anyhow!(err))
-						}
-						_ => backoff::Error::permanent(anyhow::anyhow!(err)),
-					}
-				} else {
-					backoff::Error::permanent(anyhow::anyhow!(err))
-				}
-			})
-	};
-
-	let notify = |err, duration| {
-		warn!("Retrying in {:?} after error: {:?}", duration, err);
-	};
-
-	backoff::future::retry_notify(
-		backoff::ExponentialBackoff::default(),
-		operation,
-		notify,
-	)
-	.await
 }
 
 #[cfg(test)]
@@ -595,13 +569,10 @@ mod tests {
 			reqwest::Client::new(),
 		);
 
-		let request = stacks_client
-			.http_client
-			.get(server.url().add(&path))
-			.build()
-			.unwrap();
+		let req_builder =
+			stacks_client.http_client.get(server.url().add(&path));
 
-		assert_matches!(stacks_client.send_request::<u32>(request).await, Err(e)=>{
+		assert_matches!(stacks_client.send_request::<u32>(req_builder).await, Err(e)=>{
 			assert!(e.to_string().contains(body));
 		});
 
@@ -669,14 +640,11 @@ mod tests {
 			reqwest::Client::new(),
 		);
 
-		let request = stacks_client
-			.http_client
-			.get(server.url().add(&path))
-			.build()
-			.unwrap();
+		let req_builder =
+			stacks_client.http_client.get(server.url().add(&path));
 
 		let error = stacks_client
-			.send_error_guarded_request::<()>(request, "any")
+			.send_error_guarded_request::<()>(req_builder, "any")
 			.await
 			.expect_err("response body contains an error field");
 		assert!(error.to_string().contains("reason"));
