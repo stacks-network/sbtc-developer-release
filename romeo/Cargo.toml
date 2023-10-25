@@ -23,3 +23,7 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 url.workspace = true
 rs_merkle.workspace = true
+
+[dev-dependencies]
+assert_matches = "1.5.0"
+mockito = "1.2.0"

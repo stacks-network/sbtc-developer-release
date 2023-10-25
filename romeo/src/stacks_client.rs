@@ -17,17 +17,17 @@ use blockstack_lib::{
 		ContractName,
 	},
 };
-use futures::Future;
+use futures::{stream::FuturesUnordered, Future, StreamExt};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use reqwest::{Request, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use stacks_core::{codec::Codec, uint::Uint256, wallet::Credentials};
 use tokio::time::sleep;
-use tracing::{debug, trace, warn};
+use tracing::{trace, warn};
 use url::Url;
 
-use crate::{config::Config, event::TransactionStatus};
+use crate::event::TransactionStatus;
 
 const BLOCK_POLLING_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -45,13 +45,12 @@ pub struct StacksClient {
 
 impl StacksClient {
 	/// Create a new StacksClient
-	pub fn new(config: &Config, http_client: reqwest::Client) -> Self {
-		let Config {
-			hiro_api_key,
-			stacks_node_url,
-			stacks_credentials,
-			..
-		} = config.clone();
+	pub fn new(
+		hiro_api_key: Option<String>,
+		stacks_node_url: Url,
+		stacks_credentials: Credentials,
+		http_client: reqwest::Client,
+	) -> Self {
 		Self {
 			hiro_api_key,
 			stacks_node_url,
@@ -60,46 +59,23 @@ impl StacksClient {
 		}
 	}
 
-	async fn send_request<B, T>(&self, request_builder: B) -> anyhow::Result<T>
+	async fn send_request<T>(&self, request: Request) -> anyhow::Result<T>
 	where
-		B: Clone + Fn() -> Request,
 		T: DeserializeOwned,
 	{
-		let request_url = request_builder().url().to_string();
+		let request = self.add_stacks_api_key(request);
+		// TODO; reintroduce retry
+		let res = self.http_client.execute(request).await?;
 
-		let res = retry(|| {
-			self.http_client
-				.execute(self.add_stacks_api_key(request_builder()))
-		})
-		.await?;
+		match res.error_for_status() {
+			Ok(res) => {
+				let body = res.text().await?;
 
-		let status = res.status();
-		let body = res.text().await?;
-
-		serde_json::from_str(&body).map_err(|err| {
-            let error_details = serde_json::from_str::<Value>(&body).ok().map(|details| {
-                let error = details["error"].as_str();
-                let reason = details["reason"].as_str();
-
-                format!(
-                    "{}: {}",
-                    error.unwrap_or_default(),
-                    reason.unwrap_or_default()
-                )
-            });
-
-            if error_details.is_none() {
-                debug!("Failed request response body: {:?}", body);
-            }
-
-            anyhow!(
-                "Could not parse response JSON, URL is {}, status is {}: {:?}: {}",
-                request_url,
-                status,
-                err,
-                error_details.unwrap_or_default()
-            )
-        })
+				Ok(serde_json::from_str(&body)
+					.map_err(|e| anyhow!("{e}: body {body}"))?)
+			}
+			Err(e) => Err(anyhow!(e)),
+		}
 	}
 
 	/// if hiro_api_key is set, add it to the request
@@ -149,7 +125,7 @@ impl StacksClient {
 		tx.consensus_serialize(&mut tx_bytes).unwrap();
 
 		let res = self
-			.send_request(|| {
+			.send_request({
 				let tx_bytes = tx_bytes.clone();
 
 				self.http_client
@@ -170,13 +146,13 @@ impl StacksClient {
 		txid: StacksTxId,
 	) -> anyhow::Result<TransactionStatus> {
 		let res: anyhow::Result<Value> = self
-			.send_request(|| {
+			.send_request(
 				self.http_client
 					.get(self.cachebust(self.get_transation_details_url(txid)))
 					.header("Accept", "application/json")
 					.build()
-					.unwrap()
-			})
+					.unwrap(),
+			)
 			.await;
 
 		let tx_status_str = match res {
@@ -201,12 +177,12 @@ impl StacksClient {
 	}
 
 	async fn get_nonce_info(&self) -> anyhow::Result<NonceInfo> {
-		self.send_request(|| {
+		self.send_request(
 			self.http_client
 				.get(self.cachebust(self.nonce_url()))
 				.build()
-				.unwrap()
-		})
+				.unwrap(),
+		)
 		.await
 	}
 
@@ -224,20 +200,13 @@ impl StacksClient {
 			name,
 		);
 
-		let res: Value = self
-			.send_request(|| {
-				self.http_client
-					.get(self.contract_info_url(id.to_string()))
-					.build()
-					.unwrap()
-			})
-			.await?;
+		let req = self
+			.http_client
+			.get(self.contract_info_url(id.to_string()))
+			.build()
+			.unwrap();
 
-		if let Some(err) = res["error"].as_str() {
-			Err(Error::msg(err.to_string()))
-		} else {
-			Ok(res["block_height"].as_u64().unwrap() as u32)
-		}
+		self.send_error_guarded_request(req, "block_height").await
 	}
 
 	/// Get the Bitcoin block height for a Stacks block height
@@ -245,16 +214,14 @@ impl StacksClient {
 		&self,
 		block_height: u32,
 	) -> anyhow::Result<u32> {
-		let res: Value = self
-			.send_request(|| {
-				self.http_client
-					.get(self.block_by_height_url(block_height))
-					.build()
-					.unwrap()
-			})
-			.await?;
-
-		Ok(res["burn_block_height"].as_u64().unwrap() as u32)
+		self.send_error_guarded_request::<u32>(
+			self.http_client
+				.get(self.block_by_height_url(block_height))
+				.build()
+				.unwrap(),
+			"burn_block_height",
+		)
+		.await
 	}
 
 	/// Get the block at height
@@ -262,20 +229,21 @@ impl StacksClient {
 		&self,
 		block_height: u32,
 	) -> anyhow::Result<Vec<StacksTransaction>> {
-		let res: Value = loop {
+		let raw_txids: Value = loop {
 			let maybe_response: Result<Value, Error> = self
-				.send_request(|| {
+				.send_error_guarded_request(
 					self.http_client
 						.get(self.block_by_height_url(block_height))
 						.build()
-						.unwrap()
-				})
+						.unwrap(),
+					"txs",
+				)
 				.await;
 
-			if let Ok(inner_response) = maybe_response {
-				if inner_response["txs"].is_array() {
+			if let Ok(txs_value) = maybe_response {
+				if txs_value.is_array() {
 					trace!("Found Stacks block of height {}", block_height);
-					break inner_response;
+					break txs_value;
 				}
 			}
 
@@ -283,28 +251,22 @@ impl StacksClient {
 			sleep(BLOCK_POLLING_INTERVAL).await;
 		};
 
-		let tx_ids: Vec<StacksTxId> = res["txs"]
+		raw_txids
 			.as_array()
-			.unwrap_or_else(|| {
-				panic!("Could not get txs from response: {:?}", res)
-			})
+			.expect("An array, found {raw_txids:?")
 			.iter()
 			.map(|id| {
-				let mut id = id.as_str().unwrap().to_string();
-				id = id.replace("0x", "");
-
-				StacksTxId::from_hex(&id).unwrap()
+				StacksTxId::from_hex(
+					id.as_str().unwrap().trim_start_matches("0x"),
+				)
+				.unwrap()
 			})
-			.collect();
-
-		let mut txs = Vec::with_capacity(tx_ids.len());
-
-		for id in tx_ids {
-			let tx = self.get_transaction(id).await?;
-			txs.push(tx);
-		}
-
-		Ok(txs)
+			.map(|txid| self.get_transaction(txid))
+			.collect::<FuturesUnordered<_>>()
+			.collect::<Vec<_>>()
+			.await
+			.into_iter()
+			.collect::<Result<Vec<StacksTransaction>, _>>()
 	}
 
 	/// Get the block at height
@@ -313,18 +275,17 @@ impl StacksClient {
 		id: StacksTxId,
 	) -> anyhow::Result<StacksTransaction> {
 		let res: Value = self
-			.send_request(|| {
+			.send_error_guarded_request(
 				self.http_client
 					.get(self.get_raw_transaction_url(id))
 					.header("Accept", "application/octet-stream")
 					.build()
-					.unwrap()
-			})
+					.unwrap(),
+				"raw_tx",
+			)
 			.await?;
 
-		let mut raw_tx: String = res["raw_tx"].as_str().unwrap().to_string();
-		raw_tx = raw_tx.replace("0x", "");
-
+		let raw_tx = res.as_str().unwrap().trim_start_matches("0x");
 		let bytes = hex::decode(raw_tx).unwrap();
 		let tx =
 			StacksTransaction::consensus_deserialize(&mut &bytes[..]).unwrap();
@@ -338,19 +299,21 @@ impl StacksClient {
 		height: u32,
 	) -> anyhow::Result<Uint256> {
 		let res: Value = self
-			.send_request(|| {
+			.send_error_guarded_request(
 				self.http_client
 					.get(self.block_by_bitcoin_height_url(height))
 					.header("Accept", "application/json")
 					.build()
-					.unwrap()
-			})
+					.unwrap(),
+				"hash",
+			)
 			.await?;
 
-		let hash_str = res["hash"]
+		let hash_str = res
 			.as_str()
-			.unwrap_or_else(|| panic!("Could not get block hash: {:?}", res));
-		let hash_bytes = hex::decode(hash_str.replace("0x", ""))?;
+			.expect("Could not get block hash: {res:?}")
+			.trim_start_matches("0x");
+		let hash_bytes = hex::decode(hash_str)?;
 
 		Ok(Uint256::deserialize(&mut Cursor::new(hash_bytes))?)
 	}
@@ -437,6 +400,24 @@ impl StacksClient {
 	fn fee_url(&self) -> reqwest::Url {
 		self.stacks_node_url.join("/v2/fees/transfer").unwrap()
 	}
+
+	async fn send_error_guarded_request<T>(
+		&self,
+		req: Request,
+		index: &str,
+	) -> anyhow::Result<T>
+	where
+		T: DeserializeOwned,
+	{
+		let res: Value = self.send_request(req).await?;
+
+		if let Some(err) = res["error"].as_str() {
+			let reason = res["reason"].as_str();
+			Err(anyhow!("{err}; reason: {reason:?}"))
+		} else {
+			Ok(serde_json::from_value(res[index].clone())?)
+		}
+	}
 }
 
 #[derive(serde::Deserialize)]
@@ -489,6 +470,11 @@ where
 
 #[cfg(test)]
 mod tests {
+
+	use std::ops::Add;
+
+	use assert_matches::assert_matches;
+
 	use super::*;
 	use crate::config::Config;
 
@@ -497,11 +483,21 @@ mod tests {
 	#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 	#[ignore]
 	async fn get_nonce_info() {
-		let config = Config::from_path("./testing/config.json")
+		let Config {
+			hiro_api_key,
+			stacks_node_url,
+			stacks_credentials,
+			..
+		} = Config::from_path("./testing/config.json")
 			.expect("Failed to find config file");
 		let http_client = reqwest::Client::new();
 
-		let stacks_client = StacksClient::new(&config, http_client);
+		let stacks_client = StacksClient::new(
+			hiro_api_key,
+			stacks_node_url,
+			stacks_credentials,
+			http_client,
+		);
 
 		let nonce_info = stacks_client.get_nonce_info().await.unwrap();
 		assert_eq!(nonce_info.possible_next_nonce, 122);
@@ -510,12 +506,181 @@ mod tests {
 	#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 	#[ignore]
 	async fn get_fee_rate() {
-		let config = Config::from_path("./testing/config.json")
+		let Config {
+			hiro_api_key,
+			stacks_node_url,
+			stacks_credentials,
+			..
+		} = Config::from_path("./testing/config.json")
 			.expect("Failed to find config file");
 		let http_client = reqwest::Client::new();
 
-		let stacks_client = StacksClient::new(&config, http_client);
+		let stacks_client = StacksClient::new(
+			hiro_api_key,
+			stacks_node_url,
+			stacks_credentials,
+			http_client,
+		);
 
 		stacks_client.calculate_fee(123).await.unwrap();
+	}
+
+	#[tokio::test]
+	async fn missing_contract_errors() {
+		let Config {
+			hiro_api_key,
+			stacks_credentials,
+			..
+		} = Config::from_path("../devenv/sbtc/docker/config.json")
+			.expect("Failed to find config file");
+
+		let contract = "missingcontract";
+
+		let mut server = mockito::Server::new();
+		let m = server
+			.mock(
+				"GET",
+				format!(
+					"/extended/v1/contract/{}.{contract}",
+					stacks_credentials.address()
+				)
+				.as_str(),
+			)
+			.with_status(404)
+			.create();
+
+		let stacks_client = StacksClient::new(
+			hiro_api_key,
+			server.url().parse().unwrap(),
+			stacks_credentials,
+			reqwest::Client::new(),
+		);
+
+		assert_eq!(
+			stacks_client
+				.get_contract_block_height(contract.try_into().unwrap(),)
+				.await
+				.expect_err("contract not deployed")
+				.downcast::<reqwest::Error>()
+				.unwrap()
+				.status()
+				.unwrap(),
+			404
+		);
+
+		m.assert();
+	}
+
+	#[tokio::test]
+	async fn send_request_prints_body_on_err() {
+		let Config {
+			stacks_credentials, ..
+		} = Config::from_path("../devenv/sbtc/docker/config.json")
+			.expect("Failed to find config file");
+
+		let contract = "missingcontract";
+
+		let mut server = mockito::Server::new();
+		let path = format!(
+			"/extended/v1/contract/{}.{contract}",
+			stacks_credentials.address()
+		);
+		let body = r#"{ "block_height": 2 }"#;
+		let m = server.mock("GET", path.as_str()).with_body(body).create();
+
+		let stacks_client = StacksClient::new(
+			None,
+			server.url().parse().unwrap(),
+			stacks_credentials,
+			reqwest::Client::new(),
+		);
+
+		let request = stacks_client
+			.http_client
+			.get(server.url().add(&path))
+			.build()
+			.unwrap();
+
+		assert_matches!(stacks_client.send_request::<u32>(request).await, Err(e)=>{
+			assert!(e.to_string().contains(body));
+		});
+
+		m.assert();
+	}
+
+	#[tokio::test]
+	async fn get_contract_block_height_positive() {
+		let Config {
+			stacks_credentials, ..
+		} = Config::from_path("../devenv/sbtc/docker/config.json")
+			.expect("Failed to find config file");
+
+		let contract = "contractname";
+
+		let mut server = mockito::Server::new();
+		let path = format!(
+			"/extended/v1/contract/{}.{contract}",
+			stacks_credentials.address()
+		);
+		let m = server
+			.mock("GET", path.as_str())
+			.with_body(r#"{ "block_height": 2 }"#)
+			.create();
+
+		let stacks_client = StacksClient::new(
+			None,
+			server.url().parse().unwrap(),
+			stacks_credentials,
+			reqwest::Client::new(),
+		);
+
+		assert_eq!(
+			stacks_client
+				.get_contract_block_height(contract.try_into().unwrap(),)
+				.await
+				.unwrap(),
+			2
+		);
+
+		m.assert();
+	}
+
+	#[tokio::test]
+	async fn send_error_guarded_request_errors_if_error_field_present() {
+		let Config {
+			stacks_credentials, ..
+		} = Config::from_path("../devenv/sbtc/docker/config.json")
+			.expect("Failed to find config file");
+
+		let mut server = mockito::Server::new();
+		let path = format!(
+			"/extended/v1/contract/{}.contract",
+			stacks_credentials.address()
+		);
+		let m = server
+			.mock("GET", path.as_str())
+			.with_body(r#"{ "any": 1, "error": "Oops", "reason": "Ay!" }"#)
+			.create();
+
+		let stacks_client = StacksClient::new(
+			None,
+			server.url().parse().unwrap(),
+			stacks_credentials,
+			reqwest::Client::new(),
+		);
+
+		let request = stacks_client
+			.http_client
+			.get(server.url().add(&path))
+			.build()
+			.unwrap();
+
+		let error = stacks_client
+			.send_error_guarded_request::<()>(request, "any")
+			.await
+			.expect_err("response body contains an error field");
+		assert!(error.to_string().contains("reason"));
+
+		m.assert();
 	}
 }

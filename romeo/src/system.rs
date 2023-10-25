@@ -48,8 +48,18 @@ pub async fn run(config: Config) {
 	let (tx, mut rx) = mpsc::channel::<Event>(128); // TODO: Make capacity configurable
 	let bitcoin_client = BitcoinClient::new(config.clone())
 		.expect("Failed to instantiate bitcoin client");
-	let stacks_client: StacksClient =
-		StacksClient::new(&config, reqwest::Client::new()).into();
+	let Config {
+		hiro_api_key,
+		stacks_node_url,
+		stacks_credentials,
+		..
+	} = config.clone();
+	let stacks_client: StacksClient = StacksClient::new(
+		hiro_api_key,
+		stacks_node_url,
+		stacks_credentials,
+		reqwest::Client::new(),
+	);
 
 	info!("Starting replay of persisted events");
 
