@@ -53,7 +53,7 @@ impl WIF {
 		{
 			Ok(())
 		} else {
-			Err(StacksError::InvalidData("WIF is invalid"))
+			Err(StacksError::InvalidData("WIF is invalid".into()))
 		}
 	}
 
@@ -62,7 +62,7 @@ impl WIF {
 		match WIFPrefix::from_repr(self.0[0]) {
 			Some(WIFPrefix::Mainnet) => Ok(Network::Mainnet),
 			Some(WIFPrefix::Testnet) => Ok(Network::Testnet),
-			_ => Err(StacksError::InvalidData("Unknown network byte")),
+			_ => Err(StacksError::InvalidData("Unknown network byte".into())),
 		}
 	}
 
