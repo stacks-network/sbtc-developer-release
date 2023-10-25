@@ -2,8 +2,8 @@
 id: 0
 name: Testnet deployment
 network: testnet
-stacks-node: "http://api.testnet.hiro.so"
-bitcoin-node: "http://blockstack:blockstacksystem@bitcoind.testnet.stacks.co:18332"
+stacks-node: "https://api.testnet.hiro.so"
+bitcoin-node: "https://blockstack:blockstacksystem@bitcoind.testnet.stacks.co:18332"
 plan:
   batches:
     - id: 0

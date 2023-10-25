@@ -9,7 +9,7 @@
 	(list 200 {to: principal, sbtc-in-sats: uint, memo: (buff 34)}))
 
 ;; send xbtc in sats to single recipient
-(define-public (transfer-sbtc-with-memo (sats uint) (to principal) (memo (buff 34)))
+(define-private (transfer-sbtc-with-memo (sats uint) (to principal) (memo (buff 34)))
 	(as-contract (contract-call?
 		.asset
 		transfer sats tx-sender to (some memo))))
