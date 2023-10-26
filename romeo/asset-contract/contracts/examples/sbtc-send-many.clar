@@ -53,3 +53,6 @@
 
 (define-read-only (get-last-request-id)
 	(var-get last-request-id))
+
+(define-read-only (get-request (owner principal) (request-id uint))
+	(map-get? requests {owner: owner, request-id: request-id}))
