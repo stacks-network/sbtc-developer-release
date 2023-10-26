@@ -21,7 +21,7 @@ use tokio::{
 	sync::mpsc,
 	task::JoinHandle,
 };
-use tracing::{info, trace};
+use tracing::{debug, info, trace};
 
 use crate::{
 	bitcoin_client::Client as BitcoinClient,
@@ -252,7 +252,7 @@ async fn update_contract_public_key(
 		.await
 		.sign_and_broadcast(tx)
 		.await
-		.expect("Unable to sign and broadcast the mint transaction");
+		.expect("Unable to sign and broadcast the set public key transaction");
 
 	Event::ContractPublicKeySetBroadcasted(txid)
 }
@@ -309,14 +309,26 @@ async fn mint_asset(
 
 	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
-	let txid = stacks_client
-		.lock()
-		.await
-		.sign_and_broadcast(tx)
-		.await
-		.expect("Unable to sign and broadcast the mint transaction");
-
-	Event::MintBroadcasted(deposit_info, txid)
+	match stacks_client.lock().await.sign_and_broadcast(tx).await {
+		Ok(txid) => Event::MintBroadcasted(deposit_info, txid),
+		Err(err) => {
+			if config.strict {
+				panic!(
+					"Unable to sign and broadcast the mint transaction: {}",
+					err
+				);
+			} else {
+				debug!("Ignoring failure to sign and broadcast the mint transaction: {}", err);
+				Event::MintBroadcasted(
+					deposit_info,
+					StacksTxId([
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					]),
+				)
+			}
+		}
+	}
 }
 
 async fn burn_asset(
@@ -371,14 +383,26 @@ async fn burn_asset(
 
 	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
-	let txid = stacks_client
-		.lock()
-		.await
-		.sign_and_broadcast(tx)
-		.await
-		.expect("Unable to sign and broadcast the mint transaction");
-
-	Event::BurnBroadcasted(withdrawal_info, txid)
+	match stacks_client.lock().await.sign_and_broadcast(tx).await {
+		Ok(txid) => Event::BurnBroadcasted(withdrawal_info, txid),
+		Err(err) => {
+			if config.strict {
+				panic!(
+					"Unable to sign and broadcast the burn transaction: {}",
+					err
+				);
+			} else {
+				debug!("Ignoring failure to sign and broadcast the burn transaction: {}", err);
+				Event::BurnBroadcasted(
+					withdrawal_info,
+					StacksTxId([
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					]),
+				)
+			}
+		}
+	}
 }
 
 async fn fulfill_asset(

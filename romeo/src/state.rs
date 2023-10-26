@@ -15,7 +15,7 @@ use stacks_core::codec::Codec;
 use tracing::{debug, info, warn};
 
 use crate::{
-	config::{self, Config},
+	config::Config,
 	event::{Event, TransactionStatus},
 	task::Task,
 };
