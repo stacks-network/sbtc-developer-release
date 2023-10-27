@@ -34,6 +34,11 @@ use crate::{
 	task::Task,
 };
 
+const DUMMY_STACKS_ID: StacksTxId = StacksTxId([
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0,
+]);
+
 /// The main run loop of this system.
 /// This function feeds all events to the `state::update` function and spawns
 /// all tasks returned from this function.
@@ -319,13 +324,7 @@ async fn mint_asset(
 				);
 			} else {
 				debug!("Ignoring failure to sign and broadcast the mint transaction: {}", err);
-				Event::MintBroadcasted(
-					deposit_info,
-					StacksTxId([
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					]),
-				)
+				Event::MintBroadcasted(deposit_info, DUMMY_STACKS_ID)
 			}
 		}
 	}
@@ -393,13 +392,7 @@ async fn burn_asset(
 				);
 			} else {
 				debug!("Ignoring failure to sign and broadcast the burn transaction: {}", err);
-				Event::BurnBroadcasted(
-					withdrawal_info,
-					StacksTxId([
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					]),
-				)
+				Event::BurnBroadcasted(withdrawal_info, DUMMY_STACKS_ID)
 			}
 		}
 	}

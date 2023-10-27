@@ -12,7 +12,7 @@ use sbtc_core::operations::{
 	op_return, op_return::withdrawal_request::WithdrawalRequestData,
 };
 use stacks_core::codec::Codec;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::{
 	config::Config,
