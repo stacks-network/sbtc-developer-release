@@ -1,6 +1,6 @@
 //! System
 
-use std::{fs::create_dir_all, io::Cursor};
+use std::{fs::create_dir_all, io::Cursor, time::Duration};
 
 use bdk::{
 	bitcoin::Txid as BitcoinTxId,
@@ -440,6 +440,7 @@ async fn fulfill_asset(
 	)
 	.expect("Could not create withdrawal fulfillment outputs");
 
+	tokio::time::sleep(Duration::from_secs(3)).await;
 	let txid = bitcoin_client
 		.sign_and_broadcast(outputs.to_vec())
 		.await

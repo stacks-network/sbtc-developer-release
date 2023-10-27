@@ -210,8 +210,6 @@ where
 		&self,
 		outputs: Vec<(Script, u64)>,
 	) -> anyhow::Result<Txid> {
-		sleep(Duration::from_secs(3)).await;
-
 		let blockchain = self.blockchain.clone();
 		let wallet = self.wallet.clone();
 
@@ -310,7 +308,6 @@ mod tests {
 
 		let client_sbtc_wallet = client
 			.wallet
-			.clone()
 			.lock()
 			.unwrap()
 			.get_address(bdk::wallet::AddressIndex::Peek(0))
