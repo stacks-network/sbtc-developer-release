@@ -146,7 +146,7 @@ impl State {
 				.into_iter()
 				.collect(),
 			Event::BitcoinTransactionUpdate(txid, status) => self
-				.process_bitcoin_transaction_update(txid, status)
+				.process_bitcoin_transaction_update(txid, status, config)
 				.into_iter()
 				.collect(),
 			Event::StacksBlock(height, txs) => {
@@ -157,15 +157,19 @@ impl State {
 				.into_iter()
 				.collect(),
 			Event::MintBroadcasted(deposit_info, txid) => {
-				self.process_mint_broadcasted(deposit_info, txid);
+				self.process_mint_broadcasted(deposit_info, txid, config);
 				vec![]
 			}
 			Event::BurnBroadcasted(withdrawal_info, txid) => {
-				self.process_burn_broadcasted(withdrawal_info, txid);
+				self.process_burn_broadcasted(withdrawal_info, txid, config);
 				vec![]
 			}
 			Event::FulfillBroadcasted(withdrawal_info, txid) => {
-				self.process_fulfillment_broadcasted(withdrawal_info, txid);
+				self.process_fulfillment_broadcasted(
+					withdrawal_info,
+					txid,
+					config,
+				);
 				vec![]
 			}
 		}
@@ -310,7 +314,12 @@ impl State {
 							has_pending_task,
 						} = req
 						else {
-							panic!("Got an {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
+							if config.strict {
+								panic!("Got an {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
+							} else {
+								debug!("Ignoring {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
+								return false;
+							}
 						};
 
 						if txid != *current_txid {
@@ -318,9 +327,15 @@ impl State {
 						}
 
 					    if !*has_pending_task {
-					        panic!(
-					            "Got an {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
-					        );
+							if config.strict {
+								panic!(
+									"Got an {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
+								);
+							} else {
+								debug!(
+									"Igno anring {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
+								);
+							}
 					    }
 
 					    *current_status = status.clone();
@@ -349,13 +364,18 @@ impl State {
 		&mut self,
 		txid: BitcoinTxId,
 		status: TransactionStatus,
+		config: &Config,
 	) -> impl IntoIterator<Item = Task> {
 		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process Bitcoin transaction update when state is not initialized");
 		};
 
 		if status == TransactionStatus::Rejected {
-			panic!("Bitcoin transaction failed: {}", txid);
+			if config.strict {
+				panic!("Bitcoin transaction failed: {}", txid);
+			} else {
+				debug!("Bitcoin transaction failed: {}", txid);
+			}
 		}
 
 		let statuses_updated: usize = withdrawals
@@ -368,7 +388,12 @@ impl State {
 					has_pending_task,
 				} = req
 				else {
-					panic!("Got an {:?} status update for a Bitcoin transaction that is not acknowledged: txid {} req {:?}", status, txid, req);
+					if config.strict {
+						panic!("Got an {:?} status update for a Bitcoin transaction that is not acknowledged: txid {} req {:?}", status, txid, req);
+					} else {
+						debug!("Ignoring {:?} status update for a Bitcoin transaction that is not acknowledged: txid {} req {:?}", status, txid, req);
+						return false;
+					};
 				};
 
 				if txid != *current_txid {
@@ -376,9 +401,15 @@ impl State {
 				}
 
 			    if !*has_pending_task {
+					if config.strict {
 			        panic!(
 			            "Got an {:?} status update for a Bitcoin transaction that doesn't have a pending task: {}", status, txid
 			        );
+				} else {
+					debug!(
+			            "Ignoring {:?} status update for a Bitcoin transaction that doesn't have a pending task: {}", status, txid
+			        );
+				}
 			    }
 
 			    *current_status = status.clone();
@@ -630,6 +661,7 @@ impl State {
 		&mut self,
 		deposit_info: DepositInfo,
 		txid: StacksTxId,
+		config: &Config,
 	) {
 		let State::Initialized { deposits, .. } = self else {
 			panic!("Cannot process broadcasted mint if uninitialized")
@@ -640,10 +672,13 @@ impl State {
 			.find(|deposit| deposit.info == deposit_info)
 			.expect("Could not find a deposit for the mint");
 
-		assert!(
-			matches!(deposit.mint, Some(TransactionRequest::Created)),
-			"Newly minted deposit already has mint acknowledged"
-		);
+		debug!("Mint broadcasted: {:?}", deposit.mint);
+		if config.strict {
+			assert!(
+				matches!(deposit.mint, Some(TransactionRequest::Created)),
+				"Newly minted deposit already has mint acknowledged"
+			);
+		}
 
 		deposit.mint = Some(TransactionRequest::Acknowledged {
 			txid,
@@ -656,6 +691,7 @@ impl State {
 		&mut self,
 		withdrawal_info: WithdrawalInfo,
 		txid: StacksTxId,
+		config: &Config,
 	) {
 		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process broadcasted burn if uninitialized")
@@ -666,10 +702,12 @@ impl State {
 			.find(|withdrawal| withdrawal.info == withdrawal_info)
 			.expect("Could not find a withdrawal for the burn");
 
-		assert!(
-			matches!(withdrawal.burn, Some(TransactionRequest::Created)),
-			"Newly burned withdrawal already has burn acknowledged"
-		);
+		if config.strict {
+			assert!(
+				matches!(withdrawal.burn, Some(TransactionRequest::Created)),
+				"Newly burned withdrawal already has burn acknowledged"
+			);
+		}
 
 		withdrawal.burn = Some(TransactionRequest::Acknowledged {
 			txid,
@@ -682,6 +720,7 @@ impl State {
 		&mut self,
 		withdrawal_info: WithdrawalInfo,
 		txid: BitcoinTxId,
+		config: &Config,
 	) {
 		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process broadcasted fulfillment if uninitialized")
@@ -692,10 +731,12 @@ impl State {
 			.find(|withdrawal| withdrawal.info == withdrawal_info)
 			.expect("Could not find a withdrawal for the fulfillment");
 
-		assert!(
+		if config.strict {
+			assert!(
 			matches!(withdrawal.fulfillment, Some(TransactionRequest::Created)),
 			"Newly fulfilled withdrawal already has fulfillment acknowledged"
 		);
+		}
 
 		withdrawal.fulfillment = Some(TransactionRequest::Acknowledged {
 			txid,

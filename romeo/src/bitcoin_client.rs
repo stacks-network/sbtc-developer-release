@@ -169,6 +169,11 @@ impl Client {
 						))?;
 					}
 				}
+				Err(bitcoincore_rpc::Error::JsonRpc(
+					bitcoincore_rpc::jsonrpc::Error::Transport(_),
+				)) => {
+					trace!("Bitcoin client connection error, retrying...");
+				}
 				Err(err) => {
 					Err(anyhow!("Error fetching Bitcoin block: {:?}", err))?
 				}
