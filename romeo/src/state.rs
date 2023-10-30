@@ -356,6 +356,7 @@ impl State {
 					);
 				} else {
 					debug!("Unexpected number of Stacks statuses updated");
+					return false;
 				}
 			}
 		}
