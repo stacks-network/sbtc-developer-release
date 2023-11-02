@@ -16,7 +16,7 @@ ARG GIT_BRANCH='v1.119.0'
 WORKDIR /app
 RUN apk add --no-cache git python3 make g++
 RUN git clone ${GIT_URI} -b ${GIT_BRANCH} .
-RUN npm install -g pnpm
+RUN npm install -g pnpm@8.9.1
 RUN pnpm i
 RUN pnpm build
 
