@@ -93,7 +93,7 @@ export class BurnCommand implements AssetCommand {
     ]);
 
     console.log(
-      `✓ ${shortenString(this.sender).padStart(8, " ")} ${"burn".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")}`
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${"burn".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")}`
     );
   }
 
