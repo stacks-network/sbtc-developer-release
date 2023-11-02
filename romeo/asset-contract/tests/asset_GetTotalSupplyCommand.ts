@@ -36,7 +36,7 @@ export class GetTotalSupplyCommand implements AssetCommand {
     expect(result).toBeOk(Cl.uint(supply));
 
     console.log(
-      `✓ ${shortenString(this.sender).padStart(8, " ")} ${`get-total-supply`.padStart(16, " ")} ${supply.toString().padStart(24, " ")}`,
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${`get-total-supply`.padStart(29, " ")} ${supply.toString().padStart(24, " ")}`,
     );
   }
 

@@ -69,7 +69,7 @@ export class BurnCommand_500 implements AssetCommand {
     expect(block[1].result).toBeErr(Cl.uint(500));
 
     console.log(
-      `! ${shortenString(this.sender).padStart(8, " ")} ${"burn".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")} (expected, same bitcoin tx)`
+      `! ${shortenString(this.sender).padStart(8, " ")} ${"burn".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")} (expected, same bitcoin tx)`
     );
   }
 

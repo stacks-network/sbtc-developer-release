@@ -35,7 +35,7 @@ export class TransferCommand implements AssetCommand {
       return true;
     } else {
       console.log(
-        `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (discarded)`
+        `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (discarded)`
       );
       return false;
     }
@@ -68,7 +68,7 @@ export class TransferCommand implements AssetCommand {
     );
 
     console.log(
-      `✓ ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") }`
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") }`
     );
   }
 
