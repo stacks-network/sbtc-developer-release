@@ -10,7 +10,7 @@ project_name() {
     echo "$filter"
 }
 
-filters=("test(deposit)")
+filters=("test(deposit)" "test(withdrawal)")
 filter_union=""
 ids=()
 projects=()

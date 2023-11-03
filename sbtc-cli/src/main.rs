@@ -51,7 +51,10 @@ fn main() -> Result<(), anyhow::Error> {
 				Ok(())
 			}),
 		Command::Withdraw(withdrawal_args) => {
-			build_withdrawal_tx(&withdrawal_args)
+			build_withdrawal_tx(&withdrawal_args).and_then(|t| {
+				to_stdout_pretty(t)?;
+				Ok(())
+			})
 		}
 		Command::Broadcast(broadcast_args) => broadcast_tx(&broadcast_args),
 		Command::GenerateFrom(generate_args) => generate(&generate_args),
