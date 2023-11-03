@@ -1,29 +1,8 @@
 use std::{thread::sleep, time::Duration};
 
 use anyhow::Result;
-use bdk::bitcoin::psbt::serialize::Serialize;
-use reqwest::blocking::Client;
-use sbtc_cli::commands::{
-	broadcast::{broadcast_tx, BroadcastArgs},
-	deposit::{build_deposit_tx, DepositArgs},
-};
-
-use super::bitcoin_client::{electrs_url, generate_blocks};
-
-const WALLET_0_P2TR_ADDRESS: &str =
-	"bcrt1pte5zmd7qzj4hdu45lh9mmdm0nwq3z35pwnxmzkwld6y0a8g83nnqhj6vc0";
-const WALLET_0_P2WPKH_ADDRESS: &str =
-	"bcrt1q3tj2fr9scwmcw3rq5m6jslva65f2rqjxfrjz47";
-const WALLET_0_P2WPKH_WIF: &str =
-	"cTyHitzs3VRnNxrpwxo3fXTTe569wHNUs57tQM7Z1FrzUDNB5mqm";
-const WALLET_1_P2WPKH_WIF: &str =
-	"cNcXK2r8bNdWJQymtAW8tGS7QHNtFFvG5CdXqhhT752u29WspXRM";
-const WALLET_1_STX_ADDRESS: &str = "ST2ST2H80NP5C9SPR4ENJ1Z9CDM9PKAJVPYWPQZ50";
-const WALLET_1_P2WPKH_ADDRESS: &str =
-	"bcrt1q3zl64vadtuh3vnsuhdgv6pm93n82ye8q6cr4ch";
-
 use bdk::{
-	bitcoin::PrivateKey,
+	bitcoin::{psbt::serialize::Serialize, PrivateKey},
 	blockchain::{
 		ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig,
 	},
@@ -31,15 +10,26 @@ use bdk::{
 	template::P2Wpkh,
 	SyncOptions, Wallet,
 };
+use reqwest::blocking::Client;
+use sbtc_cli::commands::{
+	broadcast::{broadcast_tx, BroadcastArgs},
+	deposit::{build_deposit_tx, DepositArgs},
+};
+
+use super::{
+	bitcoin_client::{electrs_url, generate_blocks},
+	KeyType::*,
+	WALLETS,
+};
 
 #[test]
 fn broadcast_deposit() -> Result<()> {
 	let client = Client::new();
 	{
-		generate_blocks(1, &client, WALLET_0_P2WPKH_ADDRESS);
-		generate_blocks(1, &client, WALLET_1_P2WPKH_ADDRESS);
+		generate_blocks(1, &client, WALLETS[0][P2wpkh].address);
+		generate_blocks(1, &client, WALLETS[1][P2wpkh].address);
 		// pads blocks to get rewards.
-		generate_blocks(100, &client, WALLET_0_P2WPKH_ADDRESS);
+		generate_blocks(100, &client, WALLETS[0][P2wpkh].address);
 	};
 
 	let electrum_url = electrs_url();
@@ -57,7 +47,7 @@ fn broadcast_deposit() -> Result<()> {
 			})
 			.unwrap();
 
-		let private_key = PrivateKey::from_wif(WALLET_1_P2WPKH_WIF)?;
+		let private_key = PrivateKey::from_wif(WALLETS[1][P2wpkh].wif)?;
 
 		let wallet = Wallet::new(
 			P2Wpkh(private_key),
@@ -82,11 +72,11 @@ fn broadcast_deposit() -> Result<()> {
 	let tx = {
 		let args = DepositArgs {
 			node_url: electrum_url.clone(),
-			wif: WALLET_1_P2WPKH_WIF.into(),
+			wif: WALLETS[1][P2wpkh].wif.into(),
 			network: bdk::bitcoin::Network::Regtest,
-			recipient: WALLET_1_STX_ADDRESS.into(),
+			recipient: WALLETS[1][Stacks].address.into(),
 			amount,
-			sbtc_wallet: WALLET_0_P2TR_ADDRESS.into(),
+			sbtc_wallet: WALLETS[0][P2tr].address.into(),
 		};
 
 		build_deposit_tx(&args).unwrap()
