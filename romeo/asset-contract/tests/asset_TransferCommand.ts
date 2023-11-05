@@ -34,9 +34,18 @@ export class TransferCommand implements AssetCommand {
     ) {
       return true;
     } else {
-      console.log(
-        `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (discarded)`
-      );
+      if (this.sender === this.wallet) {
+        console.log(
+          `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } ${"(discarded, sender can not be the receiver)".padStart(67, " ")}`
+        );
+      }
+
+      if ((model.wallets.get(this.sender) ?? 0) < this.amount) {
+        console.log(
+          `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } ${"(discarded, not enough funds)".padStart(53, " ")}`
+        );
+      }
+
       return false;
     }
   }
