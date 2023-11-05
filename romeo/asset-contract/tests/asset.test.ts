@@ -101,6 +101,29 @@ it("asset.clar: Can get decimals", () => {
   ));
 });
 
+it("asset.clar: Bitcoin wallet public key is by default none", () => {
+  fc.assert(fc.property(
+    fc.record({
+      sender: fc.constantFrom(...simnet.getAccounts().values()),
+    }),
+    (r: { sender: string }) => {
+      // Arrange
+      const sender = r.sender;
+
+      // Act
+      const { result } = simnet.callReadOnlyFn(
+        "asset",
+        "get-bitcoin-wallet-public-key",
+        [],
+        sender,
+      );
+
+      // Assert
+      expect(result).toBeNone();
+    },
+  ));
+});
+
 import { initSimnet } from "@hirosystems/clarinet-sdk";
 import { AssetCommands } from "./asset_Commands.ts";
 

@@ -41,6 +41,8 @@ export class SetBitcoinWalletPublicKeyCommand implements AssetCommand {
 
     expect(block[0].result).toBeOk(Cl.bool(true));
 
+    model.bitcoinWalletPublicKey = this.pubKey;
+
     console.log(
       `✓ ${shortenString(this.sender).padStart(8, " ")} ${"set-bitcoin-wallet-public-key".padStart(29, " ") } ${shortenString(uint8ArrayToHexString(this.pubKey))}`
     );
