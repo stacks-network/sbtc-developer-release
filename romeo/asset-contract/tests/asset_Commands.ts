@@ -5,6 +5,7 @@ import fc from "fast-check";
 import { BurnCommand } from "./asset_BurnCommand.ts";
 import { BurnCommand_500 } from "./asset_BurnCommand_500.ts";
 import { GetBalanceCommand } from "./asset_GetBalanceCommand.ts";
+import { GetBitcoinWalletPublicKeyCommand } from "./asset_GetBitcoinWalletPublicKeyCommand.ts";
 import { GetTotalSupplyCommand } from "./asset_GetTotalSupplyCommand.ts";
 import { MintCommand } from "./asset_MintCommand.ts";
 import { MintCommand_500 } from "./asset_MintCommand_500.ts";
@@ -79,6 +80,21 @@ export function AssetCommands(accounts: Map<string, string>) {
         new GetBalanceCommand(
           r.sender,
           r.wallet,
+        )
+      ),
+
+    // GetBitcoinWalletPublicKeyCommand
+    fc
+      .record({
+        sender: fc.constantFrom(...accounts.values()),
+      })
+      .map((
+        r: {
+          sender: string;
+        },
+      ) =>
+        new GetBitcoinWalletPublicKeyCommand(
+          r.sender,
         )
       ),
 

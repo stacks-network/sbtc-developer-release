@@ -5,6 +5,7 @@ import { Simnet } from "@hirosystems/clarinet-sdk";
 export type Stub = {
   wallets: Map<string, number>; // string: Address, number: Balance
   transactions: [string, number, string][]; // string: Id, number: Mint/Burn Amount, string: Stacks Account
+  bitcoinWalletPublicKey: Uint8Array;
 };
 
 export type Real = {
