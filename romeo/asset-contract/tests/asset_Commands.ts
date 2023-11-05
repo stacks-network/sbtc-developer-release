@@ -166,8 +166,8 @@ export function AssetCommands(accounts: Map<string, string>) {
       .record({
         sender: fc.constant(accounts.get("deployer")!),
         pubKey: fc.array(fc.integer({ min: 0, max: 255 })
-          .map(n => n.toString(16).padStart(2, '0')), { minLength: 32, maxLength: 32 })
-          .map(bytes => '0x' + bytes.join(''))
+          .map((n: number) => n.toString(16).padStart(2, '0')), { minLength: 32, maxLength: 32 })
+          .map((bytes: string[]) => '0x' + bytes.join(''))
           .map(hexStringToUint8Array),
       })
       .map((
@@ -187,8 +187,8 @@ export function AssetCommands(accounts: Map<string, string>) {
       .record({
         sender: fc.constantFrom(...accounts.values()).filter((a: string) => a !== accounts.get("deployer")!),
         pubKey: fc.array(fc.integer({ min: 0, max: 255 })
-          .map(n => n.toString(16).padStart(2, '0')), { minLength: 32, maxLength: 32 })
-          .map(bytes => '0x' + bytes.join(''))
+          .map((n: number) => n.toString(16).padStart(2, '0')), { minLength: 32, maxLength: 32 })
+          .map((bytes: string[]) => '0x' + bytes.join(''))
           .map(hexStringToUint8Array),
       })
       .map((
