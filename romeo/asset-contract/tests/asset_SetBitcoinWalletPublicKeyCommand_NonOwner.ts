@@ -42,7 +42,7 @@ export class SetBitcoinWalletPublicKeyCommand_NonOwner implements AssetCommand {
     expect(block[0].result).toBeErr(Cl.uint(403));
 
     console.log(
-      `! ${shortenString(this.sender).padStart(8, " ")} ${"set-bitcoin-wallet-public-key".padStart(29, " ") } ${shortenString(uint8ArrayToHexString(this.pubKey))}`
+      `! ${shortenString(this.sender).padStart(8, " ")} ${"set-bitcoin-wallet-public-key".padStart(29, " ") } ${shortenString(uint8ArrayToHexString(this.pubKey))} ${"(expected, non-owner)".padStart(58, " ")}`
     );
   }
 
