@@ -28,4 +28,4 @@ clarinet deployments apply --no-dashboard -d -p deployments/default.devnet-plan.
 cd -
 
 echo with filter: "'$@'"
-cargo nextest run -E "$@ and kind(test)" --archive-file integration-tests.tar.zst
+cargo nextest run -E "$@ and kind(test)" --archive-file integration-tests.tar.zst --nocapture
