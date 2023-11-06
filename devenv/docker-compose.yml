@@ -31,16 +31,9 @@ services:
       MYSQL_PASSWORD: "mempool"
       MYSQL_ROOT_PASSWORD: "admin"
   miner:
-    image: miner:latest
-    container_name: miner
-    stop_grace_period: 5s
-    build:
-      context: ./miner/docker
-    depends_on:
-      - bitcoin
-    environment:
-      INIT_BTC_BLOCKS: 200
-      BTC_BLOCK_GEN_TIME: 10
+    extends:
+      file: min-docker-compose.yml
+      service: miner
   stacks:
     extends:
       file: min-docker-compose.yml
