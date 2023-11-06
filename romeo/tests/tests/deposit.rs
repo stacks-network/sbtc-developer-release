@@ -1,8 +1,9 @@
-use std::{thread::sleep, time::Duration};
+use std::{str::FromStr, thread::sleep, time::Duration};
 
 use anyhow::Result;
 use bdk::{
-	bitcoin::{psbt::serialize::Serialize, PrivateKey},
+	bitcoin::{psbt::serialize::Serialize, Address, PrivateKey},
+	bitcoincore_rpc::RpcApi,
 	blockchain::{
 		ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig,
 	},
@@ -10,31 +11,43 @@ use bdk::{
 	template::P2Wpkh,
 	SyncOptions, Wallet,
 };
-use reqwest::blocking::Client;
 use sbtc_cli::commands::{
 	broadcast::{broadcast_tx, BroadcastArgs},
 	deposit::{build_deposit_tx, DepositArgs},
 };
 
 use super::{
-	bitcoin_client::{electrs_url, generate_blocks},
+	bitcoin_client::{
+		bitcoin_url, client_new, electrs_url, mine_blocks,
+		wait_for_tx_confirmation,
+	},
 	KeyType::*,
 	WALLETS,
 };
 
 #[test]
 fn broadcast_deposit() -> Result<()> {
-	let client = Client::new();
+	let b_client = client_new(bitcoin_url().as_str(), "devnet", "devnet");
+
+	b_client
+		.import_address(
+			&Address::from_str(WALLETS[1][P2wpkh].address).unwrap(),
+			None,
+			Some(false),
+		)
+		.unwrap();
+
 	{
-		generate_blocks(1, &client, WALLETS[0][P2wpkh].address);
-		generate_blocks(1, &client, WALLETS[1][P2wpkh].address);
+		mine_blocks(&b_client, 1, WALLETS[0][P2wpkh].address);
+		mine_blocks(&b_client, 1, WALLETS[1][P2wpkh].address);
 		// pads blocks to get rewards.
-		generate_blocks(100, &client, WALLETS[0][P2wpkh].address);
+		mine_blocks(&b_client, 100, WALLETS[0][P2wpkh].address);
 	};
 
 	let electrum_url = electrs_url();
 
 	// suboptimal, replace once we have better events.
+	// replace with b_client balance?
 	{
 		let blockchain =
 			ElectrumBlockchain::from_config(&ElectrumBlockchainConfig {
@@ -87,6 +100,10 @@ fn broadcast_deposit() -> Result<()> {
 		tx: hex::encode(tx.serialize()),
 	})
 	.unwrap();
+
+	let txid = tx.txid();
+
+	wait_for_tx_confirmation(&b_client, &txid, 1);
 
 	Ok(())
 }
