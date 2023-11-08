@@ -1,4 +1,7 @@
 [package]
+name = "sbtc-core"
+version = "0.1.0"
+edition = "2021"
 authors = ["Stacks Foundation <admin@stacks.co>"]
 categories = [
     "cryptography::cryptocurrencies",
@@ -7,27 +10,25 @@ categories = [
     "finance",
 ]
 description = "Package that exposes primitives for working with the Stacks sBTC token"
-edition = "2021"
 keywords = ["stacks", "bitcoin", "sbtc", "sdk", "blockchain"]
 license = "MIT"
-name = "sbtc-core"
 readme = "README.md"
 repository = "https://github.com/stacks-network/sbtc"
-version = "0.1.0"
 homepage = "https://www.stacks.co"
 
 [dependencies]
-bdk.workspace = true
-hex.workspace = true
-log.workspace = true
-once_cell.workspace = true
-p256k1.workspace = true
-regex.workspace = true
-stacks-core.path = "../stacks-core"
-strum = { workspace = true, features = ["derive"] }
-thiserror.workspace = true
-url.workspace = true
-wsts.workspace = true
+bdk = "0.28.1"
+hex = "0.4.3"
+log = "0.4.19"
+once_cell = "1.18.0"
+p256k1 = "5.1"
+regex = "~1.8.4"
+stacks-core.workspace = true
+strum = "0.25.0"
+thiserror = "1.0.43"
+url = "2.4.1"
+wsts = "1.2"
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std_rng"] }
+
