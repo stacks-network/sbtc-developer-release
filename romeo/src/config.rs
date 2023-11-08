@@ -9,8 +9,8 @@ use bdk::bitcoin::Network as BitcoinNetwork;
 use blockstack_lib::vm::ContractName;
 use clap::Parser;
 use stacks_core::{
-	wallet::{BitcoinCredentials, Credentials, Wallet},
-	Network as StacksNetwork,
+	wallet::{BitcoinCredentials, Credentials as StacksCredentials, Wallet},
+	Network as StacksNetwork, StacksError,
 };
 use url::Url;
 
@@ -37,8 +37,7 @@ pub struct Config {
 	pub bitcoin_network: BitcoinNetwork,
 
 	/// Credentials used to interact with the Stacks network
-	pub stacks_credentials: Credentials,
-
+	pub stacks_credentials: StacksCredentials,
 	/// Credentials used to interact with the Bitcoin network
 	pub bitcoin_credentials: BitcoinCredentials,
 
@@ -63,43 +62,8 @@ pub struct Config {
 
 impl Config {
 	/// Read the config file in the path
-	pub fn from_path(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-		let config_root = normalize(
-			std::env::current_dir().unwrap(),
-			path.as_ref().parent().unwrap(),
-		);
-
-		let config_file = ConfigFile::from_path(&path)?;
-		let state_directory =
-			normalize(config_root.clone(), config_file.state_directory);
-
-		let stacks_node_url = Url::parse(&config_file.stacks_node_url)?;
-		let bitcoin_node_url = Url::parse(&config_file.bitcoin_node_url)?;
-		let electrum_node_url = Url::parse(&config_file.electrum_node_url)?;
-
-		let wallet = Wallet::new(&config_file.mnemonic)?;
-
-		let stacks_credentials =
-			wallet.credentials(config_file.stacks_network, 0)?;
-		let bitcoin_credentials =
-			wallet.bitcoin_credentials(config_file.bitcoin_network, 0)?;
-		let hiro_api_key = config_file.hiro_api_key;
-
-		Ok(Self {
-			state_directory,
-			stacks_network: config_file.stacks_network,
-			bitcoin_network: config_file.bitcoin_network,
-			stacks_credentials,
-			bitcoin_credentials,
-			stacks_node_url,
-			bitcoin_node_url,
-			electrum_node_url,
-			contract_name: ContractName::from(
-				config_file.contract_name.as_str(),
-			),
-			hiro_api_key,
-			strict: config_file.strict.unwrap_or_default(),
-		})
+	pub fn try_from_path(path: impl AsRef<Path>) -> Result<Self, StacksError> {
+		ConfigFile::try_from(path.as_ref()).unwrap().try_into()
 	}
 
 	/// The sbtc wallet address is the taproot address
@@ -109,11 +73,33 @@ impl Config {
 	}
 }
 
-fn normalize(root_dir: PathBuf, path: impl AsRef<Path>) -> PathBuf {
-	if path.as_ref().is_relative() {
-		root_dir.join(path)
-	} else {
-		path.as_ref().into()
+impl TryFrom<ConfigFile> for Config {
+	type Error = stacks_core::StacksError;
+
+	fn try_from(config_file: ConfigFile) -> Result<Self, Self::Error> {
+		let wallet = Wallet::new(&config_file.mnemonic)?;
+
+		let stacks_credentials =
+			wallet.credentials(config_file.stacks_network, 0)?;
+		let bitcoin_credentials =
+			wallet.bitcoin_credentials(config_file.bitcoin_network, 0)?;
+		let hiro_api_key = config_file.hiro_api_key;
+
+		Ok(Self {
+			state_directory: config_file.state_directory,
+			stacks_network: config_file.stacks_network,
+			bitcoin_network: config_file.bitcoin_network,
+			stacks_credentials,
+			bitcoin_credentials,
+			stacks_node_url: config_file.stacks_node_url,
+			bitcoin_node_url: config_file.bitcoin_node_url,
+			electrum_node_url: config_file.electrum_node_url,
+			contract_name: ContractName::from(
+				config_file.contract_name.as_str(),
+			),
+			hiro_api_key,
+			strict: config_file.strict,
+		})
 	}
 }
 
@@ -132,28 +118,45 @@ struct ConfigFile {
 	pub bitcoin_network: BitcoinNetwork,
 
 	/// Address of a stacks node
-	pub stacks_node_url: String,
+	pub stacks_node_url: Url,
 
 	/// Address of a bitcoin node
-	pub bitcoin_node_url: String,
+	pub bitcoin_node_url: Url,
 
 	/// Address of the Electrum node
-	pub electrum_node_url: String,
+	pub electrum_node_url: Url,
 
 	/// sBTC asset contract name
-	pub contract_name: String,
+	pub contract_name: ContractName,
 
 	/// optional api key used for the stacks node
 	pub hiro_api_key: Option<String>,
 
 	/// Strict mode
-	pub strict: Option<bool>,
+	#[serde(default)]
+	pub strict: bool,
 }
 
-impl ConfigFile {
-	pub fn from_path(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-		let config_file = File::open(&path)?;
+impl TryFrom<&Path> for ConfigFile {
+	type Error = std::io::Error;
 
+	fn try_from(value: &Path) -> Result<Self, Self::Error> {
+		let config_file = File::open(value)?;
 		Ok(serde_json::from_reader(config_file)?)
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+	#[test]
+	fn deserialize() {
+		let path_str = "../devenv/sbtc/docker/config.json";
+		// this file is now the ground truth.
+		let path = Path::new(path_str);
+		Config::try_from_path(path).unwrap();
+
+		let path = path_str;
+		Config::try_from_path(path).unwrap();
 	}
 }
