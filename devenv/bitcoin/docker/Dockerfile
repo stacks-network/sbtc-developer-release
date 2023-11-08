@@ -6,7 +6,7 @@ ARG VERSION=25.0
 RUN apt-get update && apt-get install -y \
     wget \
     file \
-  && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 RUN file /bin/bash | grep -q x86-64 && echo x86_64-linux-gnu > /tmp/arch || true
 RUN file /bin/bash | grep -q aarch64 && echo aarch64-linux-gnu > /tmp/arch || true

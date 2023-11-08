@@ -17,7 +17,7 @@ TEST_FRAMEWORK = "nextest"
 [env.github-actions]
 # TODO: use nexttest when testing becomes too much to do in series.
 # Installing nexttest takes > 5 minutes on github workflow machines.
-TEST_FRAMEWORK = "test"
+TEST_FRAMEWORK = "nextest"
 
 # Installations
 # --------------
@@ -28,15 +28,24 @@ TEST_FRAMEWORK = "test"
 [tasks._install-test-framework]
 private = true
 condition = { env = { "TEST_FRAMEWORK" = "nextest" } }
-install_crate = { crate_name = "cargo-nextest", version = "0.9.57", binary = "cargo", "test_arg" = ["nextest" , "--help"]}
+install_crate = { crate_name = "cargo-nextest", version = "0.9.57", binary = "cargo", "test_arg" = [
+    "nextest",
+    "--help",
+] }
 
 [tasks._install-llvm-cov]
 private = true
-install_crate = { crate_name = "cargo-llvm-cov", version = "0.5.25", binary = "cargo", "test_arg" = ["llvm-cov" , "--help"]}
+install_crate = { crate_name = "cargo-llvm-cov", version = "0.5.25", binary = "cargo", "test_arg" = [
+    "llvm-cov",
+    "--help",
+] }
 
 [tasks._install-audit]
 private = true
-install_crate = { crate_name = "cargo-audit", version = "0.18.1", binary = "cargo", "test_arg" = ["audit" , "--help"]}
+install_crate = { crate_name = "cargo-audit", version = "0.18.1", binary = "cargo", "test_arg" = [
+    "audit",
+    "--help",
+] }
 
 [tasks.install]
 dependencies = [
@@ -49,14 +58,24 @@ dependencies = [
 # -----------
 
 [tasks.format-fmt]
-install_crate = "rustfmt" # uses the stable version.
+# uses the stable version.
+install_crate = "rustfmt"
 command = "cargo"
 args = ["fmt", "--check", "--verbose"]
 
 [tasks.format-clippy]
 install_crate = "clippy" # uses the stable version.
 command = "cargo"
-args = ["clippy","--all-features", "--all-targets", "--", "-D", "warnings", "-W", "clippy::all"]
+args = [
+    "clippy",
+    "--all-features",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings",
+    "-W",
+    "clippy::all",
+]
 
 [tasks.format]
 dependencies = ["format-clippy", "format-fmt"]
@@ -77,16 +96,15 @@ args = ["-p", "${COVERAGE_DIRECTORY}"]
 
 [tasks._calculate-coverage]
 private = true
-dependencies = [
-    "_install-llvm-cov",
-    "_install-test-framework",
-]
+dependencies = ["_install-llvm-cov", "_install-test-framework"]
 command = "cargo"
 args = [
     "llvm-cov",
     "${TEST_FRAMEWORK}",
     "--all-features",
-    "--no-report"
+    "--no-report",
+    "-E",
+    "not (kind(test))",
 ]
 
 [tasks._calculated-coverage-clean]
@@ -97,37 +115,27 @@ args = ["llvm-cov", "clean"]
 # Public tasks ----------------------------------------------------------------
 [tasks.coverage-clean]
 workspace = false
-dependencies = [ "_calculated-coverage-clean", "_coverage-output-clean" ]
+dependencies = ["_calculated-coverage-clean", "_coverage-output-clean"]
 
 [tasks.coverage-lcov]
 workspace = false
 dependencies = [
     "_install-llvm-cov",
     "_calculate-coverage",
-    "_make-coverage-output-directory"
+    "_make-coverage-output-directory",
 ]
 command = "cargo"
-args = [
-    "llvm-cov",
-    "report",
-    "--output-path=${COVERAGE_LCOV}",
-    "--lcov",
-]
+args = ["llvm-cov", "report", "--output-path=${COVERAGE_LCOV}", "--lcov"]
 
 [tasks.coverage-html]
 workspace = false
 dependencies = [
     "_install-llvm-cov",
     "_calculate-coverage",
-    "_make-coverage-output-directory"
+    "_make-coverage-output-directory",
 ]
 command = "cargo"
-args = [
-    "llvm-cov",
-    "report",
-    "--output-dir=${COVERAGE_HTML_DIR}",
-    "--html",
-]
+args = ["llvm-cov", "report", "--output-dir=${COVERAGE_HTML_DIR}", "--html"]
 
 [tasks.coverage-all]
 workspace = false
@@ -162,7 +170,8 @@ args = ["doc"]
 # ------
 
 [tasks.audit]
-workspace = false # Audit must run in workspace root.
+# Audit must run in workspace root.
+workspace = false
 dependencies = ["_install-audit"]
 command = "cargo"
 args = ["audit", "-D", "warnings"]
@@ -174,12 +183,21 @@ args = ["audit", "-D", "warnings"]
 dependencies = ["coverage-clean", "cargo-clean"]
 
 [tasks.pr-validation]
-dependencies = [
-    "clean",
-    "format",
-    "coverage",
-    "release",
-]
+dependencies = ["clean", "format", "coverage", "release"]
 
 [tasks.default]
 run_task = "pr-validation"
+
+# Integration
+# ----------
+#[tasks.build-devenv]
+#command = "./build.sh"
+
+[tasks.build-testbed]
+command = "pushd integration && ./bin/build && popd"
+
+
+[tasks.integration]
+#dependencies = ["build-devenv", "build-testbed"]
+dependencies = ["build-testbed"]
+command = "./integration/bin/test"
