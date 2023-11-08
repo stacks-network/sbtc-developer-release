@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-if [ $? -eq 0 ]; then
-    docker compose up -d
-else
-    echo "Build failed, not starting devenv"
-fi
+set -ueo >/dev/null
+
+FLAGS="-d --remove-orphans"
+source ./common.sh
+
+run $@
