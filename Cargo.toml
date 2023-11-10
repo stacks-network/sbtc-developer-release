@@ -35,3 +35,4 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 url = "2.4.1"
 wsts = "1.2"
+blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }

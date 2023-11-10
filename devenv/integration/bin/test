@@ -2,6 +2,7 @@
 set -ueo >/dev/null
 
 ENTRYPOINT_PATH="./integration/docker/entrypoint"
+CONFIG_PATH="./sbtc/docker/config.json"
 
 project_name() {
     local input="$1"
@@ -23,7 +24,7 @@ for filter in "${filters[@]}"; do
     ./integration/bin/up docker-compose.yml $project
 
     network=${project}_default
-    id=$(docker run -td --network $network -v $ENTRYPOINT_PATH:/usr/local/bin/entrypoint -e PROJECT_NAME=$project testbed "$filter")
+    id=$(docker run -td --network $network -v $ENTRYPOINT_PATH:/usr/local/bin/entrypoint -v $CONFIG_PATH:"/romeo/config.json" -e PROJECT_NAME=$project testbed "$filter")
     ids+=($id)
     echo with container id: $id
 

@@ -7,7 +7,7 @@
 //! and interact with the Bitcoin and Stacks networks.
 use std::io::stdout;
 
-use bdk::bitcoin::psbt::serialize::Serialize;
+use bdk::bitcoin::{psbt::serialize::Serialize, Transaction};
 use clap::{Parser, Subcommand};
 use sbtc_cli::commands::{
 	broadcast::{broadcast_tx, BroadcastArgs},
@@ -31,19 +31,23 @@ enum Command {
 	GenerateFrom(GenerateArgs),
 }
 
+fn to_stdout_pretty(txn: Transaction) -> serde_json::Result<()> {
+	serde_json::to_writer_pretty(
+		stdout(),
+		&utils::TransactionData {
+			id: txn.txid().to_string(),
+			hex: hex::encode(txn.serialize()),
+		},
+	)
+}
+
 fn main() -> Result<(), anyhow::Error> {
 	let args = Cli::parse();
 
 	match args.command {
 		Command::Deposit(deposit_args) => build_deposit_tx(&deposit_args)
 			.and_then(|t| {
-				serde_json::to_writer_pretty(
-					stdout(),
-					&utils::TransactionData {
-						id: t.txid().to_string(),
-						hex: hex::encode(t.serialize()),
-					},
-				)?;
+				to_stdout_pretty(t)?;
 				Ok(())
 			}),
 		Command::Withdraw(withdrawal_args) => {
