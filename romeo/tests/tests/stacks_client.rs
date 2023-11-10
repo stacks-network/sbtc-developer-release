@@ -1,6 +1,7 @@
 use reqwest::blocking::Client;
 use url::Url;
 
+/// devenv's service url
 pub fn stacks_url() -> Url {
 	Url::parse("http://stacks:20443").unwrap()
 }

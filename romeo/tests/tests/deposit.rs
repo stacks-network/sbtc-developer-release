@@ -1,4 +1,4 @@
-use std::{str::FromStr, thread::sleep, time::Duration};
+use std::{str::FromStr, time::Duration};
 
 use anyhow::Result;
 use bdk::{
@@ -11,22 +11,26 @@ use bdk::{
 	template::P2Wpkh,
 	SyncOptions, Wallet,
 };
+use romeo::{config::Config, stacks_client::StacksClient};
 use sbtc_cli::commands::{
 	broadcast::{broadcast_tx, BroadcastArgs},
 	deposit::{build_deposit_tx, DepositArgs},
 };
+use stacks_core::address::StacksAddress;
+use tokio::time::sleep;
 
 use super::{
 	bitcoin_client::{
-		bitcoin_url, client_new, electrs_url, mine_blocks,
+		bitcoin_url, client_new, electrs_url, mine_blocks, sbtc_balance,
 		wait_for_tx_confirmation,
 	},
 	KeyType::*,
 	WALLETS,
 };
 
-#[test]
-fn broadcast_deposit() -> Result<()> {
+#[tokio::test]
+/// preceeds withdrawal
+async fn broadcast_deposit() -> Result<()> {
 	let b_client = client_new(bitcoin_url().as_str(), "devnet", "devnet");
 
 	b_client
@@ -46,8 +50,6 @@ fn broadcast_deposit() -> Result<()> {
 
 	let electrum_url = electrs_url();
 
-	// suboptimal, replace once we have better events.
-	// replace with b_client balance?
 	{
 		let blockchain =
 			ElectrumBlockchain::from_config(&ElectrumBlockchainConfig {
@@ -76,18 +78,20 @@ fn broadcast_deposit() -> Result<()> {
 			if balance.confirmed != 0 {
 				break;
 			}
-			sleep(Duration::from_millis(1_000));
+			sleep(Duration::from_millis(1_000)).await;
 		}
 	}
 
 	let amount = 10_000;
+	let deployer_stacks_address = WALLETS[0][Stacks].address;
+	let recipient_stacks_address = WALLETS[1][Stacks].address;
 
 	let tx = {
 		let args = DepositArgs {
 			node_url: electrum_url.clone(),
 			wif: WALLETS[1][P2wpkh].wif.into(),
 			network: bdk::bitcoin::Network::Regtest,
-			recipient: WALLETS[1][Stacks].address.into(),
+			recipient: recipient_stacks_address.into(),
 			amount,
 			sbtc_wallet: WALLETS[0][P2tr].address.into(),
 		};
@@ -95,15 +99,53 @@ fn broadcast_deposit() -> Result<()> {
 		build_deposit_tx(&args).unwrap()
 	};
 
-	broadcast_tx(&BroadcastArgs {
-		node_url: electrum_url,
-		tx: hex::encode(tx.serialize()),
-	})
-	.unwrap();
+	let config = Config::from_path("config.json").unwrap();
 
-	let txid = tx.txid();
+	// make sure config urls match devenv.
+	let stacks_client =
+		StacksClient::new(config.clone(), reqwest::Client::new());
 
-	wait_for_tx_confirmation(&b_client, &txid, 1);
+	let deployer_address =
+		StacksAddress::transmute_stacks_address(deployer_stacks_address);
+	let recipient_address =
+		StacksAddress::transmute_stacks_address(recipient_stacks_address);
+
+	// prior balance
+	assert_eq!(
+		sbtc_balance(
+			&stacks_client,
+			deployer_address,
+			recipient_address,
+			config.contract_name.clone()
+		)
+		.await,
+		0
+	);
+
+	// Sign, send and wait for confirmation.
+	{
+		broadcast_tx(&BroadcastArgs {
+			node_url: electrum_url,
+			tx: hex::encode(tx.serialize()),
+		})
+		.unwrap();
+
+		let txid = tx.txid();
+
+		wait_for_tx_confirmation(&b_client, &txid, 1).await;
+	}
+
+	// assert on new sbtc token balance
+	while sbtc_balance(
+		&stacks_client,
+		deployer_address,
+		recipient_address,
+		config.contract_name.clone(),
+	)
+	.await != amount as u128
+	{
+		sleep(Duration::from_secs(2)).await
+	}
 
 	Ok(())
 }
