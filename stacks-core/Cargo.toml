@@ -27,7 +27,11 @@ serde = { workspace = true, features = ["derive"] }
 sha2.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
+blockstack-core.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
 rand.workspace = true
+
+[features]
+test-utils = []

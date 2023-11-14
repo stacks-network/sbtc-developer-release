@@ -5,17 +5,17 @@
 //!
 //! It also allows you to generate credentials needed to generate transactions
 //! and interact with the Bitcoin and Stacks networks.
+use std::io::stdout;
 
+use bdk::bitcoin::{psbt::serialize::Serialize, Transaction};
 use clap::{Parser, Subcommand};
-
-use crate::commands::{
+use sbtc_cli::commands::{
 	broadcast::{broadcast_tx, BroadcastArgs},
 	deposit::{build_deposit_tx, DepositArgs},
 	generate::{generate, GenerateArgs},
+	utils,
 	withdraw::{build_withdrawal_tx, WithdrawalArgs},
 };
-
-mod commands;
 
 #[derive(Parser)]
 struct Cli {
@@ -31,11 +31,25 @@ enum Command {
 	GenerateFrom(GenerateArgs),
 }
 
+fn to_stdout_pretty(txn: Transaction) -> serde_json::Result<()> {
+	serde_json::to_writer_pretty(
+		stdout(),
+		&utils::TransactionData {
+			id: txn.txid().to_string(),
+			hex: hex::encode(txn.serialize()),
+		},
+	)
+}
+
 fn main() -> Result<(), anyhow::Error> {
 	let args = Cli::parse();
 
 	match args.command {
-		Command::Deposit(deposit_args) => build_deposit_tx(&deposit_args),
+		Command::Deposit(deposit_args) => build_deposit_tx(&deposit_args)
+			.and_then(|t| {
+				to_stdout_pretty(t)?;
+				Ok(())
+			}),
 		Command::Withdraw(withdrawal_args) => {
 			build_withdrawal_tx(&withdrawal_args)
 		}

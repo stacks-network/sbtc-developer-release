@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -ueo >/dev/null
+
+ENTRYPOINT_PATH="./integration/docker/entrypoint"
+CONFIG_PATH="./sbtc/docker/config.json"
+
+project_name() {
+    local input="$1"
+    local filter="${input//[![:alnum:]]/_}"
+    echo "$filter"
+}
+
+filters=("test(deposit)")
+filter_union=""
+ids=()
+projects=()
+
+for filter in "${filters[@]}"; do
+    project=$(project_name $filter)
+    echo Working project: $project
+    projects+=($project)
+
+    ./integration/bin/down docker-compose.yml $project
+    ./integration/bin/up docker-compose.yml $project
+
+    network=${project}_default
+    id=$(docker run -td --network $network -v $ENTRYPOINT_PATH:/usr/local/bin/entrypoint -v $CONFIG_PATH:"/romeo/config.json" -e PROJECT_NAME=$project testbed "$filter")
+    ids+=($id)
+    echo with container id: $id
+
+    if [ -z "$filter_union" ]; then
+        filter_union=$filter
+    else
+        filter_union="$filter_union | $filter"
+    fi
+
+done
+
+project="remainder--"
+echo Working project: $project
+projects+=($project)
+
+./integration/bin/down docker-compose.yml $project
+./integration/bin/up docker-compose.yml $project
+
+network=${project}_default
+id=($(docker run -td --network $network -v $ENTRYPOINT_PATH:/usr/local/bin/entrypoint -e PROJECT_NAME=$project testbed "not ($filter_union)"))
+ids+=($id)
+echo with container id: $id
+
+for id in ${ids[@]}; do
+    exit_code=$(docker wait $id)
+    echo Runner: $id exited with err_no: $exit_code
+    if [ $exit_code -ne 0 ]; then
+        docker logs -f $id
+        exit $exit_code
+    fi
+done
+
+for project in ${projects[@]}; do
+    ./integration/bin/down docker-compose.yml $project
+done

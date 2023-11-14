@@ -7,7 +7,7 @@ edition = "2021"
 anyhow.workspace = true
 backoff = { workspace = true, features = ["tokio"] }
 bdk = { workspace = true, features = ["rpc", "esplora", "use-esplora-async"] }
-blockstack-core = { git = "https://github.com/stacks-network/stacks-blockchain/", branch = "master" }
+blockstack-core.workspace = true
 clap = { workspace = true, features = ["derive"] }
 derivative = { workspace = true }
 futures.workspace = true
@@ -23,3 +23,8 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 url.workspace = true
 rs_merkle.workspace = true
+
+[dev-dependencies]
+reqwest = { workspace = true, features = ["json", "blocking"] }
+sbtc-cli = { path = "../sbtc-cli" }
+stacks-core = { path = "../stacks-core", features = ["test-utils"] }

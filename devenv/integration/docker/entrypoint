@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+set -ueo >/dev/null
+
+API_URL=http://stacks:20443/v2/info
+
+# --- make sure the node is ready before proceeding
+
+# stacks node get info
+echo "Waiting on Stacks API $API_URL"
+while ! curl -s $API_URL >/dev/null; do
+    sleep 1
+done
+
+#stacks ready to take contracts
+STACKS_HEIGHT=1
+echo "Waiting on Stacks height $STACKS_HEIGHT"
+while [ "$(curl -s $API_URL | jq '.stacks_tip_height')" -lt $STACKS_HEIGHT ]; do
+    sleep 2
+done
+
+# any other service checks
+
+# push contracts
+cd romeo/asset-contract
+sed -i "s/localhost:20443/stacks:20443/" deployments/default.devnet-plan.yaml
+sed -i "s/localhost:18443/bitcoin:18443/" deployments/default.devnet-plan.yaml
+clarinet deployments apply --no-dashboard -d -p deployments/default.devnet-plan.yaml
+cd -
+
+echo with filter: "'$@'"
+cargo nextest run -E "$@ and kind(test)" --archive-file integration-tests.tar.zst --nocapture

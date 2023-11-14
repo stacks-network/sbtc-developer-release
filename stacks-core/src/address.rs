@@ -6,6 +6,10 @@ use std::{
 use bdk::bitcoin::blockdata::{
 	opcodes::all::OP_CHECKMULTISIG, script::Builder,
 };
+use blockstack_lib::{
+	codec::StacksMessageCodec,
+	types::chainstate::StacksAddress as CStacksAddress,
+};
 use serde::Serialize;
 use strum::{EnumIter, FromRepr};
 
@@ -99,6 +103,16 @@ impl StacksAddress {
 	/// address, by convention.
 	pub fn from_public_key(version: AddressVersion, key: &PublicKey) -> Self {
 		Self::p2pkh(version, key)
+	}
+
+	/// Transmute to stacks-blockchain type
+	pub fn into_native_stacks_address(self) -> CStacksAddress {
+		use std::io::Cursor;
+
+		CStacksAddress::consensus_deserialize(&mut Cursor::new(
+			self.serialize_to_vec(),
+		))
+		.unwrap()
 	}
 }
 
@@ -224,6 +238,16 @@ fn hash_p2wsh<'a>(
 	buff.extend_from_slice(digest_bytes);
 
 	Hash160Hasher::new(&buff)
+}
+
+#[cfg(feature = "test-utils")]
+impl StacksAddress {
+	/// copy StacksAddress as a native stacks-blockchain address type
+	pub fn transmute_stacks_address(address: &str) -> CStacksAddress {
+		StacksAddress::try_from(address)
+			.unwrap()
+			.into_native_stacks_address()
+	}
 }
 
 #[cfg(test)]
