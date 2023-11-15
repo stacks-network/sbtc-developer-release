@@ -188,18 +188,25 @@ services:
       - 3010:3010
     environment:
       NODE_ENV: dev
-      btcNode: bitcoin:18443
-      btcRpcUser: devnet
-      btcRpcPwd: devnet
-      network: testnet
-      bitcoinExplorerUrl: http://mempool-web:8083
-      stacksExplorerUrl: http://stacks-explorer:3020
-      stacksApi: http://stacks-api:3999
-      sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
       mongoDbUrl: mongodb
       mongoDbName: devnet
       mongoUser: devnet
       mongoPwd: devnet
+      btcNode: bitcoin:18443
+      btcRpcUser: devnet
+      btcRpcPwd: devnet
+      sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
+      bitcoinExplorerUrl: http://mempool-web:8083
+      stacksExplorerUrl: http://stacks-explorer:3020
+      stacksApi: http://stacks-api:3999
+      mempoolUrl: 'http://mempool-web:8083'
+      blockCypherUrl: 'http://mempool-web:8083'
+      host: http://localhost
+      port: PORT
+      network: devnet
+      walletPath: 
+      publicAppName: 'sBTC Bridge Devenv API'
+      publicAppVersion: '1.0.0'
   sbtc-bridge-web:
     image: sbtc-bridge-web:latest
     container_name: sbtc-bridge-web

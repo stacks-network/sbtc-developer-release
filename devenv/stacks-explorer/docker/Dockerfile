@@ -17,6 +17,9 @@ WORKDIR /app
 RUN apk add --no-cache git python3 make g++
 RUN git clone ${GIT_URI} -b ${GIT_BRANCH} .
 RUN npm install -g pnpm
+RUN npm install -g node-gyp
+RUN npm install -g node-gyp-build
+
 RUN pnpm i
 RUN pnpm build
 
