@@ -1,0 +1,44 @@
+[project]
+name = 'next'
+description = ''
+authors = []
+telemetry = false
+cache_dir = './.cache'
+requirements = []
+[contracts.sbtc-controller]
+path = 'contracts/sbtc-controller.clar'
+clarity_version = 2
+epoch = 2.4
+
+[contracts.sbtc-db]
+path = 'contracts/sbtc-db.clar'
+clarity_version = 2
+epoch = 2.4
+
+[contracts.sbtc-deposit]
+path = 'contracts/sbtc-deposit.clar'
+clarity_version = 2
+epoch = 2.4
+
+[contracts.sbtc-handoff]
+path = 'contracts/sbtc-handoff.clar'
+clarity_version = 2
+epoch = 2.4
+
+[contracts.sbtc-token]
+path = 'contracts/sbtc-token.clar'
+clarity_version = 2
+epoch = 2.4
+
+[contracts.sbtc-withdraw]
+path = 'contracts/sbtc-withdraw.clar'
+clarity_version = 2
+epoch = 2.4
+[repl.analysis]
+passes = ['check_checker']
+
+[repl.analysis.check_checker]
+strict = false
+trusted_sender = false
+trusted_caller = false
+callee_filter = false
