@@ -12,6 +12,7 @@ use blockstack_lib::{
 	codec::StacksMessageCodec,
 	core::CHAIN_ID_TESTNET,
 	types::chainstate::StacksPrivateKey,
+	util::hash::bytes_to_hex,
 	vm::{
 		types::{QualifiedContractIdentifier, StandardPrincipalData},
 		ContractName,
@@ -21,7 +22,7 @@ use futures::Future;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use reqwest::{Request, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
-use serde_json::Value;
+use serde_json::{json, Value};
 use stacks_core::{codec::Codec, uint::Uint256};
 use tokio::{
 	sync::{Mutex, MutexGuard},
@@ -460,6 +461,46 @@ impl StacksClient {
 			.stacks_node_url
 			.join("/v2/fees/transfer")
 			.unwrap()
+	}
+}
+
+impl StacksClient {
+	/// Call read-only functions from smart contracts
+	pub async fn call_read_only_fn<R>(
+		&self,
+		contract: QualifiedContractIdentifier,
+		method: &str,
+		sender: &str,
+		args: Vec<blockstack_lib::vm::Value>,
+	) -> anyhow::Result<R>
+	where
+		R: DeserializeOwned,
+	{
+		Ok(self
+			.http_client
+			.post(
+				self.config
+					.stacks_node_url
+					.join(
+						format!(
+							"/v2/contracts/call-read/{}/{}/{}",
+							contract.issuer, contract.name, method
+						)
+						.as_str(),
+					)
+					.unwrap(),
+			)
+			.json(&json!({
+			"sender": sender,
+			"arguments": args
+							.iter()
+							.map(|a| bytes_to_hex(&a.serialize_to_vec()))
+							.collect::<Vec<_>>() }
+						))
+			.send()
+			.await?
+			.json()
+			.await?)
 	}
 }
 

@@ -17,7 +17,7 @@ TEST_FRAMEWORK = "nextest"
 [env.github-actions]
 # TODO: use nexttest when testing becomes too much to do in series.
 # Installing nexttest takes > 5 minutes on github workflow machines.
-TEST_FRAMEWORK = "test"
+TEST_FRAMEWORK = "nextest"
 
 # Installations
 # --------------
@@ -86,7 +86,9 @@ args = [
     "llvm-cov",
     "${TEST_FRAMEWORK}",
     "--all-features",
-    "--no-report"
+    "--no-report",
+    "-E",
+    "not (kind(test))",
 ]
 
 [tasks._calculated-coverage-clean]

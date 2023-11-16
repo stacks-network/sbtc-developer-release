@@ -1,8 +1,8 @@
-use std::{io::stdout, str::FromStr};
+use std::str::FromStr;
 
 use bdk::{
 	bitcoin::{
-		psbt::serialize::Serialize, Address as BitcoinAddress,
+		blockdata::transaction::Transaction, Address as BitcoinAddress,
 		Network as BitcoinNetwork, PrivateKey,
 	},
 	blockchain::{
@@ -15,45 +15,45 @@ use bdk::{
 use clap::Parser;
 use url::Url;
 
-use crate::commands::utils::TransactionData;
-
 #[derive(Parser, Debug, Clone)]
 pub struct WithdrawalArgs {
 	/// Where to broadcast the transaction
 	#[clap(short('u'), long)]
-	node_url: Url,
+	pub node_url: Url,
 
 	/// Bitcoin network where the deposit will be broadcasted to
 	#[clap(short, long)]
-	network: BitcoinNetwork,
+	pub network: BitcoinNetwork,
 
 	/// WIF of the Bitcoin P2WPKH address that will broadcast and pay for the
 	/// withdrawal request
 	#[clap(short, long)]
-	wif: String,
+	pub wif: String,
 
 	/// WIF of the Stacks address that owns sBTC to be withdrawn
 	#[clap(short, long)]
-	drawee_wif: String,
+	pub drawee_wif: String,
 
 	/// Bitcoin address that will receive BTC
 	#[clap(short('b'), long)]
-	payee_address: String,
+	pub payee_address: String,
 
 	/// The amount of sats to withdraw
 	#[clap(short, long)]
-	amount: u64,
+	pub amount: u64,
 
 	/// The amount of sats to send for the fulfillment fee
 	#[clap(short, long)]
-	fulfillment_fee: u64,
+	pub fulfillment_fee: u64,
 
 	/// Bitcoin address of the sbtc wallet
 	#[clap(short, long)]
-	sbtc_wallet: String,
+	pub sbtc_wallet: String,
 }
 
-pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
+pub fn build_withdrawal_tx(
+	withdrawal: &WithdrawalArgs,
+) -> anyhow::Result<Transaction> {
 	let private_key = PrivateKey::from_wif(&withdrawal.wif)?;
 
 	let blockchain =
@@ -82,23 +82,14 @@ pub fn build_withdrawal_tx(withdrawal: &WithdrawalArgs) -> anyhow::Result<()> {
 	let sbtc_wallet_bitcoin_address =
 		BitcoinAddress::from_str(&withdrawal.sbtc_wallet)?;
 
-	let tx = sbtc_core::operations::op_return::withdrawal_request::build_withdrawal_tx(
-        &wallet,
-        withdrawal.network,
-        drawee_stacks_private_key,
-        payee_bitcoin_address,
-        sbtc_wallet_bitcoin_address,
-        withdrawal.amount,
-        withdrawal.fulfillment_fee,
-    )?;
-
-	serde_json::to_writer_pretty(
-		stdout(),
-		&TransactionData {
-			id: tx.txid().to_string(),
-			hex: hex::encode(tx.serialize()),
-		},
-	)?;
-
-	Ok(())
+	sbtc_core::operations::op_return::withdrawal_request::build_withdrawal_tx(
+		&wallet,
+		withdrawal.network,
+		drawee_stacks_private_key,
+		payee_bitcoin_address,
+		sbtc_wallet_bitcoin_address,
+		withdrawal.amount,
+		withdrawal.fulfillment_fee,
+	)
+	.map_err(|e| e.into())
 }

@@ -1,0 +1,14 @@
+version: '3.2'
+
+networks:
+  devenv_default:
+    external: true
+
+services:
+  testbed:
+    image: testbed:latest
+    build:
+      dockerfile: devenv/integration/docker/Dockerfile
+      context: ./../../
+    networks:
+      - devenv_default
