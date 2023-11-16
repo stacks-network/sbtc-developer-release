@@ -225,6 +225,8 @@ services:
       - sbtc-bridge-api
     ports:
       - 8080:8080
+    environment:
+      NODE_ENV: shared-devenv
   mempool-web:
     image: mempool/frontend:latest
     container_name: mempool-web
