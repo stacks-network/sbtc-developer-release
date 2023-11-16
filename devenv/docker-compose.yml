@@ -73,6 +73,12 @@ services:
       - bitcoin
       - miner
     environment:
+      - STACKS_NETWORK=mocknet
+      - BTC_HOST=bitcoin
+      - BTC_RPC_USER=devnet
+      - BTC_RPC_PASS=devnet
+      - BTC_RPC_PORT=18443
+      - BTC_P2P_PORT=18444
       - STACKS_LOG_DEBUG=0
       - STACKS_LOG_JSON=0
   stacks-api:
