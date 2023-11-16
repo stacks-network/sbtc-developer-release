@@ -350,10 +350,14 @@ impl State {
 
 		if let Some(statuses_updated) = statuses_updated {
 			if statuses_updated != 1 {
-				panic!(
-					"Unexpected number of Stacks statuses updated: {}",
-					statuses_updated
-				);
+				if config.strict {
+					panic!(
+						"Unexpected number of Stacks statuses updated: {}",
+					);
+				} else {
+					debug!("Unexpected number of Stacks statuses updated");
+					return false;
+				}
 			}
 		}
 
