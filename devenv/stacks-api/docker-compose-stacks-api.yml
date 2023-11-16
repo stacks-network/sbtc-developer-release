@@ -28,7 +28,7 @@ services:
       - PG_HOST=postgres
       - PG_PORT=5432
       - PG_USER=postgres
-      - PG_PASSWORD=postgres
+      - PG_PASSWORD=theraininspainstaysmainlyintheplain
       - PG_DATABASE=postgres
       - STACKS_CHAIN_ID=0x80000000
       - V2_POX_MIN_AMOUNT_USTX=90000000260

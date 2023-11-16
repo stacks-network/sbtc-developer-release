@@ -29,7 +29,7 @@ services:
       - 5432:5432
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=theraininspainstaysmainlyintheplain
   mongodb:
     image: mongo:6.0
     container_name: mongodb
@@ -103,7 +103,7 @@ services:
       - PG_HOST=postgres
       - PG_PORT=5432
       - PG_USER=postgres
-      - PG_PASSWORD=postgres
+      - PG_PASSWORD=theraininspainstaysmainlyintheplain
       - PG_DATABASE=postgres
       - STACKS_CHAIN_ID=0x80000000
       - STACKS_CORE_EVENT_PORT=3700
@@ -132,6 +132,7 @@ services:
       - postgres
     environment:
       - NEXT_PUBLIC_MAINNET_API_SERVER=http://127.0.0.1:3999
+      - PG_PASSWORD=theraininspainstaysmainlyintheplain
   electrs:
     image: electrs:latest
     container_name: electrs
