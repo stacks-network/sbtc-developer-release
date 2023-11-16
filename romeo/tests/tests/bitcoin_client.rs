@@ -1,4 +1,4 @@
-use std::{io::Cursor, str::FromStr, thread::sleep, time::Duration};
+use std::{io::Cursor, str::FromStr, time::Duration};
 
 use bdk::{
 	bitcoin::{hash_types::Txid, Address, BlockHash},
@@ -14,6 +14,7 @@ use blockstack_lib::{
 	},
 };
 use romeo::stacks_client::StacksClient;
+use tokio::time::sleep;
 use url::Url;
 
 /// devenv's service url
@@ -40,7 +41,7 @@ pub fn mine_blocks(
 		.unwrap()
 }
 
-pub fn wait_for_tx_confirmation(
+pub async fn wait_for_tx_confirmation(
 	b_client: &BClient,
 	txid: &Txid,
 	confirmations: i32,
@@ -58,7 +59,7 @@ pub fn wait_for_tx_confirmation(
 			}
 		}
 
-		sleep(Duration::from_secs(1));
+		sleep(Duration::from_secs(1)).await;
 	}
 }
 

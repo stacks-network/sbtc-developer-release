@@ -5,12 +5,12 @@ ENTRYPOINT_PATH="./integration/docker/entrypoint"
 CONFIG_PATH="./sbtc/docker/config.json"
 
 project_name() {
-    local input="$1"
+    local input="$@"
     local filter="${input//[![:alnum:]]/_}"
     echo "$filter"
 }
 
-filters=("test(deposit)" "test(withdrawal)")
+filters=("test(deposit) or test(withdrawal)")
 filter_union=""
 ids=()
 projects=()

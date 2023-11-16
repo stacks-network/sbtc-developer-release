@@ -24,11 +24,12 @@ use super::{
 		bitcoin_url, client_new, electrs_url, mine_blocks, sbtc_balance,
 		wait_for_tx_confirmation,
 	},
-	KeyType::{self, *},
+	KeyType::*,
 	WALLETS,
 };
 
 #[tokio::test]
+/// preceeds withdrawal
 async fn broadcast_deposit() -> Result<()> {
 	let b_client = client_new(bitcoin_url().as_str(), "devnet", "devnet");
 
@@ -82,8 +83,8 @@ async fn broadcast_deposit() -> Result<()> {
 	}
 
 	let amount = 10_000;
-	let deployer_stacks_address = WALLETS[0][KeyType::Stacks].address;
-	let recipient_stacks_address = WALLETS[1][KeyType::Stacks].address;
+	let deployer_stacks_address = WALLETS[0][Stacks].address;
+	let recipient_stacks_address = WALLETS[1][Stacks].address;
 
 	let tx = {
 		let args = DepositArgs {
@@ -131,7 +132,7 @@ async fn broadcast_deposit() -> Result<()> {
 
 		let txid = tx.txid();
 
-		wait_for_tx_confirmation(&b_client, &txid, 1);
+		wait_for_tx_confirmation(&b_client, &txid, 1).await;
 	}
 
 	// assert on new sbtc token balance
