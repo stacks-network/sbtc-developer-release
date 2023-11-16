@@ -68,7 +68,7 @@ export class MintCommand_500 implements AssetCommand {
     expect(block[1].result).toBeErr(Cl.uint(500));
 
     console.log(
-      `! ${shortenString(this.sender).padStart(8, " ")} ${"mint".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")} (expected, same bitcoin tx)`
+      `! ${shortenString(this.sender).padStart(8, " ")} ${"mint".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ")} bitcoin-tx ${shortenString(uint8ArrayToHexString(this.params.depositTx)).padStart(12, " ")} (expected, same bitcoin-tx)`
     );
   }
 
@@ -76,7 +76,7 @@ export class MintCommand_500 implements AssetCommand {
     // fast-check will call toString() in case of errors, e.g. property failed.
     // It will then make a minimal counterexample, a process called 'shrinking'
     // https://github.com/dubzzz/fast-check/issues/2864#issuecomment-1098002642
-    return `${this.sender} mint ${this.amount} to ${this.wallet} (bitcoin tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")})`;
+    return `${this.sender} mint ${this.amount} to ${this.wallet} (bitcoin-tx ${uint8ArrayToHexString(this.params.depositTx).padStart(12, " ")})`;
   }
 }
 

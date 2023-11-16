@@ -45,7 +45,7 @@ export class GetBalanceCommand implements AssetCommand {
     );
 
     console.log(
-      `✓ ${shortenString(this.sender).padStart(8, " ")} ${`get-balance`.padStart(16, " ")} ${shortenString(this.wallet).padStart(8, " ")} ${expected.toString().padStart(12, " ")}`,
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${`get-balance`.padStart(29, " ")} ${shortenString(this.wallet).padStart(8, " ")} ${expected.toString().padStart(12, " ")}`,
     );
   }
 

@@ -5,9 +5,12 @@ import fc from "fast-check";
 import { BurnCommand } from "./asset_BurnCommand.ts";
 import { BurnCommand_500 } from "./asset_BurnCommand_500.ts";
 import { GetBalanceCommand } from "./asset_GetBalanceCommand.ts";
+import { GetBitcoinWalletPublicKeyCommand } from "./asset_GetBitcoinWalletPublicKeyCommand.ts";
 import { GetTotalSupplyCommand } from "./asset_GetTotalSupplyCommand.ts";
 import { MintCommand } from "./asset_MintCommand.ts";
 import { MintCommand_500 } from "./asset_MintCommand_500.ts";
+import { SetBitcoinWalletPublicKeyCommand } from "./asset_SetBitcoinWalletPublicKeyCommand.ts";
+import { SetBitcoinWalletPublicKeyCommand_NonOwner } from "./asset_SetBitcoinWalletPublicKeyCommand_NonOwner.ts";
 import { TransferCommand } from "./asset_TransferCommand.ts";
 import { TransferCommand_NonOwner } from "./asset_TransferCommand_NonOwner.ts";
 
@@ -80,6 +83,21 @@ export function AssetCommands(accounts: Map<string, string>) {
         )
       ),
 
+    // GetBitcoinWalletPublicKeyCommand
+    fc
+      .record({
+        sender: fc.constantFrom(...accounts.values()),
+      })
+      .map((
+        r: {
+          sender: string;
+        },
+      ) =>
+        new GetBitcoinWalletPublicKeyCommand(
+          r.sender,
+        )
+      ),
+
     // GetTotalSupplyCommand
     fc
       .record({
@@ -140,6 +158,48 @@ export function AssetCommands(accounts: Map<string, string>) {
           r.amount,
           r.wallet,
           r.params,
+        )
+      ),
+
+    // SetBitcoinWalletPublicKeyCommand
+    fc
+      .record({
+        sender: fc.constant(accounts.get("deployer")!),
+        pubKey: fc.array(fc.integer({ min: 0, max: 255 })
+          .map((n: number) => n.toString(16).padStart(2, '0')), { minLength: 32, maxLength: 32 })
+          .map((bytes: string[]) => '0x' + bytes.join(''))
+          .map(hexStringToUint8Array),
+      })
+      .map((
+        r: {
+          sender: string;
+          pubKey: Uint8Array;
+        },
+      ) =>
+        new SetBitcoinWalletPublicKeyCommand(
+          r.sender,
+          r.pubKey,
+        )
+      ),
+
+    // SetBitcoinWalletPublicKeyCommand (err-forbidden (err u403))
+    fc
+      .record({
+        sender: fc.constantFrom(...accounts.values()).filter((a: string) => a !== accounts.get("deployer")!),
+        pubKey: fc.array(fc.integer({ min: 0, max: 255 })
+          .map((n: number) => n.toString(16).padStart(2, '0')), { minLength: 32, maxLength: 32 })
+          .map((bytes: string[]) => '0x' + bytes.join(''))
+          .map(hexStringToUint8Array),
+      })
+      .map((
+        r: {
+          sender: string;
+          pubKey: Uint8Array;
+        },
+      ) =>
+        new SetBitcoinWalletPublicKeyCommand_NonOwner(
+          r.sender,
+          r.pubKey,
         )
       ),
 

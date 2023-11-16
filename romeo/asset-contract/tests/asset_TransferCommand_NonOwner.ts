@@ -52,7 +52,7 @@ export class TransferCommand_NonOwner implements AssetCommand {
     expect(block[0].result).toBeErr(Cl.uint(2));
 
     console.log(
-      `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(16, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (expected, non-owner)`
+      `! ${shortenString(this.sender).padStart(8, " ")} ${"transfer".padStart(29, " ") } ${shortenString(this.wallet).padStart(8, " ")} ${this.amount.toString().padStart(12, " ") } (expected, non-owner)`
     );
   }
 

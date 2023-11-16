@@ -9,7 +9,7 @@ import { Cl } from "@stacks/transactions";
 
 import { expect } from "vitest";
 
-export class GetTotalSupplyCommand implements AssetCommand {
+export class GetBitcoinWalletPublicKeyCommand implements AssetCommand {
   readonly sender: string;
 
   constructor(
@@ -18,25 +18,23 @@ export class GetTotalSupplyCommand implements AssetCommand {
     this.sender = sender;
   }
 
-  check(_model: Readonly<Stub>): boolean {
-    // Can always get total supply.
-    return true;
+  check(model: Readonly<Stub>): boolean {
+    return model.bitcoinWalletPublicKey !== undefined;
   }
 
   run(model: Stub, real: Real): void {
     const { result } = real.simnet.callReadOnlyFn(
       "asset",
-      "get-total-supply",
+      "get-bitcoin-wallet-public-key",
       [],
       this.sender,
     );
 
-    let supply = 0;
-    model.wallets.forEach((balance) => supply += balance);
-    expect(result).toBeOk(Cl.uint(supply));
+    const expected = model.bitcoinWalletPublicKey;
+    expect(result).toBeSome(Cl.buffer(expected));
 
     console.log(
-      `✓ ${shortenString(this.sender).padStart(8, " ")} ${`get-total-supply`.padStart(29, " ")} ${supply.toString().padStart(24, " ")}`,
+      `✓ ${shortenString(this.sender).padStart(8, " ")} ${"get-bitcoin-wallet-public-key".padStart(29, " ") } ${shortenString(uint8ArrayToHexString(expected))}`
     );
   }
 
@@ -44,6 +42,10 @@ export class GetTotalSupplyCommand implements AssetCommand {
     // fast-check will call toString() in case of errors, e.g. property failed.
     // It will then make a minimal counterexample, a process called 'shrinking'
     // https://github.com/dubzzz/fast-check/issues/2864#issuecomment-1098002642
-    return `${this.sender} get-total-supply`;
+    return `${this.sender} get-bitcoin-wallet-public`;
   }
+}
+
+function uint8ArrayToHexString(uint8Array: Uint8Array): string {
+  return '0x' + Array.from(uint8Array).map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
