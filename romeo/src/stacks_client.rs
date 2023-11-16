@@ -402,26 +402,41 @@ impl StacksClient {
 				.build()
 				.map_err(|e| BackOffError::permanent(anyhow!(e)))?;
 
-			self.http_client
-				.execute(request)
-				.await
-				.and_then(Response::error_for_status)
-				.map_err(|e| {
-					if e.is_request() {
-						BackOffError::transient(anyhow!(e))
-					} else if e.is_status() {
-						match e
-							.status()
-							.expect("Is status <-> has status: qed")
-							.as_u16()
-						{
-							429 | 522 => BackOffError::transient(anyhow!(e)),
-							_ => BackOffError::permanent(anyhow!(e)),
+			match self.http_client.execute(request).await {
+				Ok(r) if r.error_for_status_ref().is_err() => {
+					let e = r
+						.error_for_status_ref()
+						.expect_err("Is status error; qed");
+					let raw_body = r.text().await.unwrap_or(format!(
+						"body parsing failed {}:{}",
+						file!(),
+						line!()
+					));
+					Err((e, raw_body))
+				}
+				Ok(r) => Ok(r),
+				Err(e) => Err((e, String::new())),
+			}
+			.map_err(|(e, reason)| {
+				if e.is_request() {
+					BackOffError::transient(anyhow!(e).context(reason))
+				} else if e.is_status() {
+					match e
+						.status()
+						.expect("Is status <-> has status: qed")
+						.as_u16()
+					{
+						429 | 522 => {
+							BackOffError::transient(anyhow!(e).context(reason))
 						}
-					} else {
-						BackOffError::permanent(anyhow!(e))
+						_ => {
+							BackOffError::permanent(anyhow!(e).context(reason))
+						}
 					}
-				})
+				} else {
+					BackOffError::permanent(anyhow!(e).context(reason))
+				}
+			})
 		};
 
 		let notify = |err, duration| {
@@ -521,6 +536,7 @@ mod tests {
 				.as_str(),
 			)
 			.with_status(404)
+            .with_body(r#"{"error":"transaction rejected","reason":"ConflictingNonceInMempool","txid":"375c9048dae6564059344502a2a8e9b2ecad6ba597877b3b48de482309c11dcd"}"#)
 			.create();
 
 		let stacks_client = StacksClient::new(
@@ -530,11 +546,17 @@ mod tests {
 			reqwest::Client::new(),
 		);
 
+		let error = stacks_client
+			.get_contract_block_height(contract.try_into().unwrap())
+			.await
+			.expect_err("contract not deployed");
+
+		assert!(error.to_string().contains(
+			r#""error":"transaction rejected","reason":"ConflictingNonceInMempool""#
+		));
+
 		assert_eq!(
-			stacks_client
-				.get_contract_block_height(contract.try_into().unwrap(),)
-				.await
-				.expect_err("contract not deployed")
+			error
 				.downcast::<reqwest::Error>()
 				.unwrap()
 				.status()
