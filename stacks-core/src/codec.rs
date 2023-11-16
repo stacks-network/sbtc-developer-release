@@ -129,3 +129,138 @@ impl Codec for Script {
 		Ok(Self::from(buffer))
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use std::io::Cursor;
+
+	use bdk::bitcoin::{
+		secp256k1::{Message, Secp256k1, SecretKey},
+		Amount,
+	};
+
+	use crate::StacksError;
+
+	use super::*;
+
+	#[test]
+	fn should_serialize_amount() -> anyhow::Result<()> {
+		let amount = Amount::from_sat(10_000);
+		let mut serialized_amount = vec![];
+
+		amount.serialize(&mut serialized_amount)?;
+
+		assert_eq!(hex::encode(serialized_amount), "0000000000002710");
+
+		Ok(())
+	}
+
+	#[test]
+	fn should_deserialize_amount() -> anyhow::Result<()> {
+		let mut serialized_amount =
+			Cursor::new(hex::decode("0000000000002710")?);
+
+		let deserialized_amount = Amount::deserialize(&mut serialized_amount)?;
+
+		assert_eq!(deserialized_amount.to_sat(), 10_000);
+
+		Ok(())
+	}
+
+	#[test]
+	fn should_serialize_recoverable_signature() -> anyhow::Result<()> {
+		let signature = get_recoverable_signature()?;
+		let mut serialized_signature = vec![];
+
+		signature.serialize(&mut serialized_signature)?;
+
+		assert_eq!(hex::encode(serialized_signature), "0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93");
+
+		Ok(())
+	}
+
+	#[test]
+	fn should_deserialize_recoverable_signature() -> anyhow::Result<()> {
+		let mut serialized_signature = Cursor::new(
+			hex::decode("0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93")?
+		);
+
+		let signature =
+			RecoverableSignature::deserialize(&mut serialized_signature)?;
+
+		let expected_signature = get_recoverable_signature()?;
+
+		assert_eq!(signature, expected_signature);
+
+		Ok(())
+	}
+
+	#[test]
+	fn should_fail_deserialize_recoverable_signature_with_invalid_id(
+	) -> anyhow::Result<()> {
+		let mut invalid_serialized_signature = Cursor::new(vec![4]);
+
+		let result = RecoverableSignature::deserialize(
+			&mut invalid_serialized_signature,
+		);
+
+		match result {
+			Err(StacksError::CodecError(_)) => Ok(()),
+			Err(e) => {
+				panic!("Expected invalid recovery ID error, but got {:?}", e)
+			}
+			Ok(_) => panic!("Expected invalid recovery ID error, but got Ok"),
+		}
+	}
+
+	#[test]
+	fn should_fail_deserialize_recoverable_signature_with_invalid_signature(
+	) -> anyhow::Result<()> {
+		let mut invalid_serialized_signature = vec![0; 65];
+
+		invalid_serialized_signature[0] = 1;
+
+		for i in 1..65 {
+			invalid_serialized_signature[i] = 255;
+		}
+
+		let result = RecoverableSignature::deserialize(&mut Cursor::new(
+			invalid_serialized_signature,
+		));
+
+		match result {
+			Err(StacksError::CodecError(_)) => Ok(()),
+			Err(e) => panic!("Expected invalid signature error, got {:?}", e),
+			Ok(_) => panic!("Expected invalid signature error, but got Ok"),
+		}
+	}
+
+	#[test]
+	fn should_serialize_u64() -> anyhow::Result<()> {
+		Ok(())
+	}
+
+	#[test]
+	fn should_deserialize_u64() -> anyhow::Result<()> {
+		Ok(())
+	}
+
+	fn get_recoverable_signature() -> anyhow::Result<RecoverableSignature> {
+		let secp = Secp256k1::new();
+
+		let secret_key_bytes = hex::decode(
+			"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		)?;
+
+		let secret_key = SecretKey::from_slice(&secret_key_bytes)?;
+
+		let message = Message::from_slice(&mut hex::decode(
+			"1bf9ad7ce49adf6cbc707a689b6e17653151e95c1cd8a53f9fce54d3d51a2a24",
+		)?)?;
+
+		let recoverable_signature =
+			secp.sign_ecdsa_recoverable(&message, &secret_key);
+
+		Ok(recoverable_signature)
+	}
+}
