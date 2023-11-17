@@ -237,11 +237,24 @@ mod tests {
 
 	#[test]
 	fn should_serialize_u64() -> anyhow::Result<()> {
+		let mut serialized_u64 = vec![];
+
+		10_000u64.serialize(&mut serialized_u64)?;
+
+		assert_eq!(hex::encode(serialized_u64), "0000000000002710");
+
 		Ok(())
 	}
 
 	#[test]
 	fn should_deserialize_u64() -> anyhow::Result<()> {
+		let mut serialized_amount =
+			Cursor::new(hex::decode("0000000000002710")?);
+
+		let deserialized_amount = u64::deserialize(&mut serialized_amount)?;
+
+		assert_eq!(deserialized_amount, 10_000u64);
+
 		Ok(())
 	}
 
