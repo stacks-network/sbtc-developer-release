@@ -201,6 +201,7 @@ services:
       stacksApi: http://stacks-api:3999
       bitcoinExplorerUrl: http://mempool-web:8083
       mempoolUrl: 'http://mempool-web:8083/api'
+      electrumUrl: 'http://electrs:3002'
       blockCypherUrl: 'http://mempool-web:8083/api'
       host: http://localhost
       port: PORT
