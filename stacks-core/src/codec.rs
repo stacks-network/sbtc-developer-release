@@ -132,11 +132,15 @@ impl Codec for Script {
 
 #[cfg(test)]
 mod tests {
-	use std::io::Cursor;
+	use std::{io::Cursor, str::FromStr};
 
 	use bdk::bitcoin::{
+		blockdata::{
+			opcodes::all::{OP_CHECKSIG, OP_DUP, OP_EQUALVERIFY, OP_HASH160},
+			script::Builder,
+		},
 		secp256k1::{Message, Secp256k1, SecretKey},
-		Amount,
+		Amount, PublicKey,
 	};
 
 	use crate::StacksError;
@@ -150,7 +154,7 @@ mod tests {
 
 		amount.serialize(&mut serialized_amount)?;
 
-		assert_eq!(hex::encode(serialized_amount), "0000000000002710");
+		assert_eq!(serialized_amount, hex::decode("0000000000002710")?);
 
 		Ok(())
 	}
@@ -174,7 +178,7 @@ mod tests {
 
 		signature.serialize(&mut serialized_signature)?;
 
-		assert_eq!(hex::encode(serialized_signature), "0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93");
+		assert_eq!(serialized_signature, hex::decode("0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93")?);
 
 		Ok(())
 	}
@@ -241,19 +245,42 @@ mod tests {
 
 		10_000u64.serialize(&mut serialized_u64)?;
 
-		assert_eq!(hex::encode(serialized_u64), "0000000000002710");
+		assert_eq!(serialized_u64, hex::decode("0000000000002710")?);
 
 		Ok(())
 	}
 
 	#[test]
 	fn should_deserialize_u64() -> anyhow::Result<()> {
-		let mut serialized_amount =
-			Cursor::new(hex::decode("0000000000002710")?);
+		let mut serialized_u64 = Cursor::new(hex::decode("0000000000002710")?);
 
-		let deserialized_amount = u64::deserialize(&mut serialized_amount)?;
+		let deserialized_u64 = u64::deserialize(&mut serialized_u64)?;
 
-		assert_eq!(deserialized_amount, 10_000u64);
+		assert_eq!(deserialized_u64, 10_000u64);
+
+		Ok(())
+	}
+
+	#[test]
+	fn should_serialize_script() -> anyhow::Result<()> {
+		let mut serialized_script = vec![];
+		let script = get_script()?;
+
+		script.serialize(&mut serialized_script)?;
+
+		assert_eq!(serialized_script, hex::decode("76a921023030cf3cd56ee3931a8fd0f59fa45920b39f6c2f033f6ee0cd714239d48d11ac88ac")?);
+
+		Ok(())
+	}
+
+	#[test]
+	fn should_deserialize_script() -> anyhow::Result<()> {
+		let mut serialized_script = Cursor::new(hex::decode("76a921023030cf3cd56ee3931a8fd0f59fa45920b39f6c2f033f6ee0cd714239d48d11ac88ac")?);
+
+		let deserialized_script = Script::deserialize(&mut serialized_script)?;
+		let expected_script = get_script()?;
+
+		assert_eq!(deserialized_script, expected_script);
 
 		Ok(())
 	}
@@ -275,5 +302,19 @@ mod tests {
 			secp.sign_ecdsa_recoverable(&message, &secret_key);
 
 		Ok(recoverable_signature)
+	}
+
+	fn get_script() -> anyhow::Result<Script> {
+		let public_key = PublicKey::from_str("023030cf3cd56ee3931a8fd0f59fa45920b39f6c2f033f6ee0cd714239d48d11ac")?;
+
+		let script = Builder::new()
+			.push_opcode(OP_DUP)
+			.push_opcode(OP_HASH160)
+			.push_key(&public_key)
+			.push_opcode(OP_EQUALVERIFY)
+			.push_opcode(OP_CHECKSIG)
+			.into_script();
+
+		Ok(script)
 	}
 }
