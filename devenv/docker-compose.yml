@@ -197,11 +197,11 @@ services:
       btcRpcUser: devnet
       btcRpcPwd: devnet
       sbtcContractId: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.asset
-      bitcoinExplorerUrl: http://mempool-web:8083
       stacksExplorerUrl: http://stacks-explorer:3020
       stacksApi: http://stacks-api:3999
-      mempoolUrl: 'http://mempool-web:8083'
-      blockCypherUrl: 'http://mempool-web:8083'
+      bitcoinExplorerUrl: http://mempool-web:8083
+      mempoolUrl: 'http://mempool-web:8083/api'
+      blockCypherUrl: 'http://mempool-web:8083/api'
       host: http://localhost
       port: PORT
       network: devnet
