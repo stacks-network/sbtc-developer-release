@@ -148,60 +148,58 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn should_serialize_amount() -> anyhow::Result<()> {
+	fn should_serialize_amount() {
 		let amount = Amount::from_sat(10_000);
 		let mut serialized_amount = vec![];
 
-		amount.serialize(&mut serialized_amount)?;
+		amount.serialize(&mut serialized_amount).unwrap();
 
-		assert_eq!(serialized_amount, hex::decode("0000000000002710")?);
+		let expected_amount = hex::decode("0000000000002710").unwrap();
 
-		Ok(())
+		assert_eq!(serialized_amount, expected_amount);
 	}
 
 	#[test]
-	fn should_deserialize_amount() -> anyhow::Result<()> {
+	fn should_deserialize_amount() {
 		let mut serialized_amount =
-			Cursor::new(hex::decode("0000000000002710")?);
+			Cursor::new(hex::decode("0000000000002710").unwrap());
 
-		let deserialized_amount = Amount::deserialize(&mut serialized_amount)?;
+		let amount = Amount::deserialize(&mut serialized_amount).unwrap();
 
-		assert_eq!(deserialized_amount.to_sat(), 10_000);
+		let expected_amount = Amount::from_sat(10_000);
 
-		Ok(())
+		assert_eq!(amount, expected_amount);
 	}
 
 	#[test]
-	fn should_serialize_recoverable_signature() -> anyhow::Result<()> {
-		let signature = get_recoverable_signature()?;
+	fn should_serialize_recoverable_signature() {
+		let signature = get_recoverable_signature().unwrap();
 		let mut serialized_signature = vec![];
 
-		signature.serialize(&mut serialized_signature)?;
+		signature.serialize(&mut serialized_signature).unwrap();
 
-		assert_eq!(serialized_signature, hex::decode("0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93")?);
+		let expected_serialized_signature = hex::decode("0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93").unwrap();
 
-		Ok(())
+		assert_eq!(serialized_signature, expected_serialized_signature);
 	}
 
 	#[test]
-	fn should_deserialize_recoverable_signature() -> anyhow::Result<()> {
+	fn should_deserialize_recoverable_signature() {
 		let mut serialized_signature = Cursor::new(
-			hex::decode("0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93")?
+			hex::decode("0119874ebfb457c08cedb5ebf01fe13bf4b6ac216b6f4044763ad95a69022bf1ba3cdba26d7ebb695a7144c8de4ba672dddfc602ffa9e62a745d8f7e4206ae6a93").unwrap()
 		);
 
 		let signature =
-			RecoverableSignature::deserialize(&mut serialized_signature)?;
+			RecoverableSignature::deserialize(&mut serialized_signature)
+				.unwrap();
 
-		let expected_signature = get_recoverable_signature()?;
+		let expected_signature = get_recoverable_signature().unwrap();
 
 		assert_eq!(signature, expected_signature);
-
-		Ok(())
 	}
 
 	#[test]
-	fn should_fail_deserialize_recoverable_signature_with_invalid_id(
-	) -> anyhow::Result<()> {
+	fn should_fail_deserialize_recoverable_signature_with_invalid_id() {
 		let mut invalid_serialized_signature = Cursor::new(vec![4]);
 
 		let result = RecoverableSignature::deserialize(
@@ -209,7 +207,7 @@ mod tests {
 		);
 
 		match result {
-			Err(StacksError::CodecError(_)) => Ok(()),
+			Err(StacksError::CodecError(_)) => {}
 			Err(e) => {
 				panic!("Expected invalid recovery ID error, but got {:?}", e)
 			}
@@ -218,8 +216,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_fail_deserialize_recoverable_signature_with_invalid_signature(
-	) -> anyhow::Result<()> {
+	fn should_fail_deserialize_recoverable_signature_with_invalid_signature() {
 		let mut invalid_serialized_signature = vec![0; 65];
 
 		invalid_serialized_signature[0] = 1;
@@ -233,56 +230,55 @@ mod tests {
 		));
 
 		match result {
-			Err(StacksError::CodecError(_)) => Ok(()),
+			Err(StacksError::CodecError(_)) => {}
 			Err(e) => panic!("Expected invalid signature error, got {:?}", e),
 			Ok(_) => panic!("Expected invalid signature error, but got Ok"),
 		}
 	}
 
 	#[test]
-	fn should_serialize_u64() -> anyhow::Result<()> {
+	fn should_serialize_u64() {
 		let mut serialized_u64 = vec![];
 
-		10_000u64.serialize(&mut serialized_u64)?;
+		10_000u64.serialize(&mut serialized_u64).unwrap();
 
-		assert_eq!(serialized_u64, hex::decode("0000000000002710")?);
+		let expected_u64 = hex::decode("0000000000002710").unwrap();
 
-		Ok(())
+		assert_eq!(serialized_u64, expected_u64);
 	}
 
 	#[test]
-	fn should_deserialize_u64() -> anyhow::Result<()> {
-		let mut serialized_u64 = Cursor::new(hex::decode("0000000000002710")?);
+	fn should_deserialize_u64() {
+		let mut serialized_u64 =
+			Cursor::new(hex::decode("0000000000002710").unwrap());
 
-		let deserialized_u64 = u64::deserialize(&mut serialized_u64)?;
+		let u64 = u64::deserialize(&mut serialized_u64).unwrap();
+		let expected_u64 = 10_000u64;
 
-		assert_eq!(deserialized_u64, 10_000u64);
-
-		Ok(())
+		assert_eq!(u64, expected_u64);
 	}
 
 	#[test]
-	fn should_serialize_script() -> anyhow::Result<()> {
+	fn should_serialize_script() {
 		let mut serialized_script = vec![];
-		let script = get_script()?;
+		let script = get_script().unwrap();
 
-		script.serialize(&mut serialized_script)?;
+		script.serialize(&mut serialized_script).unwrap();
 
-		assert_eq!(serialized_script, hex::decode("76a921023030cf3cd56ee3931a8fd0f59fa45920b39f6c2f033f6ee0cd714239d48d11ac88ac")?);
+		let expected_serialized_script = hex::decode("76a921023030cf3cd56ee3931a8fd0f59fa45920b39f6c2f033f6ee0cd714239d48d11ac88ac").unwrap();
 
-		Ok(())
+		assert_eq!(serialized_script, expected_serialized_script);
 	}
 
 	#[test]
-	fn should_deserialize_script() -> anyhow::Result<()> {
-		let mut serialized_script = Cursor::new(hex::decode("76a921023030cf3cd56ee3931a8fd0f59fa45920b39f6c2f033f6ee0cd714239d48d11ac88ac")?);
+	fn should_deserialize_script() {
+		let mut serialized_script = Cursor::new(hex::decode("76a921023030cf3cd56ee3931a8fd0f59fa45920b39f6c2f033f6ee0cd714239d48d11ac88ac").unwrap());
 
-		let deserialized_script = Script::deserialize(&mut serialized_script)?;
-		let expected_script = get_script()?;
+		let deserialized_script =
+			Script::deserialize(&mut serialized_script).unwrap();
+		let expected_script = get_script().unwrap();
 
 		assert_eq!(deserialized_script, expected_script);
-
-		Ok(())
 	}
 
 	fn get_recoverable_signature() -> anyhow::Result<RecoverableSignature> {
