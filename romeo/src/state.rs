@@ -394,6 +394,7 @@ impl State {
 					debug!(
 			            "Ignoring {:?} status update for a Bitcoin transaction that doesn't have a pending task: {}", status, txid
 			        );
+						return false;
 				}
 			    }
 
