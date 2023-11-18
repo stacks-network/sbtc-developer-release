@@ -130,27 +130,22 @@ impl State {
 	pub fn update(&mut self, event: Event, config: &Config) -> Vec<Task> {
 		match event {
 			Event::ContractBlockHeight(stacks_height, bitcoin_height) => self
-				.process_contract_block_height(stacks_height, bitcoin_height)
-				.into_iter()
-				.collect(),
+				.process_contract_block_height(stacks_height, bitcoin_height),
 			Event::ContractPublicKeySetBroadcasted(txid) => {
 				self.process_set_contract_public_key(txid)
 			}
-			Event::StacksTransactionUpdate(txid, status) => self
-				.process_stacks_transaction_update(txid, status, config)
-				.into_iter()
-				.collect(),
-			Event::BitcoinTransactionUpdate(txid, status) => self
-				.process_bitcoin_transaction_update(txid, status, config)
-				.into_iter()
-				.collect(),
-			Event::StacksBlock(height, txs) => {
-				self.process_stacks_block(height, txs).into_iter().collect()
+			Event::StacksTransactionUpdate(txid, status) => {
+				self.process_stacks_transaction_update(txid, status, config)
 			}
-			Event::BitcoinBlock(height, block) => self
-				.process_bitcoin_block(config, height, block)
-				.into_iter()
-				.collect(),
+			Event::BitcoinTransactionUpdate(txid, status) => {
+				self.process_bitcoin_transaction_update(txid, status, config)
+			}
+			Event::StacksBlock(height, txs) => {
+				self.process_stacks_block(height, txs)
+			}
+			Event::BitcoinBlock(height, block) => {
+				self.process_bitcoin_block(config, height, block)
+			}
 			Event::MintBroadcasted(deposit_info, txid) => {
 				self.process_mint_broadcasted(deposit_info, txid, config);
 				vec![]
@@ -355,7 +350,7 @@ impl State {
 		txid: BitcoinTxId,
 		status: TransactionStatus,
 		config: &Config,
-	) -> impl IntoIterator<Item = Task> {
+	) -> Vec<Task> {
 		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process Bitcoin transaction update when state is not initialized");
 		};
