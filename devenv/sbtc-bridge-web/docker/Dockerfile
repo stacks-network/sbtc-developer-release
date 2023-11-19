@@ -13,6 +13,6 @@ RUN git clone ${SBTC_GIT_URI} -b ${SBTC_GIT_BRANCH} .
 RUN npm install
 
 # Build the application using Vite
-RUN npm run build
+RUN npm run build-devenv
 
 CMD npm run dev -- --host
