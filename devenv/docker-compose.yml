@@ -77,9 +77,6 @@ services:
       dockerfile: ./devenv/sbtc/docker/Dockerfile
     depends_on:
       - bitcoin
-      - stacks
-      - stacks-explorer
-      - stacks-api
       - mempool-web
       - miner
     environment:
@@ -98,10 +95,7 @@ services:
     depends_on:
       - bitcoin
       - miner
-      - stacks
-      - stacks-api
       - mempool-web
-      - stacks-explorer
       - mongodb
       - sbtc
     ports:
@@ -136,9 +130,6 @@ services:
       context: ./sbtc-bridge-web/docker
     depends_on:
       - bitcoin
-      - stacks
-      - stacks-explorer
-      - stacks-api
       - mempool-web
       - miner
       - sbtc
