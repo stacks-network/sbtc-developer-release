@@ -298,12 +298,8 @@ impl State {
 							status: current_status,
 							has_pending_task,
 						} = req else {
-							if config.strict {
-								panic!("Got an {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
-							} else {
-								debug!("Ignoring {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
+						    debug!("Filtering stacks tx that is not acknowledged yet");
 								return false;
-							}
 						};
 
 						if txid != *current_txid {
@@ -373,12 +369,8 @@ impl State {
 					has_pending_task,
 				} = req
 				else {
-					if config.strict {
-						panic!("Got an {:?} status update for a Bitcoin transaction that is not acknowledged: txid {} req {:?}", status, txid, req);
-					} else {
-						debug!("Ignoring {:?} status update for a Bitcoin transaction that is not acknowledged: txid {} req {:?}", status, txid, req);
+						debug!("Filtering bitcoin tx that is not acknowledged yet");
 						return false;
-					};
 				};
 
 				if txid != *current_txid {
