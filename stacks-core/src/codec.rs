@@ -199,7 +199,8 @@ mod tests {
 	}
 
 	#[test]
-	fn should_fail_deserialize_recoverable_signature_with_invalid_id() {
+	fn should_fail_deserialize_recoverable_signature_with_recovery_id_bytes_out_of_bounds(
+	) {
 		let mut invalid_serialized_signature = Cursor::new(vec![4]);
 
 		let result = RecoverableSignature::deserialize(
@@ -216,7 +217,8 @@ mod tests {
 	}
 
 	#[test]
-	fn should_fail_deserialize_recoverable_signature_with_invalid_signature() {
+	fn should_fail_deserialize_recoverable_signature_with_signature_bytes_non_ecdsa(
+	) {
 		let mut invalid_serialized_signature = vec![0; 65];
 
 		invalid_serialized_signature[0] = 1;
