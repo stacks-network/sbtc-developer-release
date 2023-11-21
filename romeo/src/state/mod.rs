@@ -140,9 +140,12 @@ impl State {
 			}
 			Event::StacksTransactionUpdate(txid, status) => self
 				.process_stacks_transaction_update(txid, status, config.strict),
-			Event::BitcoinTransactionUpdate(txid, status) => {
-				self.process_bitcoin_transaction_update(txid, status, config)
-			}
+			Event::BitcoinTransactionUpdate(txid, status) => self
+				.process_bitcoin_transaction_update(
+					txid,
+					status,
+					config.strict,
+				),
 			Event::StacksBlock(height, txs) => {
 				self.process_stacks_block(height, txs)
 			}
@@ -317,14 +320,14 @@ impl State {
 		&mut self,
 		txid: BitcoinTxId,
 		status: TransactionStatus,
-		config: &Config,
+		strict: bool,
 	) -> Vec<Task> {
 		let State::Initialized { withdrawals, .. } = self else {
 			panic!("Cannot process Bitcoin transaction update when state is not initialized");
 		};
 
 		if status == TransactionStatus::Rejected {
-			if config.strict {
+			if strict {
 				panic!("Bitcoin transaction failed: {}", txid);
 			} else {
 				debug!("Bitcoin transaction failed: {}", txid);
@@ -339,11 +342,7 @@ impl State {
 					.as_mut()
 					.and_then(|req| {
 						tracing::debug!("Filtering btc txn");
-						req.filtered_acknowledged_ref_mut(
-							txid,
-							config.strict,
-							&status,
-						)
+						req.filtered_acknowledged_ref_mut(txid, strict, &status)
 					})
 					.and_then(|ack| ack.ok())
 			})
@@ -838,7 +837,10 @@ pub struct WithdrawalInfo {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
+
 	use assert_matches::assert_matches;
+	use bdk::bitcoin::hashes::Hash;
 
 	use super::*;
 
@@ -865,6 +867,130 @@ mod tests {
 				.first()
 				.unwrap(),
 			Task::FetchBitcoinBlock(101)
+		);
+	}
+
+	#[test]
+	fn process_stacks_transaction_update_initilized() {
+		let txid = StacksTxId::from_sighash_bytes(&[0; 32]);
+		let tx_req =
+			TransactionRequest::<StacksTxId>::Acknowledged(Acknowledged {
+				txid,
+				status: TransactionStatus::Broadcasted,
+				has_pending_task: true,
+			});
+
+		let d = Deposit {
+			info: DepositInfo {
+				txid: BitcoinTxId::from_slice([0; 32].as_slice()).unwrap(),
+				amount: 0,
+				recipient: PrincipalData::parse(
+					"ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+				)
+				.unwrap(),
+				block_height: 100,
+			},
+			mint: Some(tx_req),
+		};
+
+		let mut state = State::Initialized {
+			stacks_block_height: 1,
+			bitcoin_block_height: 100,
+			deposits: vec![d],
+			withdrawals: vec![],
+		};
+
+		assert!(state
+			.process_stacks_transaction_update(
+				txid,
+				TransactionStatus::Confirmed,
+				true,
+			)
+			.is_empty());
+
+		assert_matches!(
+			state,
+			State::Initialized {
+				deposits,
+				..
+			} => {
+				assert_matches!(
+					deposits.first().unwrap().mint,
+					Some(TransactionRequest::Acknowledged(Acknowledged {
+						has_pending_task: false,
+						status: TransactionStatus::Confirmed,
+						..
+					}))
+				)
+			}
+		);
+	}
+
+	#[test]
+	fn process_bitcoin_transaction_update_initilized() {
+		let txid = StacksTxId::from_sighash_bytes(&[0; 32]);
+		let bitcoin_txid = BitcoinTxId::from_slice([0; 32].as_slice()).unwrap();
+
+		let w = Withdrawal {
+			info: WithdrawalInfo {
+				txid: bitcoin_txid,
+				amount: 0,
+				block_height: 100,
+				source: PrincipalData::parse(
+					"ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+				)
+				.unwrap(),
+				recipient: BitcoinAddress::from_str(
+					"bcrt1q3tj2fr9scwmcw3rq5m6jslva65f2rqjxfrjz47",
+				)
+				.unwrap(),
+			},
+			burn: Some(TransactionRequest::<StacksTxId>::Acknowledged(
+				Acknowledged {
+					txid,
+					status: TransactionStatus::Broadcasted,
+					has_pending_task: true,
+				},
+			)),
+			fulfillment: Some(TransactionRequest::<BitcoinTxId>::Acknowledged(
+				Acknowledged {
+					txid: bitcoin_txid,
+					status: TransactionStatus::Broadcasted,
+					has_pending_task: true,
+				},
+			)),
+		};
+
+		let mut state = State::Initialized {
+			stacks_block_height: 1,
+			bitcoin_block_height: 100,
+			deposits: vec![],
+			withdrawals: vec![w],
+		};
+
+		assert!(state
+			.process_bitcoin_transaction_update(
+				bitcoin_txid,
+				TransactionStatus::Confirmed,
+				true,
+			)
+			.is_empty());
+
+		assert_matches!(
+			state,
+			State::Initialized {
+				withdrawals,
+				..
+			} => {
+				assert_matches!(
+					withdrawals.first().unwrap().fulfillment,
+					Some(TransactionRequest::Acknowledged(Acknowledged {
+						has_pending_task: false,
+						status: TransactionStatus::Confirmed,
+						..
+					}))
+				)
+			}
 		);
 	}
 }
