@@ -138,9 +138,8 @@ impl State {
 			Event::ContractPublicKeySetBroadcasted(txid) => {
 				self.process_set_contract_public_key(txid)
 			}
-			Event::StacksTransactionUpdate(txid, status) => {
-				self.process_stacks_transaction_update(txid, status, config)
-			}
+			Event::StacksTransactionUpdate(txid, status) => self
+				.process_stacks_transaction_update(txid, status, config.strict),
 			Event::BitcoinTransactionUpdate(txid, status) => {
 				self.process_bitcoin_transaction_update(txid, status, config)
 			}
@@ -219,7 +218,7 @@ impl State {
 		&mut self,
 		txid: StacksTxId,
 		status: TransactionStatus,
-		config: &Config,
+		strict: bool,
 	) -> Vec<Task> {
 		let mut tasks = self.get_bitcoin_transactions();
 
@@ -237,7 +236,7 @@ impl State {
 					has_pending_task,
 					..
 				}) = public_key_setup
-					.filtered_acknowledged_ref_mut(txid, config.strict, &status)
+					.filtered_acknowledged_ref_mut(txid, strict, &status)
 					.and_then(|res| res.ok())
 				{
 					tracing::debug!("Stacks txn {txid} update");
@@ -279,12 +278,8 @@ impl State {
 					)
 					.filter_map(|req| {
 						tracing::debug!("Filtering stacks txn");
-						req.filtered_acknowledged_ref_mut(
-							txid,
-							config.strict,
-							&status,
-						)
-						.and_then(|r| r.ok())
+						req.filtered_acknowledged_ref_mut(txid, strict, &status)
+							.and_then(|r| r.ok())
 					})
 					.map(
 						|Acknowledged {
@@ -839,4 +834,37 @@ pub struct WithdrawalInfo {
 	/// Height of the Bitcoin blockchain where this withdrawal request
 	/// transaction exists
 	pub block_height: u32,
+}
+
+#[cfg(test)]
+mod tests {
+	use assert_matches::assert_matches;
+
+	use super::*;
+
+	#[test]
+	fn process_stacks_transaction_update_positive_public_key_setup() {
+		let tx_req =
+			TransactionRequest::<StacksTxId>::Acknowledged(Acknowledged {
+				txid: StacksTxId::from_sighash_bytes(&[0; 32]),
+				status: TransactionStatus::Broadcasted,
+				has_pending_task: true,
+			});
+		let mut state = State::ContractPublicKeySetup {
+			stacks_block_height: 1,
+			bitcoin_block_height: 100,
+			public_key_setup: tx_req,
+		};
+		assert_matches!(
+			state
+				.process_stacks_transaction_update(
+					StacksTxId::from_sighash_bytes(&[0; 32]),
+					TransactionStatus::Confirmed,
+					true,
+				)
+				.first()
+				.unwrap(),
+			Task::FetchBitcoinBlock(101)
+		);
+	}
 }
