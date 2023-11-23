@@ -4,9 +4,9 @@ use std::io;
 
 use bdk::bitcoin::Amount as BitcoinAmount;
 
-use super::{Deserialize, Serialize};
+use super::{DeserializeBytes, SerializeBytes};
 
-impl Serialize for BitcoinAmount {
+impl SerializeBytes for BitcoinAmount {
 	fn write_buffer<WritableBuffer: io::Write>(
 		&self,
 		buffer: &mut WritableBuffer,
@@ -15,7 +15,7 @@ impl Serialize for BitcoinAmount {
 	}
 }
 
-impl Deserialize for BitcoinAmount {
+impl DeserializeBytes for BitcoinAmount {
 	fn read_buffer<ReadableBuffer: io::Read>(
 		buffer: &mut ReadableBuffer,
 	) -> io::Result<Self>

@@ -17,9 +17,11 @@ pub enum SerializationError {
 
 /// A trait for serializing data into a writable buffer.
 ///
-/// [Serialize] provides a mechanism to convert an instance of a type
+/// [SerializeBytes] provides a mechanism to convert an instance of a type
 /// into a series of bytes that can be written to an output stream or buffer.
-pub trait Serialize {
+/// This is useful when precise control of the byte structure is required during
+/// serialization.
+pub trait SerializeBytes {
 	/// Serializes the invoking object into the provided writable buffer.
 	fn serialize<WritableBuffer: io::Write>(
 		&self,
@@ -43,9 +45,10 @@ pub trait Serialize {
 
 /// A trait for deserializing data from a readable buffer.
 ///
-/// [Serialize] provides a mechanism to convert a series of bytes that can be
-/// read from an output stream or buffer into an instance of a type.
-pub trait Deserialize {
+/// [DeserializeBytes] provides a mechanism to convert a series of bytes that can be
+/// read from an output stream or buffer into an instance of a type. This is useful
+/// when precise control of the byte structure is required during serialization.
+pub trait DeserializeBytes {
 	/// Deserializes an object from the provided readable buffer.
 	fn deserialize<ReadableBuffer: io::Read>(
 		src: &mut ReadableBuffer,
