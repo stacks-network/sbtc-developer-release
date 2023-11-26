@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::StacksResult;
 
 pub mod amount;
+pub mod recoverable_signature;
 
 /// Errors resulting from serialization.
 #[derive(Error, Debug)]
