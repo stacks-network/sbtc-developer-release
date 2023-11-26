@@ -11,6 +11,8 @@ use strum::{Display, EnumIter, EnumString, FromRepr};
 use thiserror::Error;
 use uint::Uint256;
 
+use serialize::SerializationError;
+
 /// Module for interacting with stacks addresses
 pub mod address;
 /// Module for c32 encoding and decoding
@@ -24,6 +26,8 @@ pub mod uint;
 /// Module for utility functions
 pub mod utils;
 pub mod wallet;
+
+pub mod serialize;
 
 /// Error type for the stacks-core library
 #[derive(Error, Debug)]
@@ -49,6 +53,9 @@ pub enum StacksError {
 	#[error("Codec error: {0}")]
 	/// Codec error
 	CodecError(#[from] CodecError),
+	/// Serialization error
+	#[error("Serialization error: {0}")]
+	SerializationError(#[from] SerializationError),
 	#[error("Invalid data: {0}")]
 	/// Invalid data
 	InvalidData(String),
