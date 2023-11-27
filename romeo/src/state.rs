@@ -1,6 +1,6 @@
 //! State
 
-use std::{io::Cursor, iter};
+use std::io::Cursor;
 
 use bdk::bitcoin::{Address as BitcoinAddress, Block, Txid as BitcoinTxId};
 use blockstack_lib::{
@@ -12,7 +12,7 @@ use sbtc_core::operations::{
 	op_return, op_return::withdrawal_request::WithdrawalRequestData,
 };
 use stacks_core::codec::Codec;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::{
 	config::Config,
@@ -86,12 +86,9 @@ impl State {
 				deposits,
 				withdrawals,
 			} => {
-				iter::empty()
-					.chain(
-						deposits
-							.iter_mut()
-							.filter_map(|deposit| deposit.mint.as_mut()),
-					)
+				deposits
+					.iter_mut()
+					.filter_map(|deposit| deposit.mint.as_mut())
 					.chain(
 						withdrawals
 							.iter_mut()
@@ -128,11 +125,9 @@ impl State {
 		}
 	}
 
-	/// Updates the state and return new tasks to be schedules
+	/// Updates the state and return new tasks to be scheduled
 	#[tracing::instrument(skip(self, config))]
 	pub fn update(&mut self, event: Event, config: &Config) -> Vec<Task> {
-		info!("Processing");
-
 		match event {
 			Event::ContractBlockHeight(stacks_height, bitcoin_height) => self
 				.process_contract_block_height(stacks_height, bitcoin_height)
@@ -296,12 +291,7 @@ impl State {
 				withdrawals,
 				..
 			} => {
-				let statuses_updated: usize = iter::empty()
-					.chain(
-						deposits
-							.iter_mut()
-							.filter_map(|deposit| deposit.mint.as_mut()),
-					)
+				let statuses_updated: usize = deposits.iter_mut().filter_map(|deposit| deposit.mint.as_mut())
 					.chain(
 						withdrawals
 							.iter_mut()
@@ -312,8 +302,7 @@ impl State {
 							txid: current_txid,
 							status: current_status,
 							has_pending_task,
-						} = req
-						else {
+						} = req else {
 							if config.strict {
 								panic!("Got an {:?} status update for a Stacks transaction that is not acknowledged: {}", status, txid);
 							} else {
@@ -333,7 +322,7 @@ impl State {
 								);
 							} else {
 								debug!(
-									"Igno anring {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
+									"Ignoring {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
 								);
 							}
 					    }
@@ -342,7 +331,8 @@ impl State {
 					    *has_pending_task = false;
 
 					    true
-					}).map(|updated| updated as usize).sum();
+					})
+                    .map(|updated| updated as usize).sum();
 
 				Some(statuses_updated)
 			}

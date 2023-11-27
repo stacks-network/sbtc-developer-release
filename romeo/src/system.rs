@@ -134,8 +134,6 @@ fn spawn(
 	task: Task,
 	result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
-	info!("Spawning");
-
 	tokio::task::spawn(async move {
 		let event =
 			run_task(&config, bitcoin_client, stacks_client, task).await;
