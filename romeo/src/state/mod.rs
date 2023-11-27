@@ -1,6 +1,7 @@
 //! State
 
 use std::io::Cursor;
+pub mod transaction_request;
 
 use bdk::bitcoin::{Address as BitcoinAddress, Block, Txid as BitcoinTxId};
 use blockstack_lib::{
@@ -13,6 +14,7 @@ use sbtc_core::operations::{
 };
 use stacks_core::codec::Codec;
 use tracing::debug;
+use transaction_request::{Acknowledged, TransactionRequest};
 
 use crate::{
 	config::Config,
@@ -26,7 +28,7 @@ const STX_TRANSACTION_DELAY_BLOCKS: u32 = 1;
 
 /// Romeo internal state
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum State {
+pub(crate) enum State {
 	/// Starting state without any data
 	Uninitialized,
 
@@ -95,10 +97,11 @@ impl State {
 							.filter_map(|withdrawal| withdrawal.burn.as_mut()),
 					)
 					.for_each(|req| {
-						if let TransactionRequest::Acknowledged {
-							has_pending_task,
-							..
-						} = req
+						if let TransactionRequest::Acknowledged(
+							Acknowledged {
+								has_pending_task, ..
+							},
+						) = req
 						{
 							*has_pending_task = false;
 						}
@@ -108,10 +111,11 @@ impl State {
 					.iter_mut()
 					.filter_map(|withdrawal| withdrawal.fulfillment.as_mut())
 					.for_each(|req| {
-						if let TransactionRequest::Acknowledged {
-							has_pending_task,
-							..
-						} = req
+						if let TransactionRequest::Acknowledged(
+							Acknowledged {
+								has_pending_task, ..
+							},
+						) = req
 						{
 							*has_pending_task = false;
 						}
@@ -201,11 +205,11 @@ impl State {
 		*self = State::ContractPublicKeySetup {
 			stacks_block_height,
 			bitcoin_block_height,
-			public_key_setup: TransactionRequest::Acknowledged {
+			public_key_setup: TransactionRequest::Acknowledged(Acknowledged {
 				txid,
 				status: TransactionStatus::Broadcasted,
 				has_pending_task: false,
-			},
+			}),
 		};
 
 		vec![Task::FetchStacksBlock(stacks_block_height + 1)]
@@ -227,103 +231,76 @@ impl State {
 				bitcoin_block_height,
 				public_key_setup,
 			} => {
-				let TransactionRequest::Acknowledged {
-					txid: current_txid,
+				tracing::debug!("Filtering stacks' pubkey set");
+				if let Some(Acknowledged {
 					status: current_status,
 					has_pending_task,
-				} = public_key_setup
-				else {
-					if config.strict {
-						panic!("Got an {:?} status update for a public key set Stacks transaction that is not acknowledged: {}", status, txid);
-					} else {
-						debug!("Ignoring a Stacks transaction update for a non acknowledged transaction");
-						return vec![];
+					..
+				}) = public_key_setup
+					.filtered_acknowledged_ref_mut(txid, config.strict, &status)
+					.and_then(|res| res.ok())
+				{
+					tracing::debug!("Stacks txn {txid} update");
+
+					*current_status = status.clone();
+					*has_pending_task = false;
+
+					if *current_status == TransactionStatus::Confirmed {
+						let bitcoin_block_height = *bitcoin_block_height;
+
+						*self = Self::Initialized {
+							stacks_block_height: *stacks_block_height,
+							bitcoin_block_height,
+							deposits: vec![],
+							withdrawals: vec![],
+						};
+
+						tasks.push(Task::FetchBitcoinBlock(
+							bitcoin_block_height + 1,
+						));
 					}
-				};
-
-				if txid != *current_txid {
-					if config.strict {
-						panic!("Got an {:?} status update for a Stacks transaction that is not public key set: {}", status, txid);
-					} else {
-						debug!("Ignoring a Stacks transaction update for a non public key set transaction");
-						return vec![];
-					}
+					Some(1)
+				} else {
+					Some(0)
 				}
-
-				if !*has_pending_task {
-					if config.strict {
-						panic!(
-				            "Got an {:?} status update for a public key set Stacks transaction that doesn't have a pending task: {}", status, txid
-				        );
-					} else {
-						debug!("Ignoring a Stacks transaction update for a transaction that doesn't have a pending task");
-						return vec![];
-					}
-				}
-
-				*current_status = status.clone();
-				*has_pending_task = false;
-
-				if *current_status == TransactionStatus::Confirmed {
-					let bitcoin_block_height = *bitcoin_block_height;
-
-					*self = Self::Initialized {
-						stacks_block_height: *stacks_block_height,
-						bitcoin_block_height,
-						deposits: vec![],
-						withdrawals: vec![],
-					};
-
-					tasks.push(Task::FetchBitcoinBlock(
-						bitcoin_block_height + 1,
-					));
-				}
-
-				Some(1)
 			}
 			State::Initialized {
 				deposits,
 				withdrawals,
 				..
 			} => {
-				let statuses_updated: usize = deposits.iter_mut().filter_map(|deposit| deposit.mint.as_mut())
+				let statuses_updated: usize = deposits
+					.iter_mut()
+					.filter_map(|deposit| deposit.mint.as_mut())
 					.chain(
 						withdrawals
 							.iter_mut()
 							.filter_map(|withdrawal| withdrawal.burn.as_mut()),
 					)
-					.map(|req| {
-						let TransactionRequest::Acknowledged {
-							txid: current_txid,
-							status: current_status,
-							has_pending_task,
-						} = req else {
-						    debug!("Filtering stacks tx that is not acknowledged yet");
-								return false;
-						};
-
-						if txid != *current_txid {
-							return false;
-						}
-
-					    if !*has_pending_task {
-							if config.strict {
-								panic!(
-									"Got an {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
-								);
-							} else {
-								debug!(
-									"Ignoring {:?} status update for a Stacks transaction that doesn't have a pending task: {}", status, txid
-								);
-							}
-					    }
-
-					    *current_status = status.clone();
-					    *has_pending_task = false;
-
-					    true
+					.filter_map(|req| {
+						tracing::debug!("Filtering stacks txn");
+						req.filtered_acknowledged_ref_mut(
+							txid,
+							config.strict,
+							&status,
+						)
+						.and_then(|r| r.ok())
 					})
-                    .map(|updated| updated as usize).sum();
+					.map(
+						|Acknowledged {
+						     status: current_status,
+						     has_pending_task,
+						     ..
+						 }| {
+							tracing::debug!("Stacks txn {txid} update");
+
+							*current_status = status.clone();
+							*has_pending_task = false;
+
+							1
+						},
+					)
+					.sum();
 
 				Some(statuses_updated)
 			}
@@ -360,41 +337,28 @@ impl State {
 		}
 
 		let statuses_updated: usize = withdrawals
-	        .iter_mut()
-	        .filter_map(|withdrawal| withdrawal.fulfillment.as_mut())
-			.map(|req| {
-				let TransactionRequest::Acknowledged {
-					txid: current_txid,
-					status: current_status,
-					has_pending_task,
-				} = req
-				else {
-						debug!("Filtering bitcoin tx that is not acknowledged yet");
-						return false;
-				};
-
-				if txid != *current_txid {
-					return false;
-				}
-
-			    if !*has_pending_task {
-					if config.strict {
-			        panic!(
-			            "Got an {:?} status update for a Bitcoin transaction that doesn't have a pending task: {}", status, txid
-			        );
-				} else {
-					debug!(
-			            "Ignoring {:?} status update for a Bitcoin transaction that doesn't have a pending task: {}", status, txid
-			        );
-						return false;
-				}
-			    }
-
-			    *current_status = status.clone();
-			    *has_pending_task = false;
-
-			    true
-			}).map(|updated| updated as usize).sum();
+			.iter_mut()
+			.filter_map(|withdrawal| {
+				withdrawal
+					.fulfillment
+					.as_mut()
+					.and_then(|req| {
+						tracing::debug!("Filtering btc txn");
+						req.filtered_acknowledged_ref_mut(
+							txid,
+							config.strict,
+							&status,
+						)
+					})
+					.and_then(|ack| ack.ok())
+			})
+			.map(|ack| {
+				tracing::debug!("btc txn {txid} update");
+				ack.status = status.clone();
+				ack.has_pending_task = false;
+				1
+			})
+			.sum();
 
 		if statuses_updated != 1 {
 			panic!(
@@ -470,10 +434,10 @@ impl State {
 		withdrawals
 			.iter_mut()
 			.filter_map(|withdrawal| match withdrawal.burn {
-				Some(TransactionRequest::Acknowledged {
+				Some(TransactionRequest::Acknowledged(Acknowledged {
 					status: TransactionStatus::Confirmed,
 					..
-				}) => match withdrawal.fulfillment.as_mut() {
+				})) => match withdrawal.fulfillment.as_mut() {
 					None => {
 						withdrawal.fulfillment =
 							Some(TransactionRequest::Created);
@@ -601,11 +565,11 @@ impl State {
 
 		reqs.into_iter()
 			.filter_map(|req| match req {
-				TransactionRequest::Acknowledged {
+				TransactionRequest::Acknowledged(Acknowledged {
 					txid,
 					status: TransactionStatus::Broadcasted,
 					has_pending_task,
-				} if !*has_pending_task => {
+				}) if !*has_pending_task => {
 					*has_pending_task = true;
 					Some(Task::CheckStacksTransactionStatus(*txid))
 				}
@@ -620,11 +584,11 @@ impl State {
 				.iter_mut()
 				.filter_map(|withdrawal| withdrawal.fulfillment.as_mut())
 				.filter_map(|req| match req {
-					TransactionRequest::Acknowledged {
+					TransactionRequest::Acknowledged(Acknowledged {
 						txid,
 						status: TransactionStatus::Broadcasted,
 						has_pending_task,
-					} if !*has_pending_task => {
+					}) if !*has_pending_task => {
 						*has_pending_task = true;
 						Some(Task::CheckBitcoinTransactionStatus(*txid))
 					}
@@ -658,11 +622,11 @@ impl State {
 			);
 		}
 
-		deposit.mint = Some(TransactionRequest::Acknowledged {
+		deposit.mint = Some(TransactionRequest::Acknowledged(Acknowledged {
 			txid,
 			status: TransactionStatus::Broadcasted,
 			has_pending_task: false,
-		});
+		}));
 	}
 
 	fn process_burn_broadcasted(
@@ -687,11 +651,12 @@ impl State {
 			);
 		}
 
-		withdrawal.burn = Some(TransactionRequest::Acknowledged {
-			txid,
-			status: TransactionStatus::Broadcasted,
-			has_pending_task: false,
-		});
+		withdrawal.burn =
+			Some(TransactionRequest::Acknowledged(Acknowledged {
+				txid,
+				status: TransactionStatus::Broadcasted,
+				has_pending_task: false,
+			}));
 	}
 
 	fn process_fulfillment_broadcasted(
@@ -716,11 +681,12 @@ impl State {
 		);
 		}
 
-		withdrawal.fulfillment = Some(TransactionRequest::Acknowledged {
-			txid,
-			status: TransactionStatus::Broadcasted,
-			has_pending_task: false,
-		});
+		withdrawal.fulfillment =
+			Some(TransactionRequest::Acknowledged(Acknowledged {
+				txid,
+				status: TransactionStatus::Broadcasted,
+				has_pending_task: false,
+			}));
 	}
 }
 
@@ -822,27 +788,6 @@ fn parse_withdrawals(config: &Config, block: &Block) -> Vec<Withdrawal> {
 			)
 		})
 		.collect()
-}
-
-/// A transaction request
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum TransactionRequest<T> {
-	/// Scheduled to be created at a given stacks block height.
-	Scheduled {
-		/// The stacks block height at which the transaction should be created.
-		block_height: u32,
-	},
-	/// Created and passed on to a task
-	Created,
-	/// Acknowledged by a task with the status update
-	Acknowledged {
-		/// The transaction ID
-		txid: T,
-		/// The status of the transaction
-		status: TransactionStatus,
-		/// Whether the task has a pending request
-		has_pending_task: bool,
-	},
 }
 
 /// A parsed deposit

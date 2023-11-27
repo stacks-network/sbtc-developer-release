@@ -243,8 +243,7 @@ async fn update_contract_public_key(
 			.bitcoin_credentials
 			.public_key_p2tr()
 			.serialize()
-			.try_into()
-			.unwrap(),
+			.into(),
 	)
 	.expect("Cannot convert public key into a Clarity Value")];
 
