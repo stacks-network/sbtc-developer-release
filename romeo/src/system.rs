@@ -1,7 +1,8 @@
 //! System
 
-use std::{fs::create_dir_all, io::Cursor};
+use std::{fs::create_dir_all, io::Cursor, time::Duration};
 
+use anyhow::anyhow;
 use bdk::bitcoin::Txid as BitcoinTxId;
 use blockstack_lib::{
 	burnchains::Txid as StacksTxId,
@@ -20,6 +21,7 @@ use tokio::{
 	io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
 	sync::mpsc,
 	task::JoinHandle,
+	time::sleep,
 };
 use tracing::{debug, info, trace};
 
@@ -33,11 +35,6 @@ use crate::{
 	state::{DepositInfo, WithdrawalInfo},
 	task::Task,
 };
-
-const DUMMY_STACKS_ID: StacksTxId = StacksTxId([
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0,
-]);
 
 /// The main run loop of this system.
 /// This function feeds all events to the `state::update` function and spawns
@@ -134,8 +131,6 @@ fn spawn(
 	task: Task,
 	result: mpsc::Sender<Event>,
 ) -> JoinHandle<()> {
-	info!("Spawning");
-
 	tokio::task::spawn(async move {
 		let event =
 			run_task(&config, bitcoin_client, stacks_client, task).await;
@@ -156,20 +151,41 @@ async fn run_task(
 		Task::UpdateContractPublicKey => {
 			update_contract_public_key(config, stacks_client).await
 		}
-		Task::CreateMint(deposit_info) => {
-			mint_asset(config, bitcoin_client, stacks_client, deposit_info)
-				.await
-		}
-		Task::CreateBurn(withdrawal_info) => {
-			burn_asset(config, bitcoin_client, stacks_client, withdrawal_info)
-				.await
-		}
+		// dont consume task, if it fails, resubmit the task.
+		Task::CreateMint(deposit_info) => loop {
+			if let Ok(event) = mint_asset(
+				config,
+				&bitcoin_client,
+				&stacks_client,
+				&deposit_info,
+			)
+			.await
+			{
+				break event;
+			} else {
+				sleep(Duration::from_secs(1)).await;
+			}
+		},
+		Task::CreateBurn(withdrawal_info) => loop {
+			if let Ok(event) = burn_asset(
+				config,
+				&bitcoin_client,
+				&stacks_client,
+				&withdrawal_info,
+			)
+			.await
+			{
+				break event;
+			} else {
+				sleep(Duration::from_secs(1)).await;
+			}
+		},
 		Task::CreateFulfillment(fulfillment_info) => {
 			fulfill_asset(
 				config,
-				bitcoin_client,
-				stacks_client,
-				fulfillment_info,
+				&bitcoin_client,
+				&stacks_client,
+				&fulfillment_info,
 			)
 			.await
 		}
@@ -227,8 +243,7 @@ async fn update_contract_public_key(
 			.bitcoin_credentials
 			.public_key_p2tr()
 			.serialize()
-			.try_into()
-			.unwrap(),
+			.into(),
 	)
 	.expect("Cannot convert public key into a Clarity Value")];
 
@@ -264,12 +279,12 @@ async fn update_contract_public_key(
 
 async fn mint_asset(
 	config: &Config,
-	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
-	deposit_info: DepositInfo,
-) -> Event {
+	bitcoin_client: &BitcoinClient,
+	stacks_client: &LockedClient,
+	deposit_info: &DepositInfo,
+) -> anyhow::Result<Event> {
 	let proof_data = get_tx_proof(
-		&bitcoin_client,
+		bitcoin_client,
 		deposit_info.block_height,
 		deposit_info.txid,
 	)
@@ -315,7 +330,7 @@ async fn mint_asset(
 	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
 	match stacks_client.lock().await.sign_and_broadcast(tx).await {
-		Ok(txid) => Event::MintBroadcasted(deposit_info, txid),
+		Ok(txid) => Ok(Event::MintBroadcasted(deposit_info.clone(), txid)),
 		Err(err) => {
 			if config.strict {
 				panic!(
@@ -324,7 +339,7 @@ async fn mint_asset(
 				);
 			} else {
 				debug!("Ignoring failure to sign and broadcast the mint transaction: {}", err);
-				Event::MintBroadcasted(deposit_info, DUMMY_STACKS_ID)
+				Err(anyhow!(err))
 			}
 		}
 	}
@@ -332,12 +347,12 @@ async fn mint_asset(
 
 async fn burn_asset(
 	config: &Config,
-	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
-	withdrawal_info: WithdrawalInfo,
-) -> Event {
+	bitcoin_client: &BitcoinClient,
+	stacks_client: &LockedClient,
+	withdrawal_info: &WithdrawalInfo,
+) -> anyhow::Result<Event> {
 	let proof_data = get_tx_proof(
-		&bitcoin_client,
+		bitcoin_client,
 		withdrawal_info.block_height,
 		withdrawal_info.txid,
 	)
@@ -383,7 +398,7 @@ async fn burn_asset(
 	let tx = StacksTransaction::new(tx_version, tx_auth, tx_payload);
 
 	match stacks_client.lock().await.sign_and_broadcast(tx).await {
-		Ok(txid) => Event::BurnBroadcasted(withdrawal_info, txid),
+		Ok(txid) => Ok(Event::BurnBroadcasted(withdrawal_info.clone(), txid)),
 		Err(err) => {
 			if config.strict {
 				panic!(
@@ -392,7 +407,7 @@ async fn burn_asset(
 				);
 			} else {
 				debug!("Ignoring failure to sign and broadcast the burn transaction: {}", err);
-				Event::BurnBroadcasted(withdrawal_info, DUMMY_STACKS_ID)
+				Err(anyhow!(err))
 			}
 		}
 	}
@@ -400,9 +415,9 @@ async fn burn_asset(
 
 async fn fulfill_asset(
 	config: &Config,
-	bitcoin_client: BitcoinClient,
-	stacks_client: LockedClient,
-	withdrawal_info: WithdrawalInfo,
+	bitcoin_client: &BitcoinClient,
+	stacks_client: &LockedClient,
+	withdrawal_info: &WithdrawalInfo,
 ) -> Event {
 	let stacks_chain_tip = stacks_client
 		.lock()
@@ -426,7 +441,7 @@ async fn fulfill_asset(
 		"Unable to sign and broadcast the withdrawal fulfillment transaction",
 	);
 
-	Event::FulfillBroadcasted(withdrawal_info, txid)
+	Event::FulfillBroadcasted(withdrawal_info.clone(), txid)
 }
 
 async fn get_tx_proof(
